@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1.0",
+  "command": "inspect",
+  "ok": true,
+  "result": {
+    "name": "synthetic_circular",
+    "length": 20,
+    "topology": "circular",
+    "feature_count": 2,
+    "primer_count": 1,
+    "warnings": [
+      {
+        "code": "snapgene_packet_not_interpreted",
+        "message": "preserved uninterpreted packet 0x1c (23 bytes)",
+        "packet_type": 28
+      }
+    ]
+  }
+}

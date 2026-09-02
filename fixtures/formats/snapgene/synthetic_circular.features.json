@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.1.0",
+  "command": "features",
+  "ok": true,
+  "result": [
+    {
+      "id": "feature-0001",
+      "label": "forward_feature",
+      "kind": "misc_feature",
+      "strand": "forward",
+      "location": {
+        "parts": [
+          {
+            "kind": "linear",
+            "start": 2,
+            "end": 8
+          }
+        ],
+        "strand": "forward",
+        "operator": "contiguous"
+      },
+      "color": "#4c78a8"
+    },
+    {
+      "id": "feature-0002",
+      "label": "origin_wrap",
+      "kind": "promoter",
+      "strand": "reverse",
+      "location": {
+        "parts": [
+          {
+            "kind": "circular_arc",
+            "start": 17,
+            "length": 5
+          }
+        ],
+        "strand": "reverse",
+        "operator": "contiguous"
+      },
+      "color": "#e45756"
+    }
+  ]
+}

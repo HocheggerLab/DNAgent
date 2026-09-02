@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/dnagent-domain",
+    "crates/dnagent-formats",
+    "crates/dnagent-format-snapgene",
+    "crates/dnagent-app",
+    "crates/dnagent-render",
+    "crates/dnagent-gui",
+    "crates/dnagent-cli",
+]
+default-members = ["crates/dnagent-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+license = "MIT"
+repository = "https://github.com/Helfrid/dnagent"
+
+[workspace.dependencies]
+clap = { version = "4.6.6", features = ["derive"] }
+eframe = "=0.35.0"
+quick-xml = { version = "0.42.0", features = ["serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+doc_markdown = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"

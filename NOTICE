@@ -1,0 +1,17 @@
+DNAagent third-party notices
+============================
+
+SnapGene migration adapter
+--------------------------
+
+The packet framing and XML data-transfer structures in
+`crates/dnagent-format-snapgene` are informed by and partly adapted from
+PlasCAD, commit 717459dcd780ec4266e9a2aa15297eae31956da5:
+
+    https://github.com/David-OConnor/PlasCAD
+
+PlasCAD is Copyright (c) 2025 David O'Connor and licensed under the MIT
+License. The complete notice is retained in `licenses/PlasCAD-MIT.txt`.
+
+DNAagent does not reuse PlasCAD's domain model, global application state,
+GenBank conversion, digest/ligation implementation, or GUI rendering code.

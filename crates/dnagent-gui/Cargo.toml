@@ -1,0 +1,17 @@
+[package]
+name = "dnagent-gui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+dnagent-app = { path = "../dnagent-app" }
+dnagent-domain = { path = "../dnagent-domain" }
+dnagent-formats = { path = "../dnagent-formats" }
+dnagent-render = { path = "../dnagent-render" }
+eframe.workspace = true
+
+[lints]
+workspace = true
