@@ -1,6 +1,7 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
-use dnagent_domain::{Location, SequenceRecord, Strand, Topology};
+use dnagent_domain::restriction::{self, RestrictionError, RestrictionScan};
+use dnagent_domain::{ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology};
 use dnagent_formats::{ImportError, ImportReport, ImportWarning};
 use serde::Serialize;
 use std::path::Path;
@@ -19,6 +20,12 @@ pub enum AppError {
     UnsupportedExtension(String),
     #[error(transparent)]
     Import(#[from] ImportError),
+    #[error(
+        "strict mode rejected {count} warning(s); inspect the warnings or retry without --strict"
+    )]
+    ImportWarnings { count: usize },
+    #[error(transparent)]
+    Restriction(#[from] RestrictionError),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -42,6 +49,18 @@ pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
         .and_then(|value| value.to_str())
         .unwrap_or("untitled");
     Ok(dnagent_format_snapgene::import_bytes(&bytes, name)?)
+}
+
+/// Reject any reported import limitation, including preserved uninterpreted metadata.
+/// No claim of complete format support is made for warning-free imports.
+pub fn require_warning_free_import(report: &ImportReport) -> Result<(), AppError> {
+    if report.warnings.is_empty() {
+        Ok(())
+    } else {
+        Err(AppError::ImportWarnings {
+            count: report.warnings.len(),
+        })
+    }
 }
 
 /// Compact record projection used by terminal and GUI headers.
@@ -80,6 +99,7 @@ pub struct FeatureView {
     pub strand: Strand,
     pub location: Location,
     pub color: Option<String>,
+    pub qualifiers: Vec<Qualifier>,
 }
 
 /// Build deterministic feature-list rows in source order.
@@ -95,8 +115,44 @@ pub fn feature_views(record: &SequenceRecord) -> Vec<FeatureView> {
             strand: feature.location().strand(),
             location: feature.location().clone(),
             color: feature.display().color.clone(),
+            qualifiers: feature.qualifiers().to_vec(),
         })
         .collect()
+}
+
+/// Retained primer sequences in source order, not inferred binding sites or new designs.
+#[must_use]
+pub fn primer_views(record: &SequenceRecord) -> &[ImportedPrimer] {
+    record.primers()
+}
+
+/// A restriction result plus new analysis warnings (import warnings remain on the input report).
+pub struct RestrictionView {
+    pub result: RestrictionScan,
+    pub warnings: Vec<ImportWarning>,
+}
+
+pub fn restriction_sites(
+    record: &SequenceRecord,
+    names: &[String],
+) -> Result<RestrictionView, AppError> {
+    let result = restriction::find_sites(record.sequence(), record.topology(), names)?;
+    let unavailable = result
+        .sites
+        .iter()
+        .filter(|s| !s.cleavage_available)
+        .count();
+    let warnings = if unavailable == 0 {
+        vec![]
+    } else {
+        vec![ImportWarning::new(
+            "restriction_cut_out_of_bounds",
+            format!(
+                "{unavailable} recognition site(s) have cuts outside the linear molecule; no cleavage is inferred for those sites"
+            ),
+        )]
+    };
+    Ok(RestrictionView { result, warnings })
 }
 
 /// Checked sequence-range projection.
@@ -132,6 +188,31 @@ pub fn sequence_range(
 mod tests {
     use super::*;
     use dnagent_domain::DnaSeq;
+
+    #[test]
+    fn warning_free_policy_rejects_even_preserved_metadata() {
+        let mut report = ImportReport {
+            record: SequenceRecord::new(
+                "test",
+                DnaSeq::new("ACGT").unwrap(),
+                Topology::Linear,
+                vec![],
+                vec![],
+            )
+            .unwrap(),
+            warnings: vec![],
+            preserved_metadata: dnagent_formats::FormatExtensions::default(),
+        };
+        assert!(require_warning_free_import(&report).is_ok());
+        report.warnings.push(ImportWarning::new(
+            "snapgene_packet_not_interpreted",
+            "preserved opaque packet",
+        ));
+        assert!(matches!(
+            require_warning_free_import(&report),
+            Err(AppError::ImportWarnings { count: 1 })
+        ));
+    }
 
     #[test]
     fn sequence_ranges_are_half_open() {

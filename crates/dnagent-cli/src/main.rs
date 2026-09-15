@@ -1,9 +1,16 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use dnagent_app::{InspectView, feature_views, open_path, sequence_range};
+use dnagent_app::{
+    AppError, InspectView, feature_views, open_path, primer_views, require_warning_free_import,
+    restriction_sites, sequence_range,
+};
+use dnagent_domain::restriction::ENZYMES;
+use dnagent_formats::{ImportReport, ImportWarning};
 use dnagent_render::MapScene;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+const SCHEMA_VERSION: &str = "0.3.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -12,6 +19,9 @@ use std::process::ExitCode;
     about = "Agent-friendly DNA design and cloning workbench"
 )]
 struct Cli {
+    /// Reject any import warning, including preserved uninterpreted metadata (CLI only).
+    #[arg(long, global = true)]
+    strict: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -30,11 +40,30 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
+    /// List retained primers (not predicted binding sites).
+    Primers {
+        input: PathBuf,
+        #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+        output: OutputMode,
+    },
     /// Print a zero-based, half-open sequence range.
     Sequence {
         input: PathBuf,
         #[arg(long, value_parser = parse_range)]
         range: Option<(usize, usize)>,
+        #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+        output: OutputMode,
+    },
+    /// List the supported restriction enzymes and cleavage offsets.
+    Enzymes {
+        #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+        output: OutputMode,
+    },
+    /// Find restriction recognition sites and nominal cut positions (not a digest).
+    Sites {
+        input: PathBuf,
+        #[arg(long, value_delimiter = ',', required = true)]
+        enzymes: Vec<String>,
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
@@ -44,7 +73,8 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
-    /// Open the desktop viewer.
+    /// Open the desktop viewer (requires the gui build feature).
+    #[cfg(feature = "gui")]
     Gui { input: Option<PathBuf> },
 }
 
@@ -53,8 +83,12 @@ impl Command {
         match self {
             Self::Inspect { .. } => "inspect",
             Self::Features { .. } => "features",
+            Self::Primers { .. } => "primers",
             Self::Sequence { .. } => "sequence",
             Self::Map { .. } => "map",
+            Self::Enzymes { .. } => "enzymes",
+            Self::Sites { .. } => "sites",
+            #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
     }
@@ -63,8 +97,12 @@ impl Command {
         match self {
             Self::Inspect { output, .. }
             | Self::Features { output, .. }
+            | Self::Primers { output, .. }
+            | Self::Enzymes { output, .. }
+            | Self::Sites { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::Map { .. } => true,
+            #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
         }
     }
@@ -82,6 +120,7 @@ struct Envelope<T> {
     command: &'static str,
     ok: bool,
     result: T,
+    warnings: Vec<ImportWarning>,
 }
 
 #[derive(Debug, Serialize)]
@@ -95,6 +134,7 @@ struct ErrorEnvelope<'a> {
     command: &'static str,
     ok: bool,
     error: ErrorBody<'a>,
+    warnings: Vec<ImportWarning>,
 }
 
 #[derive(Debug, Serialize)]
@@ -107,19 +147,33 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let command = cli.command.name();
     let requests_json = cli.command.requests_json();
-    match run(cli) {
+    let mut warnings = Vec::new();
+    match run(cli, &mut warnings) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             if requests_json {
                 let message = error.to_string();
                 let envelope = ErrorEnvelope {
-                    schema_version: "0.1.0",
+                    schema_version: SCHEMA_VERSION,
                     command,
                     ok: false,
                     error: ErrorBody {
-                        code: "command_failed",
+                        code: if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::ImportWarnings { .. })
+                        ) {
+                            "import_warnings"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Restriction(_))
+                        ) {
+                            "restriction_scan_failed"
+                        } else {
+                            "command_failed"
+                        },
                         message: &message,
                     },
+                    warnings,
                 };
                 println!(
                     "{}",
@@ -134,30 +188,33 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::error::Error>> {
+    let strict = cli.strict;
+    #[cfg(feature = "gui")]
+    if strict && matches!(cli.command, Command::Gui { .. }) {
+        return Err("--strict is supported only for CLI import commands, not gui".into());
+    }
+    let requests_json = cli.command.requests_json();
     match cli.command {
         Command::Inspect { input, output } => {
-            let report = open_path(&input)?;
+            let report = load_input(&input, strict, requests_json, warnings)?;
             let view = InspectView::from_report(&report);
             match output {
-                OutputMode::Json => print_json("inspect", &view)?,
+                OutputMode::Json => print_json("inspect", &view, warnings)?,
                 OutputMode::Text => {
                     println!("{}", view.name);
                     println!("length: {} bp", view.length);
                     println!("topology: {:?}", view.topology);
                     println!("features: {}", view.feature_count);
                     println!("primers: {}", view.primer_count);
-                    for warning in view.warnings {
-                        println!("warning [{}]: {}", warning.code, warning.message);
-                    }
                 }
             }
         }
         Command::Features { input, output } => {
-            let report = open_path(&input)?;
+            let report = load_input(&input, strict, requests_json, warnings)?;
             let features = feature_views(&report.record);
             match output {
-                OutputMode::Json => print_json("features", &features)?,
+                OutputMode::Json => print_json("features", &features, warnings)?,
                 OutputMode::Text => {
                     for feature in features {
                         println!(
@@ -172,21 +229,46 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        Command::Primers { input, output } => {
+            let report = load_input(&input, strict, requests_json, warnings)?;
+            let primers = primer_views(&report.record);
+            match output {
+                OutputMode::Json => print_json("primers", &primers, warnings)?,
+                OutputMode::Text => {
+                    for primer in primers {
+                        println!(
+                            "{}\t{}\t{}",
+                            primer.name,
+                            primer.sequence,
+                            primer.description.as_deref().unwrap_or("")
+                        );
+                    }
+                }
+            }
+        }
         Command::Sequence {
             input,
             range,
             output,
         } => {
-            let report = open_path(&input)?;
+            let report = load_input(&input, strict, requests_json, warnings)?;
             let (start, end) = range.unwrap_or((0, report.record.sequence().len()));
             let view = sequence_range(&report.record, start, end)?;
             match output {
-                OutputMode::Json => print_json("sequence", &view)?,
+                OutputMode::Json => print_json("sequence", &view, warnings)?,
                 OutputMode::Text => println!("{}", view.sequence),
             }
         }
+        Command::Enzymes { output } => print_enzymes(output, warnings)?,
+        Command::Sites {
+            input,
+            enzymes,
+            output,
+        } => {
+            run_sites(&input, &enzymes, output, strict, warnings)?;
+        }
         Command::Map { input, out } => {
-            let report = open_path(&input)?;
+            let report = load_input(&input, strict, requests_json, warnings)?;
             let svg = MapScene::from_record(&report.record).to_svg();
             std::fs::write(&out, svg)?;
             print_json(
@@ -194,19 +276,108 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 &MapResult {
                     output_path: out.display().to_string(),
                 },
+                warnings,
             )?;
         }
+        #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
     }
     Ok(())
 }
 
-fn print_json<T: Serialize>(command: &'static str, result: &T) -> Result<(), serde_json::Error> {
+fn print_enzymes(output: OutputMode, warnings: &[ImportWarning]) -> Result<(), serde_json::Error> {
+    match output {
+        OutputMode::Json => print_json("enzymes", &ENZYMES, warnings)?,
+        OutputMode::Text => {
+            println!("enzyme\trecognition\ttop_offset\tbottom_offset");
+            for enzyme in ENZYMES {
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    enzyme.name,
+                    enzyme.recognition_sequence,
+                    enzyme.top_cut_offset,
+                    enzyme.bottom_cut_offset
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_sites(
+    input: &Path,
+    enzymes: &[String],
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let requests_json = matches!(output, OutputMode::Json);
+    let report = load_input(input, strict, requests_json, warnings)?;
+    let view = restriction_sites(&report.record, enzymes)?;
+    if !requests_json {
+        for warning in &view.warnings {
+            eprintln!("warning [{}]: {}", warning.code, warning.message);
+        }
+    }
+    warnings.extend(view.warnings);
+    if strict && !warnings.is_empty() {
+        return Err(AppError::ImportWarnings {
+            count: warnings.len(),
+        }
+        .into());
+    }
+    match output {
+        OutputMode::Json => print_json("sites", &view.result, warnings)?,
+        OutputMode::Text => {
+            println!("Nominal cuts only; not a digest or prediction of experimental cleavage.");
+            println!("enzyme\tstart\tstrand\ttop_cut\tbottom_cut\toverhang\tlength");
+            for site in view.result.sites {
+                println!(
+                    "{}\t{}\t{:?}\t{:?}\t{:?}\t{:?}\t{}",
+                    site.enzyme,
+                    site.recognition.start().get(),
+                    site.strand,
+                    site.top_cut,
+                    site.bottom_cut,
+                    site.overhang_polarity,
+                    site.overhang_length
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn load_input(
+    path: &Path,
+    strict: bool,
+    requests_json: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<ImportReport, AppError> {
+    let report = open_path(path)?;
+    warnings.clone_from(&report.warnings);
+    if !requests_json {
+        for warning in warnings.iter() {
+            eprintln!("warning [{}]: {}", warning.code, warning.message);
+        }
+    }
+    if strict {
+        require_warning_free_import(&report)?;
+    }
+    Ok(report)
+}
+
+fn print_json<T: Serialize>(
+    command: &'static str,
+    result: &T,
+    warnings: &[ImportWarning],
+) -> Result<(), serde_json::Error> {
     let envelope = Envelope {
-        schema_version: "0.1.0",
+        schema_version: SCHEMA_VERSION,
         command,
         ok: true,
         result,
+        warnings: warnings.to_vec(),
     };
     println!("{}", serde_json::to_string_pretty(&envelope)?);
     Ok(())

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.3.0",
   "command": "features",
   "ok": true,
   "result": [
@@ -19,7 +19,8 @@
         "strand": "forward",
         "operator": "contiguous"
       },
-      "color": "#4c78a8"
+      "color": "#4c78a8",
+      "qualifiers": [{"key": "note", "value": "synthetic fixture"}]
     },
     {
       "id": "feature-0002",
@@ -37,7 +38,15 @@
         "strand": "reverse",
         "operator": "contiguous"
       },
-      "color": "#e45756"
+      "color": "#e45756",
+      "qualifiers": []
+    }
+  ],
+  "warnings": [
+    {
+      "code": "snapgene_packet_not_interpreted",
+      "message": "preserved uninterpreted packet 0x1c (23 bytes)",
+      "packet_type": 28
     }
   ]
 }

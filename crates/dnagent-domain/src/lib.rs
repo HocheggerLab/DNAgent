@@ -1,5 +1,7 @@
 //! Biological domain types shared by every DNAagent adapter.
 
+pub mod restriction;
+
 use serde::Serialize;
 use std::{collections::HashSet, fmt};
 use thiserror::Error;
@@ -21,6 +23,12 @@ pub enum DomainError {
     /// A location had no regions.
     #[error("a feature location must contain at least one region")]
     EmptyLocation,
+    /// The operator did not match the number of regions.
+    #[error("location operator {operator:?} is incompatible with {part_count} regions")]
+    InvalidLocationOperator {
+        operator: LocationOperator,
+        part_count: usize,
+    },
     /// A region did not fit the molecule.
     #[error("invalid region for molecule length {molecule_length}: {reason}")]
     InvalidRegion {
@@ -163,10 +171,20 @@ pub enum LocationOperator {
     Order,
 }
 
-/// A checked zero-based, half-open region.
+/// A checked zero-based, half-open region. Construction is only through checked methods.
+/// JSON retains the tagged `linear` / `circular_arc` representation.
+///
+/// ```compile_fail
+/// use dnagent_domain::{Position, Region};
+/// let invalid = Region::Linear { start: Position::new(9), end: Position::new(2) };
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct Region(RegionValue);
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Region {
+enum RegionValue {
     /// A conventional non-wrapping interval.
     Linear { start: Position, end: Position },
     /// A contiguous interval on a circle, represented by start and length.
@@ -182,10 +200,10 @@ impl Region {
                 format!("linear interval [{start}, {end})"),
             ));
         }
-        Ok(Self::Linear {
+        Ok(Self(RegionValue::Linear {
             start: Position::new(start),
             end: Position::new(end),
-        })
+        }))
     }
 
     /// Construct a checked circular arc.
@@ -200,27 +218,33 @@ impl Region {
                 format!("circular arc starting at {start} with length {length}"),
             ));
         }
-        Ok(Self::CircularArc {
+        Ok(Self(RegionValue::CircularArc {
             start: Position::new(start),
             length: Length::new(length).expect("length was checked as non-zero"),
-        })
+        }))
     }
 
     /// Return the first boundary on the stored forward record.
     #[must_use]
     pub const fn start(&self) -> Position {
-        match self {
-            Self::Linear { start, .. } | Self::CircularArc { start, .. } => *start,
+        match &self.0 {
+            RegionValue::Linear { start, .. } | RegionValue::CircularArc { start, .. } => *start,
         }
     }
 
     /// Return the number of bases represented by this region.
     #[must_use]
     pub const fn length(&self) -> Length {
-        match self {
-            Self::Linear { start, end } => Length(end.0 - start.0),
-            Self::CircularArc { length, .. } => *length,
+        match &self.0 {
+            RegionValue::Linear { start, end } => Length(end.0 - start.0),
+            RegionValue::CircularArc { length, .. } => *length,
         }
+    }
+
+    /// Whether this region requires circular topology.
+    #[must_use]
+    pub const fn is_circular_arc(&self) -> bool {
+        matches!(self.0, RegionValue::CircularArc { .. })
     }
 }
 
@@ -249,10 +273,10 @@ impl Location {
         if parts.is_empty() {
             return Err(DomainError::EmptyLocation);
         }
-        if parts.len() == 1 && operator != LocationOperator::Contiguous {
-            return Err(DomainError::InvalidRegion {
-                molecule_length: 0,
-                reason: "a single-region location must be contiguous".to_owned(),
+        if (parts.len() == 1) != (operator == LocationOperator::Contiguous) {
+            return Err(DomainError::InvalidLocationOperator {
+                operator,
+                part_count: parts.len(),
             });
         }
         Ok(Self {
@@ -415,14 +439,14 @@ impl SequenceRecord {
                 });
             }
             for region in feature.location().parts() {
-                match region {
-                    Region::Linear { end, .. } if end.get() > molecule_length => {
+                match &region.0 {
+                    RegionValue::Linear { end, .. } if end.get() > molecule_length => {
                         return Err(invalid_region(
                             molecule_length,
                             format!("feature {} extends to {}", feature.id().as_str(), end.get()),
                         ));
                     }
-                    Region::CircularArc { start, length }
+                    RegionValue::CircularArc { start, length }
                         if topology != Topology::Circular
                             || start.get() >= molecule_length
                             || length.get() > molecule_length =>
@@ -496,6 +520,83 @@ mod tests {
         let region = Region::circular_arc(8, 4, 10).unwrap();
         assert_eq!(region.start().get(), 8);
         assert_eq!(region.length().get(), 4);
+    }
+
+    #[test]
+    fn region_boundaries_are_checked_exhaustively_on_small_molecules() {
+        for size in 0..8 {
+            for start in 0..10 {
+                for end in 0..10 {
+                    let region = Region::linear(start, end, size);
+                    assert_eq!(region.is_ok(), start < end && end <= size);
+                    if let Ok(region) = region {
+                        assert_eq!(region.length().get(), end - start);
+                    }
+                    let arc = Region::circular_arc(start, end, size);
+                    assert_eq!(arc.is_ok(), start < size && end > 0 && end <= size);
+                }
+            }
+        }
+        assert_eq!(
+            Region::linear(0, usize::MAX, usize::MAX)
+                .unwrap()
+                .length()
+                .get(),
+            usize::MAX
+        );
+        assert!(Region::linear(usize::MAX, 0, usize::MAX).is_err());
+    }
+
+    #[test]
+    fn location_operator_must_match_part_count() {
+        let part = Region::linear(0, 2, 10).unwrap();
+        for operator in [
+            LocationOperator::Contiguous,
+            LocationOperator::Join,
+            LocationOperator::Order,
+        ] {
+            assert!(Location::new(vec![], Strand::Unknown, operator).is_err());
+            assert_eq!(
+                Location::new(vec![part.clone()], Strand::Forward, operator).is_ok(),
+                operator == LocationOperator::Contiguous
+            );
+            assert_eq!(
+                Location::new(
+                    vec![part.clone(), Region::linear(4, 6, 10).unwrap()],
+                    Strand::Reverse,
+                    operator
+                )
+                .is_ok(),
+                operator != LocationOperator::Contiguous
+            );
+        }
+    }
+
+    #[test]
+    fn record_rechecks_regions_against_actual_length_and_topology() {
+        let make_record = |region, topology| {
+            let feature = Feature::new(
+                FeatureId::new("feature").unwrap(),
+                "misc_feature",
+                "test",
+                Location::new(vec![region], Strand::Forward, LocationOperator::Contiguous).unwrap(),
+                vec![],
+                DisplayHints::default(),
+            );
+            SequenceRecord::new(
+                "test",
+                DnaSeq::new("ACGT").unwrap(),
+                topology,
+                vec![feature],
+                vec![],
+            )
+        };
+        assert!(make_record(Region::linear(3, 5, 10).unwrap(), Topology::Linear).is_err());
+        assert!(make_record(Region::circular_arc(0, 5, 10).unwrap(), Topology::Circular).is_err());
+        assert!(make_record(Region::circular_arc(4, 1, 10).unwrap(), Topology::Circular).is_err());
+        assert!(make_record(Region::circular_arc(3, 2, 4).unwrap(), Topology::Linear).is_err());
+        assert!(make_record(Region::circular_arc(3, 2, 4).unwrap(), Topology::Circular).is_ok());
+        assert!(make_record(Region::linear(0, 4, 4).unwrap(), Topology::Linear).is_ok());
     }
 
     #[test]

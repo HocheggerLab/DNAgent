@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.3.0",
   "command": "inspect",
   "ok": true,
   "result": {
@@ -15,5 +15,12 @@
         "packet_type": 28
       }
     ]
-  }
+  },
+  "warnings": [
+    {
+      "code": "snapgene_packet_not_interpreted",
+      "message": "preserved uninterpreted packet 0x1c (23 bytes)",
+      "packet_type": 28
+    }
+  ]
 }

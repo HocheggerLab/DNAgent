@@ -465,7 +465,7 @@ mod tests {
         let xml = r#"<Features><Feature name="wrap"><Segment range="9-2"/></Feature></Features>"#;
         let report = import_bytes(&synthetic_file(1, "acgtacgtac", Some(xml)), "fixture").unwrap();
         let region = &report.record.features()[0].location().parts()[0];
-        assert!(matches!(region, Region::CircularArc { .. }));
+        assert!(region.is_circular_arc());
         assert_eq!(region.start().get(), 8);
         assert_eq!(region.length().get(), 4);
     }
