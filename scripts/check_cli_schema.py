@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.3.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.4.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -84,6 +84,37 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected restriction response")
         checked.append(body)
+    for fixture, enzyme, strict, success in [
+        (
+            "synthetic_restriction_linear.dna",
+            "EcoRI,BamHI,EcoRV,KpnI,BsaI,BsmBI",
+            True,
+            True,
+        ),
+        ("synthetic_restriction_circular.dna", "EcoRI", True, True),
+        ("synthetic_restriction_circular.dna", "BamHI", True, True),
+        ("synthetic_restriction_end.dna", "BsaI", False, False),
+        ("synthetic_linear.dna", "EcoRI", False, False),
+        ("synthetic_partial.dna", "EcoRI", False, True),
+        ("synthetic_partial.dna", "EcoRI", True, False),
+    ]:
+        cmd = [
+            str(binary),
+            "digest",
+            str(ROOT / "fixtures/formats/snapgene" / fixture),
+            "--enzymes",
+            enzyme,
+            "--output",
+            "json",
+        ]
+        if strict:
+            cmd.append("--strict")
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        body = json.loads(proc.stdout)
+        validator.validate(body)
+        if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+            raise ValueError("unexpected digest response")
+        checked.append(body)
     proc = subprocess.run(
         [str(binary), "enzymes", "--output", "json"],
         capture_output=True,
@@ -128,6 +159,13 @@ def main():
     )
     bad = copy.deepcopy(restriction)
     bad["result"]["sites"][0]["top_cut"] = -1
+    mutations.append(bad)
+    digest = next(b for b in checked if b["command"] == "digest" and b["ok"])
+    bad = copy.deepcopy(digest)
+    del bad["result"]["fragments"][0]["bottom"]
+    mutations.append(bad)
+    bad = copy.deepcopy(digest)
+    bad["result"]["fragments"][0]["right_end"]["overhang_sequence"] = "N"
     mutations.append(bad)
     if any(validator.is_valid(body) for body in mutations):
         raise ValueError("schema accepted an intentionally invalid response")

@@ -1,5 +1,6 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
+use dnagent_domain::digest::{self, Digest, DigestError};
 use dnagent_domain::restriction::{self, RestrictionError, RestrictionScan};
 use dnagent_domain::{ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology};
 use dnagent_formats::{ImportError, ImportReport, ImportWarning};
@@ -26,6 +27,8 @@ pub enum AppError {
     ImportWarnings { count: usize },
     #[error(transparent)]
     Restriction(#[from] RestrictionError),
+    #[error(transparent)]
+    Digest(#[from] DigestError),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -153,6 +156,15 @@ pub fn restriction_sites(
         )]
     };
     Ok(RestrictionView { result, warnings })
+}
+
+/// Complete sequence-only digest; fragment annotations are not propagated yet.
+pub fn simulate_digest(record: &SequenceRecord, names: &[String]) -> Result<Digest, AppError> {
+    Ok(digest::simulate_digest(
+        record.sequence(),
+        record.topology(),
+        names,
+    )?)
 }
 
 /// Checked sequence-range projection.

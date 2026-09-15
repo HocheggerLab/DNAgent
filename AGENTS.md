@@ -33,6 +33,7 @@ cargo clippy -p dnagent-cli --all-targets --features gui --locked -- -D warnings
 cargo build -p dnagent-cli --locked
 uv run scripts/check_cli_schema.py --binary target/debug/dnagent
 uv run scripts/check_restriction.py --binary target/debug/dnagent
+uv run scripts/check_digest.py --binary target/debug/dnagent
 ```
 
 Schema checks use public synthetic fixtures only. Private-corpus validation is

@@ -14,8 +14,8 @@ target/debug/dnagent sites construct.dna --enzymes EcoRI,BamHI,BsaI --output jso
 
 Selection is explicit, case-insensitive and deduplicated. Catalogue output has a
 fixed order; sites are ordered by recognition start, enzyme name, then strand.
-The existing unreleased 0.3.0 envelope/schema now includes `enzymes` and `sites`.
-No existing command result shape has changed in this slice.
+`enzymes` and `sites` were introduced in the 0.3.0 envelope/schema. Current
+responses use 0.4.0, which adds the separate [`digest` command](digest.md).
 
 ## Small catalogue and provenance
 
@@ -99,9 +99,9 @@ expectations; Biopython's public `search` comparison checks top-strand cuts only
 Every comparison response is also JSON-Schema validated. Optional private scans
 check source hashes before processing and print no sequences.
 
-## Next slice
+## Digest simulation
 
-Digest simulation: partition linear/circular molecules at validated cut pairs,
-represent double-stranded fragment ends explicitly, then check fragment lengths,
-sequences, conservation and compatible overhangs. Do not infer fragments by
-simply slicing at top-strand coordinates without modelling the opposite strand.
+The separate [`digest` command](digest.md) now partitions supported substrates at
+validated cut pairs, reports both strand sequences and ends, and checks against
+independent reference products. `sites` remains a recognition/geometry projection:
+it never silently runs a digest or assumes that reported cuts work experimentally.

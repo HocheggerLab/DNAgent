@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use dnagent_app::{
     AppError, InspectView, feature_views, open_path, primer_views, require_warning_free_import,
-    restriction_sites, sequence_range,
+    restriction_sites, sequence_range, simulate_digest,
 };
 use dnagent_domain::restriction::ENZYMES;
 use dnagent_formats::{ImportReport, ImportWarning};
@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.3.0";
+const SCHEMA_VERSION: &str = "0.4.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -67,6 +67,14 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
+    /// Simulate complete restriction cleavage with both strand sequences and fragment ends.
+    Digest {
+        input: PathBuf,
+        #[arg(long, value_delimiter = ',', required = true)]
+        enzymes: Vec<String>,
+        #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+        output: OutputMode,
+    },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -88,6 +96,7 @@ impl Command {
             Self::Map { .. } => "map",
             Self::Enzymes { .. } => "enzymes",
             Self::Sites { .. } => "sites",
+            Self::Digest { .. } => "digest",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -100,6 +109,7 @@ impl Command {
             | Self::Primers { output, .. }
             | Self::Enzymes { output, .. }
             | Self::Sites { output, .. }
+            | Self::Digest { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::Map { .. } => true,
             #[cfg(feature = "gui")]
@@ -168,6 +178,11 @@ fn main() -> ExitCode {
                             Some(AppError::Restriction(_))
                         ) {
                             "restriction_scan_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Digest(_))
+                        ) {
+                            "digest_failed"
                         } else {
                             "command_failed"
                         },
@@ -264,9 +279,12 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
             input,
             enzymes,
             output,
-        } => {
-            run_sites(&input, &enzymes, output, strict, warnings)?;
-        }
+        } => run_sites(&input, &enzymes, output, strict, warnings)?,
+        Command::Digest {
+            input,
+            enzymes,
+            output,
+        } => run_digest(&input, &enzymes, output, strict, warnings)?,
         Command::Map { input, out } => {
             let report = load_input(&input, strict, requests_json, warnings)?;
             let svg = MapScene::from_record(&report.record).to_svg();
@@ -281,6 +299,35 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         }
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_digest(
+    input: &Path,
+    enzymes: &[String],
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = load_input(input, strict, matches!(output, OutputMode::Json), warnings)?;
+    let digest = simulate_digest(&report.record, enzymes)?;
+    match output {
+        OutputMode::Json => print_json("digest", &digest, warnings)?,
+        OutputMode::Text => {
+            println!("Complete sequence-only digest; not experimental validation.");
+            println!("fragment\ttop_bases\tbottom_bases\tpaired_bases\ttopology");
+            for fragment in digest.fragments {
+                println!(
+                    "{}\t{}\t{}\t{}\t{:?}",
+                    fragment.id,
+                    fragment.top.length,
+                    fragment.bottom.length,
+                    fragment.paired_length,
+                    fragment.topology
+                );
+            }
+        }
     }
     Ok(())
 }

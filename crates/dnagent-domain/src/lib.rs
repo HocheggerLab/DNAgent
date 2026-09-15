@@ -1,5 +1,6 @@
 //! Biological domain types shared by every DNAagent adapter.
 
+pub mod digest;
 pub mod restriction;
 
 use serde::Serialize;

@@ -44,10 +44,10 @@ def cli_json(binary, command, path, *extra, expected_warnings=None):
     envelope = json.loads(proc.stdout)
     if envelope.get("ok") is not True or envelope.get("command") != command:
         raise ValueError("unexpected CLI envelope")
-    if envelope.get("schema_version") != "0.3.0" or not isinstance(
+    if envelope.get("schema_version") != "0.4.0" or not isinstance(
         envelope.get("warnings"), list
     ):
-        raise ValueError("expected schema 0.3.0 with top-level warnings")
+        raise ValueError("expected schema 0.4.0 with top-level warnings")
     if command == "inspect":
         expected_warnings = envelope["result"]["warnings"]
     if expected_warnings is not None and envelope["warnings"] != expected_warnings:
