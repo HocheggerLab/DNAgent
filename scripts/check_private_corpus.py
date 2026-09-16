@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["biopython==1.85"]
+# dependencies = ["biopython==1.85", "jsonschema==4.23.0"]
 # ///
 """Opt-in read-only CLI checks; lab files and reports must stay outside Git.
 
@@ -10,6 +10,8 @@ This is NOT a complete SnapGene fidelity or biological-validity check.
 """
 
 import argparse
+from collections import Counter
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +20,12 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 from Bio import SeqIO
+from jsonschema import Draft202012Validator
+
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "schemas/cli-envelope-0.5.0.schema.json"
+)
+VALIDATOR = Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
 
 
 def packets(data):
@@ -33,21 +41,32 @@ def packets(data):
         offset = end
 
 
-def cli_json(binary, command, path, *extra, expected_warnings=None):
+def cli_envelope(binary, command, path, *extra, success=True):
     proc = subprocess.run(
         [str(binary), command, str(path), *extra, "--output", "json"],
         capture_output=True,
         text=True,
         timeout=30,
-        check=True,
+        check=False,
     )
     envelope = json.loads(proc.stdout)
-    if envelope.get("ok") is not True or envelope.get("command") != command:
-        raise ValueError("unexpected CLI envelope")
-    if envelope.get("schema_version") != "0.5.0" or not isinstance(
-        envelope.get("warnings"), list
+    # Do not include instance values in failures: they may contain private sequences.
+    error = next(VALIDATOR.iter_errors(envelope), None)
+    if error is not None:
+        location = "/".join(map(str, error.absolute_path))
+        raise ValueError(f"CLI schema violation at {location}")
+    if (
+        (proc.returncode == 0) != success
+        or envelope["ok"] != success
+        or envelope["command"] != command
+        or proc.stderr
     ):
-        raise ValueError("expected schema 0.5.0 with top-level warnings")
+        raise ValueError("unexpected CLI status, envelope or stderr diagnostics")
+    return envelope
+
+
+def cli_json(binary, command, path, *extra, expected_warnings=None):
+    envelope = cli_envelope(binary, command, path, *extra)
     if command == "inspect":
         expected_warnings = envelope["result"]["warnings"]
     if expected_warnings is not None and envelope["warnings"] != expected_warnings:
@@ -92,6 +111,18 @@ def check_record(binary, path, entry):
         if observed != expected:
             failures.append(field)
 
+    # Direct sequence-packet oracle in addition to Biopython. Uppercase is the
+    # documented domain intake convention; neither source nor copy is modified.
+    dna_packets = [body for kind, body in source_packets if kind == 0]
+    if len(dna_packets) != 1 or len(dna_packets[0]) < 2:
+        raise ValueError("expected exactly one nonempty DNA sequence packet")
+    raw_sequence = dna_packets[0][1:].decode("ascii").upper()
+    raw_topology = "circular" if dna_packets[0][0] & 1 else "linear"
+    compare(
+        "raw_packet_vs_biopython_sequence", str(reference.seq).upper(), raw_sequence
+    )
+    compare("raw_packet_vs_cli_sequence", sequence["sequence"], raw_sequence)
+    compare("raw_packet_topology", inspect["topology"], raw_topology)
     compare("length", inspect["length"], len(reference))
     compare("topology", inspect["topology"], reference.annotations["topology"])
     compare(
@@ -188,6 +219,38 @@ def check_record(binary, path, entry):
         sorted((w["code"], w["packet_type"]) for w in inspect["warnings"]),
         expected_warnings,
     )
+    # Check half-open extraction at termini, midpoint and annotation boundaries.
+    # Full sequence equality above is stronger for content, but cannot catch a
+    # broken range API (off-by-one, ignored bounds, or mishandled empty intervals).
+    positions = {0, len(reference) // 2, len(reference) - 1, len(reference)}
+    for feature in features[:8]:
+        for segment in feature.findall("Segment"):
+            start, end = map(int, segment.attrib["range"].split("-"))
+            positions.update([start - 1, end])
+    for start in sorted(positions):
+        end = min(start + 17, len(reference))
+        observed = cli_json(
+            binary,
+            "sequence",
+            path,
+            "--range",
+            f"{start}..{end}",
+            expected_warnings=inspect["warnings"],
+        )
+        compare(
+            f"range[{start}:{end}]",
+            observed,
+            {"start": start, "end": end, "sequence": raw_sequence[start:end]},
+        )
+    strict = cli_envelope(
+        binary, "inspect", path, "--strict", success=not inspect["warnings"]
+    )
+    compare("strict_warnings", strict["warnings"], inspect["warnings"])
+    if inspect["warnings"]:
+        compare("strict_error", strict["error"]["code"], "import_warnings")
+    else:
+        compare("strict_result", strict["result"], inspect)
+    compare("file_unchanged", hashlib.sha256(path.read_bytes()).hexdigest(), digest)
     return {
         "file": entry["file"],
         "sha256": digest,
@@ -196,6 +259,8 @@ def check_record(binary, path, entry):
         "features": len(features),
         "primers": len(primers),
         "coverage": coverage,
+        "range_probes": len(positions),
+        "packet_counts": dict(sorted(Counter(k for k, _ in source_packets).items())),
         "warning_count": len(inspect["warnings"]),
         "failures": failures,
     }
@@ -227,11 +292,19 @@ def main():
         ) as error:
             results.append({"file": entry["file"], "failures": [str(error)]})
     report = {
-        "reference": "Biopython 1.85 sequence/topology; source XML annotations",
+        "report_schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "checker_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "cli_schema_sha256": hashlib.sha256(SCHEMA_PATH.read_bytes()).hexdigest(),
+        "reference": "Raw DNA packet and Biopython 1.85 sequence/topology; source XML annotations",
+        "records_checked": len(results),
+        "records_passed": sum(not row["failures"] for row in results),
         "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "limitations": [
             "Primer sequences and qualifiers checked against source XML, not experimental evidence",
-            "No GUI, biological validation or complete format-fidelity check",
+            "No native SnapGene comparison, GUI, biological validation or complete format-fidelity check",
+            "Corpus coverage is not universal: linear private constructs and more format variants require additional authorised inputs",
             "Warning consistency checked across inspect/features/primers/sequence; map checked by public Rust tests",
         ],
         "records": results,

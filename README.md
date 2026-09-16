@@ -120,7 +120,9 @@ SnapGene bytes → format adapter → domain record → application projections
 
 The GUI owns selection, hover, zoom and viewport state. It does not own file parsing or biological operations.
 
-Redistribution-safe synthetic fixtures, importer regression tests and committed JSON contracts are documented in [`fixtures/formats/snapgene`](fixtures/formats/snapgene). An optional private-corpus checker compares CLI results against Biopython and source XML; lab data and reports stay outside the repository.
+Redistribution-safe synthetic fixtures, importer regression tests and committed JSON contracts are documented in [`fixtures/formats/snapgene`](fixtures/formats/snapgene). An optional [private-corpus checker](docs/private-corpus.md) compares real-file CLI
+results against raw sequence packets, Biopython and source XML, with schema,
+strict-mode and range checks; lab data and reports stay outside the repository.
 
 ## Development
 
