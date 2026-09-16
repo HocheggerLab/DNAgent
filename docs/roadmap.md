@@ -16,14 +16,17 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
   annotations and provenance notes, without inferred joins or stale CDS qualifiers.
 - Explicit restriction/ligation plans, orientation/end usage, linear/circular
   products, duplex phase/conservation checks and component annotation placements.
+- First [Gibson PCR-tail design slice](gibson.md): explicit core intervals/order/
+  orientation, fixed-length primer candidates, exact-site/overlap uniqueness,
+  PCR-product junction verification and annotated-product component placements.
 
 ## Next milestones, in order
 
-1. **Gibson cloning** — overlap and primer design, fragment ordering/orientation,
-   overlap uniqueness checks, junction verification and annotated assembled-product
-   prediction. Keep Gibson homology rules separate from restriction cohesive-end
-   rules. Preserve sequence/primer provenance and distinguish design predictions
-   from experimental validation.
+1. **Gibson hardening and scope review** — thermodynamic/secondary-structure primer
+   assessment, pre-existing-overlap intake, real-template design coverage and a
+   separate assembly-engine comparison. Current fixed-length PCR-tail candidates
+   are not ordering-ready. Preserve the distinction between model predictions and
+   experimentally validated designs; review this scope before GUI integration.
 2. **GUI integration** — expose the validated shared application operations;
    resolve existing display/selection issues without reimplementing biology.
 

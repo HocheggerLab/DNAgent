@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DNAagent CLI envelope 0.8.0",
+  "description": "Runtime JSON responses only. CLI argument errors and GUI output are not covered. Coordinates are zero-based and half-open; relational bounds require domain validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command", "ok", "warnings"],
+  "properties": {
+    "schema_version": {"const": "0.8.0"},
+    "command": {"enum": ["inspect", "features", "primers", "sequence", "map", "enzymes", "sites", "digest", "compatible-ends", "fragments", "ligate", "gibson"]},
+    "ok": {"type": "boolean"},
+    "warnings": {"$ref": "#/$defs/warnings"},
+    "result": {},
+    "error": {"$ref": "#/$defs/error"}
+  },
+  "oneOf": [
+    {
+      "required": ["result"],
+      "not": {"required": ["error"]},
+      "properties": {"ok": {"const": true}},
+      "oneOf": [
+        {"properties": {"command": {"const": "inspect"}, "result": {"$ref": "#/$defs/inspect"}}},
+        {"properties": {"command": {"const": "features"}, "result": {"type": "array", "items": {"$ref": "#/$defs/feature"}}}},
+        {"properties": {"command": {"const": "primers"}, "result": {"type": "array", "items": {"$ref": "#/$defs/primer"}}}},
+        {"properties": {"command": {"const": "sequence"}, "result": {"$ref": "#/$defs/sequence"}}},
+        {"properties": {"command": {"const": "map"}, "result": {"$ref": "#/$defs/map"}}},
+        {"properties": {"command": {"const": "enzymes"}, "result": {"type": "array", "items": {"$ref": "#/$defs/enzyme"}}}},
+        {"properties": {"command": {"const": "sites"}, "result": {"$ref": "#/$defs/restriction_scan"}}},
+        {"properties": {"command": {"const": "digest"}, "result": {"$ref": "#/$defs/digest"}}},
+        {"properties": {"command": {"const": "compatible-ends"}, "result": {"$ref": "#/$defs/compatibility"}}},
+        {"properties": {"command": {"const": "fragments"}, "result": {"$ref": "#/$defs/annotated_digest"}}},
+        {"properties": {"command": {"const": "ligate"}, "result": {"$ref": "#/$defs/ligation"}}},
+        {"properties": {"command": {"const": "gibson"}, "result": {"$ref": "#/$defs/gibson"}}}
+      ]
+    },
+    {"required": ["error"], "not": {"required": ["result"]}, "properties": {"ok": {"const": false}}}
+  ],
+  "$defs": {
+    "gibson_core_selection": {"type": "object", "additionalProperties": false, "required": ["input", "start", "length", "orientation"], "properties": {"input": {"type": "integer", "minimum": 1, "maximum": 16}, "start": {"type": "integer", "minimum": 0, "maximum": 999999}, "length": {"type": "integer", "minimum": 36, "maximum": 1000000}, "orientation": {"enum": ["forward", "reverse"]}}},
+    "gibson_source_record": {"type": "object", "additionalProperties": false, "required": ["name", "sequence", "topology", "features", "primers"], "properties": {"name": {"type": "string"}, "sequence": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 1, "maxLength": 1000000}, "topology": {"enum": ["linear", "circular"]}, "features": {"type": "array", "items": {"$ref": "#/$defs/source_feature"}, "minItems": 0}, "primers": {"type": "array", "items": {"$ref": "#/$defs/primer"}, "minItems": 0}}},
+    "primer_candidate": {"type": "object", "additionalProperties": false, "required": ["sequence_5to3", "annealing_sequence_5to3", "tail_sequence_5to3", "annealing_gc_bases"], "properties": {"sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 18, "maxLength": 100}, "annealing_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 18, "maxLength": 40}, "tail_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 0, "maxLength": 60}, "annealing_gc_bases": {"type": "integer", "minimum": 0, "maximum": 40}}},
+    "gibson_component": {"type": "object", "additionalProperties": false, "required": ["selection", "product_start", "core_sequence_5to3", "pcr_product_sequence_5to3", "forward_primer", "reverse_primer", "annotations"], "properties": {"selection": {"$ref": "#/$defs/gibson_core_selection"}, "product_start": {"type": "integer", "minimum": 0, "maximum": 999999}, "core_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 36, "maxLength": 1000000}, "pcr_product_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 36, "maxLength": 1000060}, "forward_primer": {"$ref": "#/$defs/primer_candidate"}, "reverse_primer": {"$ref": "#/$defs/primer_candidate"}, "annotations": {"type": "array", "items": {"$ref": "#/$defs/feature_mapping"}, "minItems": 0}}},
+    "gibson_junction": {"type": "object", "additionalProperties": false, "required": ["after_component", "before_component", "closure", "product_start", "overlap_sequence_5to3"], "properties": {"after_component": {"type": "integer", "minimum": 1, "maximum": 128}, "before_component": {"type": "integer", "minimum": 1, "maximum": 128}, "closure": {"type": "boolean"}, "product_start": {"type": "integer", "minimum": 0, "maximum": 999999}, "overlap_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 20, "maxLength": 60}}},
+    "gibson": {"type": "object", "additionalProperties": false, "required": ["inputs", "topology", "overlap_length", "annealing_length", "product_sequence_5to3", "components", "junctions", "assumptions"], "properties": {"inputs": {"type": "array", "items": {"$ref": "#/$defs/gibson_source_record"}, "minItems": 1, "maxItems": 16}, "topology": {"enum": ["linear", "circular"]}, "overlap_length": {"type": "integer", "minimum": 20, "maximum": 60}, "annealing_length": {"type": "integer", "minimum": 18, "maximum": 40}, "product_sequence_5to3": {"type": "string", "pattern": "^[ACGT]*$", "minLength": 36, "maxLength": 1000000}, "components": {"type": "array", "items": {"$ref": "#/$defs/gibson_component"}, "minItems": 1, "maxItems": 128}, "junctions": {"type": "array", "items": {"$ref": "#/$defs/gibson_junction"}, "minItems": 0, "maxItems": 128}, "assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 0}}},
+    "fragment_selection": {"type": "object", "additionalProperties": false, "required": ["input", "fragment_id", "orientation"], "properties": {"input": {"type": "integer", "minimum": 1, "maximum": 16}, "fragment_id": {"type": "string", "minLength": 1}, "orientation": {"enum": ["forward", "reverse"]}}},
+    "product_span": {"type": "object", "additionalProperties": false, "required": ["start", "length", "source_strand"], "properties": {"start": {"type": "integer", "minimum": 0, "maximum": 10000000}, "length": {"type": "integer", "minimum": 1, "maximum": 10000000}, "source_strand": {"enum": ["forward", "reverse"]}}},
+    "component_placement": {"type": "object", "additionalProperties": false, "required": ["selection", "top", "bottom"], "properties": {"selection": {"$ref": "#/$defs/fragment_selection"}, "top": {"$ref": "#/$defs/product_span"}, "bottom": {"$ref": "#/$defs/product_span"}}},
+    "ligation_junction": {"type": "object", "additionalProperties": false, "required": ["after_component", "before_component", "closure", "top_boundary", "bottom_boundary", "assessment"], "properties": {"after_component": {"type": "integer", "minimum": 1, "maximum": 128}, "before_component": {"type": "integer", "minimum": 1, "maximum": 128}, "closure": {"type": "boolean"}, "top_boundary": {"type": "integer", "minimum": 0, "maximum": 10000000}, "bottom_boundary": {"type": "integer", "minimum": 0, "maximum": 10000000}, "assessment": {"allOf": [{"$ref": "#/$defs/end_assessment"}, {"properties": {"compatible": {"const": true}, "second_fragment_orientation": {"const": "forward"}}}]}}},
+    "unused_fragment": {"type": "object", "additionalProperties": false, "required": ["input", "fragment_id"], "properties": {"input": {"type": "integer", "minimum": 1, "maximum": 16}, "fragment_id": {"type": "string", "minLength": 1}}},
+    "ligation_product": {"type": "object", "additionalProperties": false, "required": ["topology", "top_sequence_5to3", "bottom_sequence_5to3", "bottom_forward_start", "paired_length", "left_end", "right_end", "components", "junctions"], "properties": {"topology": {"enum": ["linear", "circular"]}, "top_sequence_5to3": {"type": "string", "pattern": "^[ACGT]+$", "maxLength": 10000000}, "bottom_sequence_5to3": {"type": "string", "pattern": "^[ACGT]+$", "maxLength": 10000000}, "bottom_forward_start": {"type": "integer", "minimum": -10000000, "maximum": 10000000}, "paired_length": {"type": "integer", "minimum": 1, "maximum": 10000000}, "left_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]}, "right_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]}, "components": {"type": "array", "items": {"$ref": "#/$defs/component_placement"}, "minItems": 1, "maxItems": 128}, "junctions": {"type": "array", "items": {"$ref": "#/$defs/ligation_junction"}, "minItems": 0, "maxItems": 128}}, "oneOf": [{"properties": {"topology": {"const": "linear"}, "left_end": {"$ref": "#/$defs/fragment_end"}, "right_end": {"$ref": "#/$defs/fragment_end"}}}, {"properties": {"topology": {"const": "circular"}, "left_end": {"type": "null"}, "right_end": {"type": "null"}}}]},
+    "ligation": {"type": "object", "additionalProperties": false, "required": ["inputs", "product", "unused_fragments", "assumptions"], "properties": {"inputs": {"type": "array", "items": {"$ref": "#/$defs/annotated_digest"}, "minItems": 1, "maxItems": 16}, "product": {"$ref": "#/$defs/ligation_product"}, "unused_fragments": {"type": "array", "items": {"$ref": "#/$defs/unused_fragment"}, "minItems": 0}, "assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 0}}},
+    "source_feature": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "label", "location", "qualifiers", "display"], "properties": {"id": {"type": "string", "minLength": 1}, "kind": {"type": "string"}, "label": {"type": "string"}, "location": {"$ref": "#/$defs/location"}, "qualifiers": {"type": "array", "items": {"$ref": "#/$defs/qualifier"}, "minItems": 0}, "display": {"type": "object", "additionalProperties": false, "required": ["color"], "properties": {"color": {"type": ["string", "null"]}}}}},
+    "mapped_part": {"type": "object", "additionalProperties": false, "required": ["source_part", "source_offset", "source_region", "fragment_region"], "properties": {"source_part": {"$ref": "#/$defs/position"}, "source_offset": {"$ref": "#/$defs/position"}, "source_region": {"$ref": "#/$defs/region"}, "fragment_region": {"type": "object", "additionalProperties": false, "required": ["kind", "start", "end"], "properties": {"kind": {"const": "linear"}, "start": {"$ref": "#/$defs/position"}, "end": {"type": "integer", "minimum": 1}}}}},
+    "feature_mapping": {"type": "object", "additionalProperties": false, "required": ["source_feature_id", "fragment_strand", "source_bases", "retained_bases", "complete", "split_source_parts", "parts"], "properties": {"source_feature_id": {"type": "string", "minLength": 1}, "fragment_strand": {"$ref": "#/$defs/strand"}, "source_bases": {"type": "integer", "minimum": 1}, "retained_bases": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "split_source_parts": {"type": "array", "items": {"$ref": "#/$defs/position"}, "minItems": 0, "uniqueItems": true}, "parts": {"type": "array", "items": {"$ref": "#/$defs/mapped_part"}, "minItems": 1}}},
+    "fragment_annotations": {"type": "object", "additionalProperties": false, "required": ["fragment_id", "top", "bottom"], "properties": {"fragment_id": {"type": "string", "minLength": 1}, "top": {"type": "array", "items": {"$ref": "#/$defs/feature_mapping"}, "minItems": 0}, "bottom": {"type": "array", "items": {"$ref": "#/$defs/feature_mapping"}, "minItems": 0}}},
+    "annotated_digest": {"type": "object", "additionalProperties": false, "required": ["source_name", "source_features", "source_primers", "digest", "annotations", "assumptions"], "properties": {"source_name": {"type": "string"}, "source_features": {"type": "array", "items": {"$ref": "#/$defs/source_feature"}, "minItems": 0}, "source_primers": {"type": "array", "items": {"$ref": "#/$defs/primer"}, "minItems": 0}, "digest": {"$ref": "#/$defs/digest"}, "annotations": {"type": "array", "items": {"$ref": "#/$defs/fragment_annotations"}, "minItems": 1}, "assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 0}}},
+    "end_assessment": {"type": "object", "additionalProperties": false, "required": ["compatible", "reason", "second_fragment_orientation", "second_placement"], "properties": {"compatible": {"type": "boolean"}, "reason": {"enum": ["blunt_ends", "complementary_overhangs", "polarity_mismatch", "overhang_length_mismatch", "overhang_sequence_mismatch"]}, "second_fragment_orientation": {"enum": ["forward", "reverse"]}, "second_placement": {"enum": ["before_first", "after_first"]}}},
+    "endpoint": {"type": "object", "additionalProperties": false, "required": ["id", "input", "fragment_id", "side", "end"], "properties": {"id": {"type": "string", "minLength": 1}, "input": {"type": "integer", "minimum": 1, "maximum": 2}, "fragment_id": {"type": "string", "minLength": 1}, "side": {"enum": ["left", "right"]}, "end": {"$ref": "#/$defs/fragment_end"}}},
+    "end_pair": {"type": "object", "additionalProperties": false, "required": ["first", "second", "same_fragment", "assessment"], "properties": {"first": {"type": "string", "minLength": 1}, "second": {"type": "string", "minLength": 1}, "same_fragment": {"type": "boolean"}, "assessment": {"$ref": "#/$defs/end_assessment"}}},
+    "end_analysis": {"type": "object", "additionalProperties": false, "required": ["endpoints", "pairs", "assumptions"], "properties": {"endpoints": {"type": "array", "items": {"$ref": "#/$defs/endpoint"}, "maxItems": 128}, "pairs": {"type": "array", "items": {"$ref": "#/$defs/end_pair"}, "maxItems": 8128}, "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "compatibility_input": {"type": "object", "additionalProperties": false, "required": ["name", "digest"], "properties": {"name": {"type": "string"}, "digest": {"$ref": "#/$defs/digest"}}},
+    "compatibility": {"type": "object", "additionalProperties": false, "required": ["inputs", "analysis"], "properties": {"inputs": {"type": "array", "items": {"$ref": "#/$defs/compatibility_input"}, "minItems": 1, "maxItems": 2}, "analysis": {"$ref": "#/$defs/end_analysis"}}},
+
+    "position": {"type": "integer", "minimum": 0},
+    "strand": {"enum": ["forward", "reverse", "unknown"]},
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}},
+    "warning": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message", "packet_type"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string"},
+        "packet_type": {"type": ["integer", "null"], "minimum": 0, "maximum": 255}
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message"],
+      "properties": {"code": {"enum": ["command_failed", "import_warnings", "restriction_scan_failed", "digest_failed", "compatibility_failed", "annotation_failed", "ligation_failed", "gibson_failed"]}, "message": {"type": "string"}}
+    },
+    "inspect": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "length", "topology", "feature_count", "primer_count", "warnings"],
+      "properties": {
+        "name": {"type": "string"}, "length": {"type": "integer", "minimum": 1},
+        "topology": {"enum": ["linear", "circular"]},
+        "feature_count": {"$ref": "#/$defs/position"}, "primer_count": {"$ref": "#/$defs/position"},
+        "warnings": {"$ref": "#/$defs/warnings"}
+      }
+    },
+    "region": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "start", "end"],
+          "properties": {"kind": {"const": "linear"}, "start": {"$ref": "#/$defs/position"}, "end": {"type": "integer", "minimum": 1}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "start", "length"],
+          "properties": {"kind": {"const": "circular_arc"}, "start": {"$ref": "#/$defs/position"}, "length": {"type": "integer", "minimum": 1}}
+        }
+      ]
+    },
+    "location": {
+      "type": "object", "additionalProperties": false, "required": ["parts", "strand", "operator"],
+      "properties": {
+        "parts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/region"}},
+        "strand": {"$ref": "#/$defs/strand"}, "operator": {"enum": ["contiguous", "join", "order"]}
+      },
+      "oneOf": [
+        {"properties": {"operator": {"const": "contiguous"}, "parts": {"maxItems": 1}}},
+        {"properties": {"operator": {"enum": ["join", "order"]}, "parts": {"minItems": 2}}}
+      ]
+    },
+    "qualifier": {
+      "type": "object", "additionalProperties": false, "required": ["key", "value"],
+      "properties": {"key": {"type": "string"}, "value": {"type": ["string", "null"]}}
+    },
+    "feature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "kind", "strand", "location", "color", "qualifiers"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "label": {"type": "string"}, "kind": {"type": "string"},
+        "strand": {"$ref": "#/$defs/strand"}, "location": {"$ref": "#/$defs/location"},
+        "color": {"type": ["string", "null"]},
+        "qualifiers": {"type": "array", "items": {"$ref": "#/$defs/qualifier"}}
+      }
+    },
+    "primer": {
+      "type": "object", "additionalProperties": false, "required": ["name", "sequence", "description"],
+      "properties": {
+        "name": {"type": "string"}, "sequence": {"type": "string", "pattern": "^[ACGTRYSWKMBDHVN]+$"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "sequence": {
+      "type": "object", "additionalProperties": false, "required": ["start", "end", "sequence"],
+      "properties": {
+        "start": {"$ref": "#/$defs/position"}, "end": {"$ref": "#/$defs/position"},
+        "sequence": {"type": "string", "pattern": "^[ACGTRYSWKMBDHVN]*$"}
+      }
+    },
+    "enzyme": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "recognition_sequence", "top_cut_offset", "bottom_cut_offset"],
+      "properties": {
+        "name": {"enum": ["EcoRI", "BamHI", "EcoRV", "KpnI", "BsaI", "BsmBI"]},
+        "recognition_sequence": {"type": "string", "pattern": "^[ACGT]+$"},
+        "top_cut_offset": {"type": "integer"}, "bottom_cut_offset": {"type": "integer"}
+      }
+    },
+    "restriction_site": {
+      "type": "object", "additionalProperties": false,
+      "required": ["enzyme", "recognition", "strand", "top_cut", "bottom_cut", "cleavage_available", "overhang_polarity", "overhang_length"],
+      "properties": {
+        "enzyme": {"type": "string"}, "recognition": {"$ref": "#/$defs/region"},
+        "strand": {"enum": ["forward", "reverse"]},
+        "top_cut": {"type": ["integer", "null"], "minimum": 0},
+        "bottom_cut": {"type": ["integer", "null"], "minimum": 0},
+        "cleavage_available": {"type": "boolean"},
+        "overhang_polarity": {"enum": ["blunt", "five_prime", "three_prime"]},
+        "overhang_length": {"$ref": "#/$defs/position"}
+      }
+    },
+    "restriction_scan": {
+      "type": "object", "additionalProperties": false,
+      "required": ["length", "topology", "enzymes", "sites", "assumptions"],
+      "properties": {
+        "length": {"type": "integer", "minimum": 1},
+        "topology": {"enum": ["linear", "circular"]},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/enzyme"}},
+        "sites": {"type": "array", "items": {"$ref": "#/$defs/restriction_site"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "digest_cut": {
+      "type": "object", "additionalProperties": false,
+      "required": ["top_cut", "bottom_cut", "enzymes"],
+      "properties": {
+        "top_cut": {"$ref": "#/$defs/position"}, "bottom_cut": {"$ref": "#/$defs/position"},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "fragment_end": {
+      "type": "object", "additionalProperties": false,
+      "required": ["original_terminus", "polarity", "protruding_strand", "overhang_sequence", "enzymes"],
+      "properties": {
+        "original_terminus": {"type": "boolean"},
+        "polarity": {"enum": ["blunt", "five_prime", "three_prime"]},
+        "protruding_strand": {"enum": ["forward", "reverse", null]},
+        "overhang_sequence": {"type": "string", "pattern": "^[ACGT]*$"},
+        "enzymes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "fragment_strand": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_start", "length", "sequence_5to3"],
+      "properties": {
+        "source_start": {"$ref": "#/$defs/position"},
+        "length": {"type": "integer", "minimum": 1},
+        "sequence_5to3": {"type": "string", "pattern": "^[ACGT]+$"}
+      }
+    },
+    "digest_fragment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "topology", "top", "bottom", "paired_length", "left_end", "right_end"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "topology": {"enum": ["linear", "circular"]},
+        "top": {"$ref": "#/$defs/fragment_strand"}, "bottom": {"$ref": "#/$defs/fragment_strand"},
+        "paired_length": {"type": "integer", "minimum": 1},
+        "left_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]},
+        "right_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]}
+      }
+    },
+    "digest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input_length", "input_topology", "enzymes", "cuts", "fragments", "assumptions"],
+      "properties": {
+        "input_length": {"type": "integer", "minimum": 1}, "input_topology": {"enum": ["linear", "circular"]},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/enzyme"}},
+        "cuts": {"type": "array", "items": {"$ref": "#/$defs/digest_cut"}},
+        "fragments": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/digest_fragment"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "map": {
+      "type": "object", "additionalProperties": false, "required": ["output_path"],
+      "properties": {"output_path": {"type": "string"}}
+    }
+  }
+}

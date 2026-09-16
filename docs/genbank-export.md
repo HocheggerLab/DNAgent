@@ -65,7 +65,8 @@ The format serializer lives in `dnagent-formats`, behind a typed application
 operation. Coordinate biology remains in the domain's existing projection logic;
 CLI and format adapters do not recompute biological intersections. JSON payloads
 were unchanged by GenBank export (introduced alongside **0.6.0**); current
-**0.7.0** envelopes additionally support [ligation products](ligation.md).
+**0.8.0** envelopes additionally support [ligation products](ligation.md) and
+[Gibson PCR-tail candidates](gibson.md).
 
 ## Validation
 
@@ -80,4 +81,5 @@ missing/inapplicable strand flags, strict mode and empty stdout on failed export
 Remaining work: richer biological product-feature reconstruction can follow
 validated assembly semantics. This initial export intentionally favours explicit
 provenance over false biological precision. [Restriction/ligation product simulation](ligation.md) is now implemented with
-component annotation placements. Gibson cloning remains required before GUI work.
+component annotation placements. A first [Gibson PCR-tail design slice](gibson.md)
+is available; its scope review and hardening precede GUI work.

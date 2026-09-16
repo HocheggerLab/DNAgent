@@ -1,5 +1,6 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
+pub mod gibson;
 pub mod ligation;
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
@@ -44,6 +45,10 @@ pub enum AppError {
     Ligation(#[from] dnagent_domain::ligation::LigationError),
     #[error("invalid ligation plan JSON: {0}")]
     LigationPlan(#[from] serde_json::Error),
+    #[error(transparent)]
+    Gibson(#[from] dnagent_domain::gibson::GibsonError),
+    #[error("invalid Gibson plan JSON: {0}")]
+    GibsonPlan(serde_json::Error),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,

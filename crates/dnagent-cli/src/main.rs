@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.7.0";
+const SCHEMA_VERSION: &str = "0.8.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -85,6 +85,12 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Json)]
         output: OutputMode,
     },
+    /// Design PCR-tail Gibson primer candidates and predict an explicit assembly.
+    Gibson {
+        plan: PathBuf,
+        #[arg(long, value_enum, default_value_t = OutputMode::Json)]
+        output: OutputMode,
+    },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -148,6 +154,7 @@ impl Command {
             Self::CompatibleEnds(_) => "compatible-ends",
             Self::Fragments(_) => "fragments",
             Self::Ligate { .. } => "ligate",
+            Self::Gibson { .. } => "gibson",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -164,7 +171,9 @@ impl Command {
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
-            Self::Ligate { output, .. } => matches!(output, OutputMode::Json),
+            Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
+                matches!(output, OutputMode::Json)
+            }
             Self::Map { .. } => true,
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
@@ -252,6 +261,11 @@ fn main() -> ExitCode {
                             Some(AppError::Ligation(_) | AppError::LigationPlan(_))
                         ) {
                             "ligation_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Gibson(_) | AppError::GibsonPlan(_))
+                        ) {
+                            "gibson_failed"
                         } else {
                             "command_failed"
                         },
@@ -357,20 +371,77 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::CompatibleEnds(args) => run_compatibility(&args, strict, warnings)?,
         Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
         Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
-        Command::Map { input, out } => {
-            let report = load_input(&input, strict, requests_json, warnings)?;
-            let svg = MapScene::from_record(&report.record).to_svg();
-            std::fs::write(&out, svg)?;
-            print_json(
-                "map",
-                &MapResult {
-                    output_path: out.display().to_string(),
-                },
-                warnings,
-            )?;
-        }
+        Command::Gibson { plan, output } => run_gibson(&plan, output, strict, warnings)?,
+        Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_map(
+    input: &Path,
+    out: &Path,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = load_input(input, strict, true, warnings)?;
+    std::fs::write(out, MapScene::from_record(&report.record).to_svg())?;
+    print_json(
+        "map",
+        &MapResult {
+            output_path: out.display().to_string(),
+        },
+        warnings,
+    )?;
+    Ok(())
+}
+
+fn run_gibson(
+    path: &Path,
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let plan = dnagent_app::gibson::load_plan(path)?;
+    let mut records = Vec::new();
+    for source in &plan.inputs {
+        records.push(
+            load_input(
+                &source.path,
+                strict,
+                matches!(output, OutputMode::Json),
+                warnings,
+            )?
+            .record,
+        );
+    }
+    let view = dnagent_app::gibson::simulate(&records, &plan)?;
+    match output {
+        OutputMode::Json => print_json("gibson", &view, warnings)?,
+        OutputMode::Text => {
+            println!(
+                "Gibson PCR-tail candidate: {:?}, {} bases",
+                view.topology,
+                view.product_sequence_5to3.len()
+            );
+            println!("Product 5to3: {}", view.product_sequence_5to3);
+            for (i, component) in view.components.iter().enumerate() {
+                println!(
+                    "Component {} forward 5to3: {}",
+                    i + 1,
+                    component.forward_primer.sequence_5to3
+                );
+                println!(
+                    "Component {} reverse 5to3: {}",
+                    i + 1,
+                    component.reverse_primer.sequence_5to3
+                );
+            }
+            for assumption in view.assumptions {
+                println!("Assumption: {assumption}");
+            }
+        }
     }
     Ok(())
 }

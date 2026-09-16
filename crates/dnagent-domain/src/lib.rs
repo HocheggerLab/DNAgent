@@ -3,6 +3,7 @@
 pub mod compatibility;
 pub mod digest;
 pub mod fragment_annotations;
+pub mod gibson;
 pub mod ligation;
 pub mod restriction;
 

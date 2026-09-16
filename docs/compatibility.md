@@ -62,7 +62,8 @@ produce an error, not a plausible compatibility assessment.
 
 `schemas/cli-envelope-0.5.0.schema.json` adds `compatible-ends`; historical schemas
 remain unchanged. Existing command payload shapes are unchanged, with current
-envelopes now labelled 0.7.0, adding [ligation products](ligation.md) after
+envelopes now labelled 0.8.0, adding [Gibson candidates](gibson.md) after
+0.7.0's [ligation products](ligation.md) and
 0.6.0's [annotation projections](fragment-annotations.md).
 The 0.5.0 schema is retired and retained for archived responses only.
 
@@ -115,4 +116,5 @@ not experimental ligation measurements; no private inputs are needed.
 [Source-linked strand projections and JSON/FASTA exports](fragment-annotations.md)
 and [conservative GenBank views](genbank-export.md) are now implemented.
 [Explicit restriction/ligation products](ligation.md) are now implemented;
-Gibson cloning is next. [Gibson assembly remains required before GUI integration](roadmap.md).
+a first [Gibson PCR-tail design slice](gibson.md) is also available.
+[Gibson hardening and scope review precede GUI integration](roadmap.md).

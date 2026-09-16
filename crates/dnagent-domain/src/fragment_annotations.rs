@@ -117,7 +117,7 @@ fn map_features(
         .collect()
 }
 
-fn map_feature(
+pub(crate) fn map_feature(
     feature: &Feature,
     strand: &FragmentStrand,
     topology: Topology,

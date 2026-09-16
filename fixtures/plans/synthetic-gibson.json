@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "inputs": [{"path": "synthetic_gibson.dna"}],
+  "cores": [
+    {"input": 1, "start": 270, "length": 90, "orientation": "forward"},
+    {"input": 1, "start": 90, "length": 100, "orientation": "reverse"}
+  ],
+  "topology": "circular",
+  "overlap_length": 25,
+  "annealing_length": 22
+}

@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.7.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.8.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -166,6 +166,25 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected fragments response")
         checked.append(body)
+    gibson_plan = ROOT / "fixtures/plans/synthetic-gibson.json"
+    Draft202012Validator(
+        json.loads((ROOT / "schemas/gibson-plan-1.schema.json").read_text())
+    ).validate(json.loads(gibson_plan.read_text()))
+    for path, success in [
+        (gibson_plan, True),
+        (ROOT / "fixtures/plans/synthetic_gibson.dna", False),
+    ]:
+        proc = subprocess.run(
+            [str(binary), "gibson", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        body = json.loads(proc.stdout)
+        validator.validate(body)
+        if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+            raise ValueError("unexpected Gibson response")
+        checked.append(body)
     plan_validator = Draft202012Validator(
         json.loads((ROOT / "schemas/ligation-plan-1.schema.json").read_text())
     )
@@ -291,6 +310,16 @@ def main():
     bad["result"]["product"]["topology"] = (
         "circular"  # Free ends must be null on circles.
     )
+    mutations.append(bad)
+    gibson = next(b for b in checked if b["command"] == "gibson" and b["ok"])
+    bad = copy.deepcopy(gibson)
+    bad["result"]["components"][0]["selection"]["orientation"] = "unknown"
+    mutations.append(bad)
+    bad = copy.deepcopy(gibson)
+    bad["result"]["components"][0]["reverse_primer"]["sequence_5to3"] = "N"
+    mutations.append(bad)
+    bad = copy.deepcopy(gibson)
+    bad["result"]["overlap_length"] = 19
     mutations.append(bad)
     if any(validator.is_valid(body) for body in mutations):
         raise ValueError("schema accepted an intentionally invalid response")

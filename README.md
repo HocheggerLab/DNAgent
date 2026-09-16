@@ -78,13 +78,28 @@ repair, reaction yield or experimental validation.
 dnagent ligate fixtures/plans/synthetic-religation.json --output json
 ```
 
-See [the plan/product contract](docs/ligation.md). Gibson cloning is next.
+See [the plan/product contract](docs/ligation.md).
+
+### Gibson PCR-tail candidates
+
+`gibson plan.json` selects template intervals and orientations, designs explicit
+fixed-length annealing oligos with overlap tails, and predicts a linear/circular
+product with source annotation placements. Exact primer-site and overlap uniqueness
+are checked. **These are primer candidates, not thermodynamically validated or
+ordering-ready oligos.** Pre-existing-overlap intake is not yet supported.
+
+```bash
+dnagent gibson fixtures/plans/synthetic-gibson.json --output json
+```
+
+See [the Gibson contract and limitations](docs/gibson.md). GUI work remains deferred.
 
 ### Import warnings and strict mode
 
-All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`) return a
+All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
-The envelope schema version is now **0.7.0**, adding explicit ligation products.
+The envelope schema version is now **0.8.0**, adding PCR-tail Gibson candidates.
+Version 0.7.0 added explicit ligation products.
 Version 0.6.0 added annotation-aware fragments.
 Version 0.5.0 added end compatibility.
 Version 0.4.0 added complete digest simulation.
@@ -109,7 +124,8 @@ CLI argument-parsing errors still use Clap's stderr diagnostics rather than a
 JSON envelope. Site-analysis failures use `restriction_scan_failed`, digest
 failures use `digest_failed`, compatibility-analysis failures use
 `compatibility_failed`, and annotated-fragment failures use `annotation_failed`;
-ligation plan/analysis failures use `ligation_failed`; other runtime failures
+ligation plan/analysis failures use `ligation_failed`; Gibson plan/design failures
+use `gibson_failed`; other runtime failures
 retain `command_failed`.
 
 ### Annotation and schema contract
@@ -123,7 +139,7 @@ these are not flattened into a dictionary.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The current [JSON Schema](schemas/cli-envelope-0.7.0.schema.json) covers all eleven
+The current [JSON Schema](schemas/cli-envelope-0.8.0.schema.json) covers all twelve
 commands' success and runtime-error envelopes. Older schemas are retained only
 for archived responses, not emitted or accepted by the current CLI; see the
 [schema version policy](schemas/README.md). It validates structure and basic

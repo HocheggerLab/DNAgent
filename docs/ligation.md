@@ -10,7 +10,7 @@ dnagent ligate fixtures/plans/synthetic-closure.json
 JSON is the default; `--output text` gives a human-readable sequence/assumption
 summary. No product files are written by the program. Plans use
 [`ligation-plan-1.schema.json`](../schemas/ligation-plan-1.schema.json); output
-envelopes are **0.7.0**. Plan version 1 is independent of envelope versioning.
+envelopes are **0.8.0** (ligation was introduced in 0.7.0). Plan version 1 is independent of envelope versioning.
 
 ## Explicit selection, never inferred copies
 
@@ -115,8 +115,8 @@ biological rules. It does not construct a quadratic all-end matrix.
 The prediction assumes compatible selected junctions seal completely. It does not
 model phosphorylation, unsealed nicks, reaction conditions, yields, competing
 products, gel isolation, methylation, star activity or experimental sequence QC.
-There is no trimming, fill-in, polishing or implicit end repair. Gibson overlap
-rules remain a separate forthcoming operation.
+There is no trimming, fill-in, polishing or implicit end repair. [Gibson PCR-tail
+design](gibson.md) uses separate homology rules.
 
 ## Validation
 
@@ -143,4 +143,5 @@ pass-through products, warning retention and failure without partial products.
 This is an independently checked software model, not an independent experimental
 ligation oracle. Native product annotation reconstruction and product-specific
 FASTA/GenBank export remain follow-up work; current product sequences are in JSON
-or text. **Gibson cloning is the next required roadmap milestone before GUI work.**
+or text. A first [Gibson PCR-tail design slice](gibson.md) is now implemented;
+Gibson hardening and scope review remain ahead of GUI work.
