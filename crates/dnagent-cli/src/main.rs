@@ -37,6 +37,12 @@ enum Command {
     /// List imported annotations.
     Features {
         input: PathBuf,
+        /// Case-insensitive substring filter on the imported feature label.
+        #[arg(long)]
+        label: Option<String>,
+        /// Case-insensitive exact filter on the imported feature kind.
+        #[arg(long)]
+        kind: Option<String>,
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
@@ -94,8 +100,12 @@ enum Command {
     /// Optimise PCR-tail primers under explicit Tm and sequence-screen constraints (JSON).
     #[command(alias = "gibson-optimize")]
     GibsonOptimise { plan: PathBuf },
-    /// Assemble declared existing overlaps without designing PCR tails (JSON).
-    GibsonAssemble { plan: PathBuf },
+    /// Assemble declared existing overlaps; export JSON, FASTA or conservative GenBank.
+    GibsonAssemble {
+        plan: PathBuf,
+        #[arg(long, value_enum, default_value_t = AssemblyOutput::Json)]
+        output: AssemblyOutput,
+    },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -140,6 +150,13 @@ enum FragmentOutput {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+enum AssemblyOutput {
+    Json,
+    Fasta,
+    Genbank,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum FragmentStrandSelection {
     Top,
     Bottom,
@@ -178,7 +195,8 @@ impl Command {
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
-            Self::GibsonOptimise { .. } | Self::GibsonAssemble { .. } => true,
+            Self::GibsonOptimise { .. } => true,
+            Self::GibsonAssemble { output, .. } => matches!(output, AssemblyOutput::Json),
             Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
                 matches!(output, OutputMode::Json)
             }
@@ -316,25 +334,12 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
                 }
             }
         }
-        Command::Features { input, output } => {
-            let report = load_input(&input, strict, requests_json, warnings)?;
-            let features = feature_views(&report.record);
-            match output {
-                OutputMode::Json => print_json("features", &features, warnings)?,
-                OutputMode::Text => {
-                    for feature in features {
-                        println!(
-                            "{}\t{}\t{}\t{:?}\t{:?}",
-                            feature.id,
-                            feature.label,
-                            feature.kind,
-                            feature.strand,
-                            feature.location.parts()
-                        );
-                    }
-                }
-            }
-        }
+        Command::Features {
+            input,
+            label,
+            kind,
+            output,
+        } => run_features(&input, label, kind, output, strict, warnings)?,
         Command::Primers { input, output } => {
             let report = load_input(&input, strict, requests_json, warnings)?;
             let primers = primer_views(&report.record);
@@ -380,11 +385,54 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
         Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
         Command::Gibson { plan, output } => run_gibson(&plan, output, strict, warnings)?,
-        Command::GibsonOptimise { plan } => run_extended_gibson(&plan, true, strict, warnings)?,
-        Command::GibsonAssemble { plan } => run_extended_gibson(&plan, false, strict, warnings)?,
+        Command::GibsonOptimise { plan } => run_gibson_optimise(&plan, strict, warnings)?,
+        Command::GibsonAssemble { plan, output } => {
+            run_gibson_assemble(&plan, output, strict, warnings)?;
+        }
         Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_features(
+    input: &Path,
+    label: Option<String>,
+    kind: Option<String>,
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let requests_json = matches!(output, OutputMode::Json);
+    let report = load_input(input, strict, requests_json, warnings)?;
+    let label = label.map(|value| value.to_ascii_lowercase());
+    let kind = kind.map(|value| value.to_ascii_lowercase());
+    let features = feature_views(&report.record)
+        .into_iter()
+        .filter(|feature| {
+            label
+                .as_ref()
+                .is_none_or(|needle| feature.label.to_ascii_lowercase().contains(needle))
+                && kind
+                    .as_ref()
+                    .is_none_or(|expected| feature.kind.to_ascii_lowercase() == *expected)
+        })
+        .collect::<Vec<_>>();
+    match output {
+        OutputMode::Json => print_json("features", &features, warnings)?,
+        OutputMode::Text => {
+            for feature in features {
+                println!(
+                    "{}\t{}\t{}\t{:?}\t{:?}",
+                    feature.id,
+                    feature.label,
+                    feature.kind,
+                    feature.strand,
+                    feature.location.parts()
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -407,29 +455,64 @@ fn run_map(
     Ok(())
 }
 
-fn run_extended_gibson(
+fn run_gibson_optimise(
     path: &Path,
-    optimise: bool,
     strict: bool,
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use dnagent_app::gibson_extensions as operations;
-    if optimise {
-        let plan = operations::load_optimisation(path)?;
-        let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
-        print_json(
-            "gibson-optimise",
-            &operations::optimise(&records, &plan)?,
-            warnings,
-        )?;
-    } else {
-        let plan = operations::load_existing(path)?;
-        let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
-        print_json(
-            "gibson-assemble",
-            &operations::assemble(&records, &plan)?,
-            warnings,
-        )?;
+    let plan = operations::load_optimisation(path)?;
+    let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
+    print_json(
+        "gibson-optimise",
+        &operations::optimise(&records, &plan)?,
+        warnings,
+    )?;
+    Ok(())
+}
+
+fn run_gibson_assemble(
+    path: &Path,
+    output: AssemblyOutput,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use dnagent_app::gibson_extensions as operations;
+    let plan = operations::load_existing(path)?;
+    let records = plan
+        .inputs
+        .iter()
+        .map(|source| {
+            load_gibson_source(
+                source,
+                strict,
+                matches!(output, AssemblyOutput::Json),
+                warnings,
+            )
+            .map(|report| report.record)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let assembly = operations::assemble(&records, &plan)?;
+    match output {
+        AssemblyOutput::Json => print_json("gibson-assemble", &assembly, warnings)?,
+        AssemblyOutput::Fasta => {
+            eprintln!(
+                "Sequence-only derived FASTA; JSON is authoritative for source associations and junctions."
+            );
+            print!(
+                "{}",
+                dnagent_app::assembly_fasta(&assembly, "dnagent_gibson_product")?
+            );
+        }
+        AssemblyOutput::Genbank => {
+            eprintln!(
+                "Conservative derived GenBank; components are misc_features and biological features are not reconstructed."
+            );
+            print!(
+                "{}",
+                dnagent_app::assembly_genbank(&assembly, "dnagent_product")?
+            );
+        }
     }
     Ok(())
 }
@@ -440,8 +523,27 @@ fn load_gibson_sources(
 ) -> Result<Vec<dnagent_domain::SequenceRecord>, AppError> {
     sources
         .iter()
-        .map(|s| load_input(&s.path, strict, true, warnings).map(|r| r.record))
+        .map(|source| load_gibson_source(source, strict, true, warnings).map(|r| r.record))
         .collect()
+}
+
+fn load_gibson_source(
+    source: &dnagent_app::gibson::GibsonSource,
+    strict: bool,
+    requests_json: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<ImportReport, AppError> {
+    let report = dnagent_app::gibson::load_source(source)?;
+    warnings.extend(report.warnings.iter().cloned());
+    if !requests_json {
+        for warning in &report.warnings {
+            eprintln!("warning [{}]: {}", warning.code, warning.message);
+        }
+    }
+    if strict {
+        require_warning_free_import(&report)?;
+    }
+    Ok(report)
 }
 
 fn run_gibson(
@@ -454,13 +556,8 @@ fn run_gibson(
     let mut records = Vec::new();
     for source in &plan.inputs {
         records.push(
-            load_input(
-                &source.path,
-                strict,
-                matches!(output, OutputMode::Json),
-                warnings,
-            )?
-            .record,
+            load_gibson_source(source, strict, matches!(output, OutputMode::Json), warnings)?
+                .record,
         );
     }
     let view = dnagent_app::gibson::simulate(&records, &plan)?;
@@ -630,14 +727,35 @@ fn run_digest(
         OutputMode::Json => print_json("digest", &digest, warnings)?,
         OutputMode::Text => {
             println!("Complete sequence-only digest; not experimental validation.");
-            println!("fragment\ttop_bases\tbottom_bases\tpaired_bases\ttopology");
+            println!(
+                "fragment\ttop_bases\tbottom_bases\tpaired_core_bases\tleft_end\tright_end\ttopology"
+            );
             for fragment in digest.fragments {
+                let describe = |end: Option<&dnagent_domain::digest::FragmentEnd>| {
+                    end.map_or_else(
+                        || "closed".to_owned(),
+                        |end| {
+                            format!(
+                                "{:?}:{}:{}",
+                                end.polarity,
+                                end.overhang_sequence.len(),
+                                if end.overhang_sequence.is_empty() {
+                                    "-"
+                                } else {
+                                    &end.overhang_sequence
+                                }
+                            )
+                        },
+                    )
+                };
                 println!(
-                    "{}\t{}\t{}\t{}\t{:?}",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{:?}",
                     fragment.id,
                     fragment.top.length,
                     fragment.bottom.length,
                     fragment.paired_length,
+                    describe(fragment.left_end.as_ref()),
+                    describe(fragment.right_end.as_ref()),
                     fragment.topology
                 );
             }

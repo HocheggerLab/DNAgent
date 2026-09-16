@@ -8,7 +8,9 @@ use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityRepor
 use dnagent_domain::digest::{self, Digest, DigestError};
 use dnagent_domain::fragment_annotations::{self, AnnotatedDigest, AnnotationError};
 use dnagent_domain::restriction::{self, RestrictionError, RestrictionScan};
-use dnagent_domain::{ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology};
+use dnagent_domain::{
+    DomainError, ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology,
+};
 pub use dnagent_formats::genbank::ExportStrand;
 use dnagent_formats::{ImportError, ImportReport, ImportWarning};
 use serde::Serialize;
@@ -24,10 +26,16 @@ pub enum AppError {
         #[source]
         source: std::io::Error,
     },
-    #[error("unsupported input extension for {0}; milestone 1 accepts .dna")]
+    #[error(
+        "unsupported input extension for {0}; accepted sequence files are .dna, .fa, .fasta and .fna"
+    )]
     UnsupportedExtension(String),
+    #[error("invalid FASTA input: {0}")]
+    Fasta(&'static str),
     #[error(transparent)]
     Import(#[from] ImportError),
+    #[error(transparent)]
+    Domain(#[from] DomainError),
     #[error(
         "strict mode rejected {count} warning(s); inspect the warnings or retry without --strict"
     )]
@@ -42,6 +50,8 @@ pub enum AppError {
     Annotation(#[from] AnnotationError),
     #[error(transparent)]
     Genbank(#[from] dnagent_formats::genbank::GenbankError),
+    #[error(transparent)]
+    AssemblyExport(#[from] dnagent_formats::assembly::AssemblyExportError),
     #[error(transparent)]
     Ligation(#[from] dnagent_domain::ligation::LigationError),
     #[error("invalid ligation plan JSON: {0}")]
@@ -59,20 +69,85 @@ pub enum AppError {
 }
 
 /// Open a supported sequence file and normalize it into the domain model.
+/// Single-record FASTA imports are deliberately sequence-only and linear because
+/// FASTA has no standard topology or feature representation.
 pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
-    let extension = path.extension().and_then(|value| value.to_str());
-    if extension != Some("dna") {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(str::to_ascii_lowercase);
+    if !matches!(extension.as_deref(), Some("dna" | "fa" | "fasta" | "fna")) {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
     }
     let bytes = std::fs::read(path).map_err(|source| AppError::Read {
         path: path.display().to_string(),
         source,
     })?;
-    let name = path
+    let fallback_name = path
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("untitled");
-    Ok(dnagent_format_snapgene::import_bytes(&bytes, name)?)
+    match extension.as_deref() {
+        Some("dna") => Ok(dnagent_format_snapgene::import_bytes(
+            &bytes,
+            fallback_name,
+        )?),
+        Some("fa" | "fasta" | "fna") => import_single_fasta(&bytes, fallback_name),
+        _ => Err(AppError::UnsupportedExtension(path.display().to_string())),
+    }
+}
+
+fn import_single_fasta(bytes: &[u8], fallback_name: &str) -> Result<ImportReport, AppError> {
+    let text = std::str::from_utf8(bytes).map_err(|_| AppError::Fasta("file is not UTF-8"))?;
+    let mut name = None;
+    let mut sequence = String::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(header) = line.strip_prefix('>') {
+            if name.is_some() {
+                return Err(AppError::Fasta("exactly one FASTA record is required"));
+            }
+            name = Some(
+                header
+                    .split_whitespace()
+                    .next()
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or(fallback_name)
+                    .to_owned(),
+            );
+        } else {
+            if name.is_none() {
+                return Err(AppError::Fasta("sequence appeared before the FASTA header"));
+            }
+            if line.bytes().any(|base| base.is_ascii_whitespace()) {
+                return Err(AppError::Fasta(
+                    "whitespace inside a sequence line is not supported",
+                ));
+            }
+            sequence.push_str(line);
+        }
+    }
+    let name = name.ok_or(AppError::Fasta("missing FASTA header"))?;
+    if sequence.is_empty() {
+        return Err(AppError::Fasta("FASTA sequence is empty"));
+    }
+    Ok(ImportReport {
+        record: SequenceRecord::new(
+            name,
+            dnagent_domain::DnaSeq::new(sequence)?,
+            Topology::Linear,
+            vec![],
+            vec![],
+        )?,
+        warnings: vec![ImportWarning::new(
+            "fasta_sequence_only_linear",
+            "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record",
+        )],
+        preserved_metadata: dnagent_formats::FormatExtensions::default(),
+    })
 }
 
 /// Reject any reported import limitation, including preserved uninterpreted metadata.
@@ -264,6 +339,22 @@ pub fn fragment_fasta(report: &AnnotatedDigest) -> String {
     text
 }
 
+/// Sequence-only FASTA for a materialised exact-overlap assembly.
+pub fn assembly_fasta(
+    assembly: &dnagent_domain::existing_overlaps::ExistingAssembly,
+    name: &str,
+) -> Result<String, AppError> {
+    Ok(dnagent_formats::assembly::fasta(assembly, name)?)
+}
+
+/// Conservative GenBank product view with component provenance features.
+pub fn assembly_genbank(
+    assembly: &dnagent_domain::existing_overlaps::ExistingAssembly,
+    name: &str,
+) -> Result<String, AppError> {
+    Ok(dnagent_formats::assembly::genbank(assembly, name)?)
+}
+
 /// Checked sequence-range projection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SequenceRangeView {
@@ -336,5 +427,17 @@ mod tests {
         let view = sequence_range(&record, 1, 3).unwrap();
         assert_eq!(view.sequence, "CG");
         assert!(sequence_range(&record, 2, 5).is_err());
+    }
+
+    #[test]
+    fn single_record_fasta_is_canonical_linear_and_warned() {
+        let report =
+            import_single_fasta(b">example description\nacgt\nTGCA\n", "fallback").unwrap();
+        assert_eq!(report.record.name(), "example");
+        assert_eq!(report.record.sequence().as_str(), "ACGTTGCA");
+        assert_eq!(report.record.topology(), Topology::Linear);
+        assert_eq!(report.warnings[0].code, "fasta_sequence_only_linear");
+        assert!(import_single_fasta(b">one\nACGT\n>two\nTGCA\n", "fallback").is_err());
+        assert!(import_single_fasta(b"ACGT\n", "fallback").is_err());
     }
 }

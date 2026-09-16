@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {
+      "path": "../formats/fasta/synthetic_digest_source.fasta",
+      "enzymes": [
+        "EcoRI"
+      ],
+      "fragment_id": "fragment-0002",
+      "strand": "top"
+    },
+    {
+      "name": "ordered_bridge",
+      "sequence": "GAGGCTTTGCCTCTTGCAAGCGTACGATGCTAGCTACGATCGTACCTAGGCTACGTTAGCGCTAGGATCCGATGCTACGA",
+      "topology": "linear"
+    },
+    {
+      "path": "synthetic_gibson.dna",
+      "start": 20,
+      "length": 80,
+      "orientation": "forward",
+      "left_tail": "GCTAGGATCCGATGCTACGA",
+      "right_tail": "AATTCTGCTGGCAGTTCGGG",
+      "annealing_length": 20
+    }
+  ],
+  "topology": "circular",
+  "fragments": [
+    {
+      "input": 1,
+      "start": 0,
+      "length": 85,
+      "orientation": "forward"
+    },
+    {
+      "input": 2,
+      "start": 0,
+      "length": 80,
+      "orientation": "forward"
+    },
+    {
+      "input": 3,
+      "start": 0,
+      "length": 120,
+      "orientation": "forward"
+    }
+  ],
+  "overlaps": [
+    20,
+    20,
+    20
+  ]
+}

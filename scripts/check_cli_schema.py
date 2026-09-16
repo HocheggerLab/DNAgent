@@ -177,6 +177,11 @@ def main():
             "synthetic-gibson-existing.json",
             "gibson-existing-plan-1.schema.json",
         ),
+        (
+            "gibson-assemble",
+            "synthetic-gibson-mixed.json",
+            "gibson-existing-plan-1.schema.json",
+        ),
     ]:
         plan = ROOT / "fixtures/plans" / filename
         Draft202012Validator(

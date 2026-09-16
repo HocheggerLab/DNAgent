@@ -22,7 +22,7 @@ dnagent compatible-ends vector.dna --enzymes BsaI --other insert.dna --other-enz
 dnagent gui construct.dna
 ```
 
-Current status: working Milestone 1 vertical slice with checked domain types, read-only sequence/feature/primer import, explicit fidelity reporting, deterministic JSON and SVG output, and basic Map/Features/Sequence GUI views. Full cross-view selection remains unfinished.
+Current status: working Milestone 1 vertical slice with checked domain types, read-only sequence/feature/primer import, explicit fidelity reporting, deterministic JSON and SVG output, and basic Map/Features/Sequence GUI views. SnapGene `.dna` and single-record FASTA are accepted; FASTA is explicitly treated as sequence-only linear DNA. Full cross-view selection remains unfinished.
 
 ### Restriction sites
 
@@ -102,8 +102,20 @@ dnagent gibson-assemble fixtures/plans/synthetic-gibson-existing.json
 `gibson-optimise` searches annealing lengths under explicit nearest-neighbour Tm,
 GC and full-oligo sequence-screen constraints. `gibson-assemble` merges declared
 existing homology and retains both source associations in shared overlap regions.
-Neither predicts experimental success. Hairpin/dimer checks are **sequence screens,
-not folding-energy calculations**; there is no silent fallback on failed constraints.
+All Gibson plans accept `.dna`, single-record FASTA and literal sequence sources;
+`gibson-assemble` additionally supports selected digest strands and ideal PCR products
+with explicit tails. The latter retain generated primer candidates in their derived
+input records. Materialised exact-overlap products can be exported directly:
+
+```bash
+dnagent gibson-assemble mixed-plan.json --output fasta > product.fasta
+dnagent gibson-assemble mixed-plan.json --output genbank > product.gb
+```
+
+FASTA is sequence-only. GenBank is conservative and represents component provenance
+as `misc_feature`, without inferred CDSs or translations. Neither predicts
+experimental success. Hairpin/dimer checks are **sequence screens, not folding-energy
+calculations**; there is no silent fallback on failed constraints.
 
 See [fixed-length Gibson](docs/gibson.md), [primer optimisation](docs/primer-optimisation.md)
 and [existing overlaps](docs/existing-overlaps.md). GUI work remains deferred.
@@ -147,7 +159,9 @@ retain `command_failed`.
 
 `features --output json` includes ordered `qualifiers` arrays of `{key, value}`
 objects. Repeated keys/values and valueless qualifiers (`null`) are retained;
-these are not flattened into a dictionary.
+these are not flattened into a dictionary. They are imported metadata, not
+DNAagent-computed translations. `features` also accepts `--label` (case-insensitive
+substring) and `--kind` (case-insensitive exact match) filters.
 
 `primers --output json` returns retained `name`, canonical uppercase IUPAC
 `sequence`, and nullable `description`, in source order. These are imported

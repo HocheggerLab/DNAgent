@@ -17,17 +17,170 @@
     "inputs": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "path"
-        ],
-        "properties": {
-          "path": {
-            "type": "string",
-            "minLength": 1
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sequence",
+              "topology"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sequence": {
+                "type": "string",
+                "pattern": "^[ACGTRYSWKMBDHVNacgtryswkmbdhvn]+$",
+                "minLength": 1,
+                "maxLength": 1000000
+              },
+              "topology": {
+                "enum": [
+                  "linear",
+                  "circular"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "enzymes",
+              "fragment_id"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "enzymes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "fragment_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strand": {
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "start",
+              "length",
+              "orientation"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999999
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 36,
+                "maximum": 1000000
+              },
+              "orientation": {
+                "enum": [
+                  "forward",
+                  "reverse"
+                ]
+              },
+              "left_tail": {
+                "type": "string",
+                "pattern": "^[ACGTacgt]*$",
+                "maxLength": 60
+              },
+              "right_tail": {
+                "type": "string",
+                "pattern": "^[ACGTacgt]*$",
+                "maxLength": 60
+              },
+              "annealing_length": {
+                "type": "integer",
+                "minimum": 18,
+                "maximum": 40
+              },
+              "forward_annealing_length": {
+                "type": "integer",
+                "minimum": 18,
+                "maximum": 40
+              },
+              "reverse_annealing_length": {
+                "type": "integer",
+                "minimum": 18,
+                "maximum": 40
+              }
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "annealing_length"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "forward_annealing_length"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "reverse_annealing_length"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "forward_annealing_length",
+                  "reverse_annealing_length"
+                ],
+                "not": {
+                  "required": [
+                    "annealing_length"
+                  ]
+                }
+              }
+            ]
           }
-        }
+        ]
       },
       "minItems": 1,
       "maxItems": 16

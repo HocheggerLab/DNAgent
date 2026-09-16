@@ -244,7 +244,8 @@ fn strand_interval(sequence: &DnaSeq, start: i128, end: i128, reverse: bool) -> 
 }
 
 /// Internal ACGT-only helper for validated digest/ligation strand sequences.
-pub(crate) fn reverse_complement(sequence: &str) -> String {
+#[must_use]
+pub fn reverse_complement(sequence: &str) -> String {
     sequence
         .bytes()
         .rev()

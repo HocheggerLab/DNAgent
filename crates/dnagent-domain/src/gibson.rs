@@ -277,10 +277,7 @@ pub(crate) fn core_annotations(
         .map(|m| m.into_iter().filter(|m| !m.parts.is_empty()).collect())
 }
 
-pub(crate) fn core(
-    record: &SequenceRecord,
-    selection: &CoreSelection,
-) -> Result<String, GibsonError> {
+pub fn core(record: &SequenceRecord, selection: &CoreSelection) -> Result<String, GibsonError> {
     let n = record.sequence().len();
     let end = selection
         .start
@@ -319,7 +316,8 @@ pub(crate) fn primer(annealing: &str, tail: &str) -> PrimerCandidate {
     }
 }
 
-pub(crate) fn unique_duplex_site(sequence: &str, motif: &str, topology: Topology) -> bool {
+#[must_use]
+pub fn unique_duplex_site(sequence: &str, motif: &str, topology: Topology) -> bool {
     let rc = reverse_complement(motif);
     if rc == motif || motif.len() > sequence.len() {
         return false;

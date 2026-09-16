@@ -37,8 +37,11 @@ is independent of the current **0.9.0** CLI output-envelope schema. Relative pat
 resolve against the plan directory. Unknown fields, missing orientations and
 unsupported versions fail explicitly.
 
-- Templates are SnapGene `.dna` records; all retain source names, full sequences,
-  topology, original features/qualifiers and imported primers in the JSON result.
+- Inputs may be SnapGene `.dna`, single-record FASTA, literal sequences, selected
+  digest strands or ideal PCR-product projections. SnapGene records retain source
+  annotations; projected digest/PCR records explicitly warn when source annotation
+  or duplex geometry is not carried into the derived sequence view. See
+  [existing-overlap assembly](existing-overlaps.md) for the source forms.
 - `input` is **one-based**. `start` is zero-based on the original **forward** axis;
   `length` is the count of selected source bases. Linear ranges cannot wrap.
   Circular ranges may cross the origin, but cannot exceed one full source lap.

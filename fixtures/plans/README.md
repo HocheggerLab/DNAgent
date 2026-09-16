@@ -9,6 +9,9 @@
   differs from the fixed-length example; these are separate declared designs.
 - `synthetic-gibson-existing.json`: two declared linear views of the synthetic
   circle, merged across existing 25-base homology to recover its 300-base sequence.
+- `synthetic-gibson-mixed.json`: a selected EcoRI digest strand, literal ordered
+  bridge and ideal tailed PCR product assembled circularly; exercises mixed source
+  loading, primer retention and product materialisation.
 
 The ligation plans reference existing public synthetic format fixtures. The Gibson
 source is a deterministic synthetic original, with no imported biological sequence;

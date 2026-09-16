@@ -18,17 +18,81 @@
     "inputs": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "path"
-        ],
-        "properties": {
-          "path": {
-            "type": "string",
-            "minLength": 1
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sequence",
+              "topology"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sequence": {
+                "type": "string",
+                "pattern": "^[ACGTRYSWKMBDHVNacgtryswkmbdhvn]+$",
+                "minLength": 1,
+                "maxLength": 1000000
+              },
+              "topology": {
+                "enum": [
+                  "linear",
+                  "circular"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "enzymes",
+              "fragment_id"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "enzymes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "fragment_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strand": {
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              }
+            }
           }
-        }
+        ]
       },
       "minItems": 1,
       "maxItems": 16

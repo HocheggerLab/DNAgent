@@ -33,6 +33,23 @@ fn qualifiers_retain_order_repetition_and_null_values() {
 }
 
 #[test]
+fn feature_filters_match_label_substrings_and_exact_kinds_case_insensitively() {
+    let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/formats/snapgene/synthetic_linear.dna");
+    let output = Command::new(env!("CARGO_BIN_EXE_dnagent"))
+        .arg("features")
+        .arg(input)
+        .args(["--label", "MULTI", "--kind", "cds", "--output", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["result"].as_array().unwrap().len(), 1);
+    assert_eq!(body["result"][0]["label"], "reverse multipart");
+    assert_eq!(body["result"][0]["kind"], "CDS");
+}
+
+#[test]
 fn primers_retain_sequence_and_description_without_inventing_binding_sites() {
     let (ok, body) = run("primers", "synthetic_linear.dna", true);
     assert!(ok);

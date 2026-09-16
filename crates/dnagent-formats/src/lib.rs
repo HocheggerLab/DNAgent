@@ -1,5 +1,6 @@
 //! Shared format-adapter contracts.
 
+pub mod assembly;
 pub mod genbank;
 
 use dnagent_domain::{DomainError, SequenceRecord};

@@ -2,15 +2,20 @@
 
 **Current emitted version: 0.9.0.** Every current JSON command emits that version.
 The CLI does not negotiate older versions and does not accept JSON envelopes as
-input. Envelope schemas describe outputs, not an import API. Source constructs
-are read from SnapGene `.dna` files. The new `ligate` command accepts a distinct
+input. Envelope schemas describe outputs, not an import API. General sequence
+commands accept SnapGene `.dna` and single-record FASTA; FASTA is sequence-only and
+assumed linear with a warning. The new `ligate` command accepts a distinct
 [version-1 plan input schema](ligation-plan-1.schema.json); those plans are not
 CLI output envelopes. `gibson` accepts a separate
 [version-1 PCR-tail plan](gibson-plan-1.schema.json). `gibson-optimise` and
 `gibson-assemble` each accept their own strict version-1 plan:
 [optimisation](gibson-optimisation-plan-1.schema.json) and
-[existing overlaps](gibson-existing-plan-1.schema.json). These new commands emit
-JSON only; `gibson-optimize` is an alias that retains `gibson-optimise` in envelopes.
+[existing overlaps](gibson-existing-plan-1.schema.json). Gibson plan inputs may be
+file paths, literal sequences, selected digest strands or ideal PCR-product
+projections; the exact accepted forms are encoded in each plan schema.
+`gibson-optimise` emits JSON only; `gibson-assemble` defaults to JSON and can also
+emit sequence-only FASTA or conservative GenBank. `gibson-optimize` is an alias
+that retains `gibson-optimise` in envelopes.
 
 | Schema | Status | Purpose |
 | --- | --- | --- |

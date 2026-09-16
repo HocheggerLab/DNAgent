@@ -29,10 +29,11 @@ pub struct ExistingPlan {
     pub overlaps: Vec<usize>,
 }
 fn header(version: u32, sources: &[GibsonSource]) -> Result<(), GibsonError> {
-    if version != 1 || sources.iter().any(|s| s.path.as_os_str().is_empty()) {
-        return Err(GibsonError::Invalid(
-            "expected plan version 1 and nonempty source paths",
-        ));
+    if version != 1 {
+        return Err(GibsonError::Invalid("expected Gibson plan version 1"));
+    }
+    for source in sources {
+        source.validate()?;
     }
     Ok(())
 }
@@ -69,7 +70,7 @@ fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, AppError> {
 fn resolve(path: &Path, sources: &mut [GibsonSource]) {
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     for source in sources {
-        source.path = base.join(&source.path);
+        source.resolve_relative_to(base);
     }
 }
 pub fn load_optimisation(path: &Path) -> Result<OptimisationPlan, AppError> {

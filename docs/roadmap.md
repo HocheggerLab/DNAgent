@@ -24,11 +24,15 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
   against pinned Biopython and an exhaustive independent candidate search.
 - [Existing-overlap assembly](existing-overlaps.md): explicit variable homology,
   linear/circular exact merges and both source associations in shared overlaps.
+- Heterogeneous Gibson source intake: SnapGene, single-record FASTA, literal DNA,
+  selected restriction-digest strands and ideal PCR products with explicit tails and
+  retained primer candidates. Exact-overlap products export as sequence-only FASTA
+  or conservative component-provenance GenBank.
 
 ## Next milestones, in order
 
 1. **Gibson hardening and scope review** — full folding-energy assessment,
-   real-template design coverage and a separate assembly-engine comparison.
+   broader real-template design coverage and a separate assembly-engine comparison.
    NN annealing Tm is available, but hairpin/dimer checks are sequence screens,
    not structure thermodynamics. Candidate oligos are not ordering-ready.
    Preserve the distinction between model predictions and experimentally validated
@@ -40,7 +44,8 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
 
 Broader enzyme catalogue, explicit terminal/overlapping strand-product models,
 structured CLI argument errors, stronger metadata round-trip support and richer
-assembly evaluation. Ligation product-feature reunion/fusion inference and direct
-product FASTA/GenBank exports remain explicit follow-ups; source-linked component
-placements are available now. Expand these when needed by a concrete workflow; do not
-silently approximate unsupported biology.
+assembly evaluation. Ligation product export and feature reunion/fusion inference
+remain explicit follow-ups. Gibson exact-overlap products now export sequence-only
+FASTA and conservative component-provenance GenBank, but product-level biological
+feature reconstruction remains deliberately absent. Expand these when needed by a
+concrete workflow; do not silently approximate unsupported biology.

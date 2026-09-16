@@ -2,9 +2,13 @@
 
 ```bash
 dnagent gibson-assemble fixtures/plans/synthetic-gibson-existing.json
+dnagent gibson-assemble plan.json --output fasta > product.fasta
+dnagent gibson-assemble plan.json --output genbank > product.gb
 ```
 
-Output is JSON only, envelope **0.9.0**. The input is a separate
+JSON output uses envelope **0.9.0**. FASTA is sequence-only; conservative GenBank
+uses component `misc_feature` records and does not infer genes, CDSs or translations.
+The input is a separate
 [version-1 existing-overlap plan](../schemas/gibson-existing-plan-1.schema.json).
 It uses `fragments`, not PCR `cores`, and an `overlaps` array, not a single PCR-tail
 length. Wrong plan kinds and unknown fields are rejected.
@@ -13,9 +17,38 @@ length. Wrong plan kinds and unknown fields are rejected.
 
 Each selection identifies `input` (1-based), `start` (zero-based source forward
 axis), `length` and explicit `orientation`. Extraction precedes reverse
-complementation. Source paths resolve relative to the plan and use the shared
-read-only importer (currently SnapGene `.dna`). A supplied full fragment is a
+complementation. Paths resolve relative to the plan. A supplied full fragment is a
 selection starting at zero with its full sequence length.
+
+Every Gibson plan now accepts four source forms:
+
+```json
+{"path": "fragment.fasta"}
+{"name": "ordered_insert", "sequence": "ACGT...", "topology": "linear"}
+{"path": "vector.dna", "enzymes": ["EcoRI"], "fragment_id": "fragment-0002", "strand": "top"}
+{"path": "template.dna", "start": 5535, "length": 654,
+ "orientation": "forward", "left_tail": "ACGT...", "right_tail": "TGCA...",
+ "forward_annealing_length": 26, "reverse_annealing_length": 18}
+```
+
+- Plain paths accept SnapGene `.dna` and single-record `.fa`, `.fasta` or `.fna`.
+  FASTA is imported as sequence-only linear DNA and emits an explicit warning because
+  topology/features are not represented by the format.
+- Literals require a name, validated IUPAC DNA and explicit topology. Exact Gibson
+  operations subsequently require unambiguous ACGT.
+- Digest sources run a complete digest and expose the selected top or bottom 5′→3′
+  strand as a linear source. Its selection can trim terminal restriction-site bases
+  when the declared assembly overlap lies inside the physical digest fragment.
+- PCR sources extract an oriented source interval, add product-oriented left/right
+  tails, check exact annealing-site uniqueness and expose the resulting ideal PCR
+  product. Use either one shared `annealing_length` or both asymmetric lengths.
+  Designed 5′→3′ primer candidates are retained in that derived input record's
+  `primers` array. Thermodynamic optimisation is not performed by this source form.
+
+Digest/PCR projections emit warnings because their JSON source record is a selected
+assembly strand/product rather than the complete original duplex/annotation model.
+Use the separate digest/fragment output for end geometry and source annotations.
+`--strict` therefore rejects these deliberately lossy projections.
 
 Selections declare **existing linear fragment views**, even when the source record
 is circular. Source topology controls interval extraction only; preparation by PCR,
@@ -77,8 +110,9 @@ components (or across the duplicated termini of a reclosed fragment).
 
 An annotation's `complete` flag concerns retained source-base **associations in the
 component view**, not a distinct-base count or biological integrity of a product
-feature. JSON remains the source of truth; product-level reconstructed annotations
-and direct product FASTA/GenBank exports are not part of this operation.
+feature. JSON remains the source of truth. Direct FASTA and conservative GenBank
+exports are available, but they intentionally carry less provenance: FASTA is
+sequence-only and GenBank records component associations as `misc_feature` entries.
 
 ## Validation
 
