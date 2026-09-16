@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DNAagent ligation plan 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inputs",
+    "fragments",
+    "topology"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "enzymes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enzymes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "fragments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "fragment_id",
+          "orientation"
+        ],
+        "properties": {
+          "input": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "fragment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "orientation": {
+            "enum": [
+              "forward",
+              "reverse"
+            ]
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 128
+    },
+    "topology": {
+      "enum": [
+        "linear",
+        "circular"
+      ]
+    }
+  }
+}

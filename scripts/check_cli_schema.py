@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.6.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.7.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -166,6 +166,43 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected fragments response")
         checked.append(body)
+    plan_validator = Draft202012Validator(
+        json.loads((ROOT / "schemas/ligation-plan-1.schema.json").read_text())
+    )
+    for filename in ["synthetic-religation.json", "synthetic-closure.json"]:
+        path = ROOT / "fixtures/plans" / filename
+        plan_validator.validate(json.loads(path.read_text()))
+        proc = subprocess.run(
+            [str(binary), "ligate", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        body = json.loads(proc.stdout)
+        validator.validate(body)
+        if proc.returncode or not body["ok"] or proc.stderr:
+            raise ValueError("unexpected ligation response")
+        checked.append(body)
+    proc = subprocess.run(
+        [
+            str(binary),
+            "ligate",
+            str(ROOT / "fixtures/formats/snapgene/synthetic_restriction_linear.dna"),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    body = json.loads(proc.stdout)
+    validator.validate(body)
+    if (
+        proc.returncode == 0
+        or body["ok"]
+        or body["error"]["code"] != "ligation_failed"
+        or proc.stderr
+    ):
+        raise ValueError("malformed plan must fail without a partial product")
+    checked.append(body)
     proc = subprocess.run(
         [str(binary), "enzymes", "--output", "json"],
         capture_output=True,
@@ -242,6 +279,18 @@ def main():
     mutations.append(bad)
     bad = copy.deepcopy(annotated)
     del bad["result"]["source_features"][0]["qualifiers"]
+    mutations.append(bad)
+    ligation = next(b for b in checked if b["command"] == "ligate" and b["ok"])
+    bad = copy.deepcopy(ligation)
+    bad["result"]["product"]["components"][0]["top"]["start"] = -1
+    mutations.append(bad)
+    bad = copy.deepcopy(ligation)
+    bad["result"]["product"]["junctions"][0]["assessment"]["compatible"] = False
+    mutations.append(bad)
+    bad = copy.deepcopy(ligation)
+    bad["result"]["product"]["topology"] = (
+        "circular"  # Free ends must be null on circles.
+    )
     mutations.append(bad)
     if any(validator.is_valid(body) for body in mutations):
         raise ValueError("schema accepted an intentionally invalid response")

@@ -1,5 +1,7 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
+pub mod ligation;
+
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
 use dnagent_domain::digest::{self, Digest, DigestError};
 use dnagent_domain::fragment_annotations::{self, AnnotatedDigest, AnnotationError};
@@ -38,6 +40,10 @@ pub enum AppError {
     Annotation(#[from] AnnotationError),
     #[error(transparent)]
     Genbank(#[from] dnagent_formats::genbank::GenbankError),
+    #[error(transparent)]
+    Ligation(#[from] dnagent_domain::ligation::LigationError),
+    #[error("invalid ligation plan JSON: {0}")]
+    LigationPlan(#[from] serde_json::Error),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,

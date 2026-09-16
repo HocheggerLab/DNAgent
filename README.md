@@ -64,13 +64,28 @@ dnagent fragments construct.dna --enzymes EcoRI,BamHI --output genbank --strand 
 See [the annotation/export contract](docs/fragment-annotations.md) and
 [conservative GenBank views](docs/genbank-export.md). GenBank requires an explicit
 strand and uses source-linked `misc_feature` pieces, not inferred functional CDSs.
-Next: restriction-ligation products, then **Gibson cloning before GUI integration**. See [the roadmap](docs/roadmap.md).
+See [the roadmap](docs/roadmap.md): **Gibson cloning remains required before GUI integration**.
+
+### Restriction/ligation products
+
+`ligate plan.json` applies an explicit version-1 JSON plan: input digests, fragment
+selection, order, orientation and linear/circular topology. It rejects incompatible
+junctions and implicit fragment reuse, conserves both strands, and retains explicit
+circular strand phase and component annotation placements. It does not infer gene
+repair, reaction yield or experimental validation.
+
+```bash
+dnagent ligate fixtures/plans/synthetic-religation.json --output json
+```
+
+See [the plan/product contract](docs/ligation.md). Gibson cloning is next.
 
 ### Import warnings and strict mode
 
-All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`) return a
+All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
-The envelope schema version is now **0.6.0**, adding annotation-aware fragments.
+The envelope schema version is now **0.7.0**, adding explicit ligation products.
+Version 0.6.0 added annotation-aware fragments.
 Version 0.5.0 added end compatibility.
 Version 0.4.0 added complete digest simulation.
 Version 0.3.0 added feature qualifiers and the
@@ -94,7 +109,8 @@ CLI argument-parsing errors still use Clap's stderr diagnostics rather than a
 JSON envelope. Site-analysis failures use `restriction_scan_failed`, digest
 failures use `digest_failed`, compatibility-analysis failures use
 `compatibility_failed`, and annotated-fragment failures use `annotation_failed`;
-other runtime failures retain `command_failed`.
+ligation plan/analysis failures use `ligation_failed`; other runtime failures
+retain `command_failed`.
 
 ### Annotation and schema contract
 
@@ -107,7 +123,7 @@ these are not flattened into a dictionary.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The committed [JSON Schema](schemas/cli-envelope-0.6.0.schema.json) covers all ten
+The current [JSON Schema](schemas/cli-envelope-0.7.0.schema.json) covers all eleven
 commands' success and runtime-error envelopes. Older schemas are retained only
 for archived responses, not emitted or accepted by the current CLI; see the
 [schema version policy](schemas/README.md). It validates structure and basic

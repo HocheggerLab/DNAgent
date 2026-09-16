@@ -30,7 +30,7 @@ fn digest_reports_complete_strands_and_conserves_bases() {
         true,
     );
     assert!(ok);
-    assert_eq!(body["schema_version"], "0.6.0");
+    assert_eq!(body["schema_version"], "0.7.0");
     let result = &body["result"];
     assert_eq!(result["cuts"].as_array().unwrap().len(), 8);
     let fragments = result["fragments"].as_array().unwrap();

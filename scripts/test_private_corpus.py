@@ -84,7 +84,7 @@ class CorpusCheckerTests(unittest.TestCase):
 
     def test_schema_failure_does_not_echo_private_payload(self):
         envelope = {
-            "schema_version": "0.6.0",
+            "schema_version": "0.7.0",
             "command": "sequence",
             "ok": True,
             "warnings": [],

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {"path": "../formats/snapgene/synthetic_restriction_linear.dna", "enzymes": ["EcoRI", "BamHI"]}
+  ],
+  "fragments": [
+    {"input": 1, "fragment_id": "fragment-0001", "orientation": "forward"},
+    {"input": 1, "fragment_id": "fragment-0002", "orientation": "forward"},
+    {"input": 1, "fragment_id": "fragment-0003", "orientation": "forward"}
+  ],
+  "topology": "linear"
+}

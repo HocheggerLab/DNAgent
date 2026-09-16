@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {"path": "../formats/snapgene/synthetic_restriction_circular.dna", "enzymes": ["EcoRI"]}
+  ],
+  "fragments": [
+    {"input": 1, "fragment_id": "fragment-0001", "orientation": "reverse"}
+  ],
+  "topology": "circular"
+}

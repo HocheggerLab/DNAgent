@@ -3,9 +3,10 @@
 pub mod compatibility;
 pub mod digest;
 pub mod fragment_annotations;
+pub mod ligation;
 pub mod restriction;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt};
 use thiserror::Error;
 
@@ -103,7 +104,7 @@ impl fmt::Display for DnaSeq {
 }
 
 /// Physical topology of an imported DNA record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Topology {
     /// A molecule with two ends.

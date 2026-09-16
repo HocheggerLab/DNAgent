@@ -22,7 +22,8 @@ fragment descriptions, not newly annotated `SequenceRecord` objects.
 ## Contract (envelope 0.4.0)
 
 Digest simulation was introduced in `schemas/cli-envelope-0.4.0.schema.json`.
-Current envelopes use 0.6.0, adding [annotation projections](fragment-annotations.md)
+Current envelopes use 0.7.0, adding [ligation products](ligation.md) after
+0.6.0's [annotation projections](fragment-annotations.md)
 after 0.5.0's [end compatibility](compatibility.md). The digest payload shape is
 unchanged. Historical schemas remain available for archived responses only.
 
@@ -126,7 +127,6 @@ No reference source code or enzyme database was copied.
 The separate [end-compatibility operation](compatibility.md) now evaluates these
 ends. The separate [fragments operation](fragment-annotations.md) now projects
 source annotations onto both strands and exports JSON/FASTA plus conservative
-[GenBank strand views](genbank-export.md). Next milestones are
-restriction/ligation assembly, then Gibson cloning
-before GUI integration; see [the roadmap](roadmap.md).
+[GenBank strand views](genbank-export.md). [Ligation products](ligation.md) now include explicit component placements.
+Next is Gibson cloning before GUI integration; see [the roadmap](roadmap.md).
 Terminal/overlapping strand-product support remains a follow-up limitation.

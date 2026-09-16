@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.6.0";
+const SCHEMA_VERSION: &str = "0.7.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -79,6 +79,12 @@ enum Command {
     CompatibleEnds(CompatibilityArgs),
     /// Project source annotations onto each digest strand; export JSON or strand FASTA.
     Fragments(FragmentArgs),
+    /// Simulate a versioned explicit restriction/ligation plan.
+    Ligate {
+        plan: PathBuf,
+        #[arg(long, value_enum, default_value_t = OutputMode::Json)]
+        output: OutputMode,
+    },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -141,6 +147,7 @@ impl Command {
             Self::Digest { .. } => "digest",
             Self::CompatibleEnds(_) => "compatible-ends",
             Self::Fragments(_) => "fragments",
+            Self::Ligate { .. } => "ligate",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -157,6 +164,7 @@ impl Command {
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
+            Self::Ligate { output, .. } => matches!(output, OutputMode::Json),
             Self::Map { .. } => true,
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
@@ -239,6 +247,11 @@ fn main() -> ExitCode {
                             Some(AppError::Annotation(_))
                         ) {
                             "annotation_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Ligation(_) | AppError::LigationPlan(_))
+                        ) {
+                            "ligation_failed"
                         } else {
                             "command_failed"
                         },
@@ -343,6 +356,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         } => run_digest(&input, &enzymes, output, strict, warnings)?,
         Command::CompatibleEnds(args) => run_compatibility(&args, strict, warnings)?,
         Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
+        Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
         Command::Map { input, out } => {
             let report = load_input(&input, strict, requests_json, warnings)?;
             let svg = MapScene::from_record(&report.record).to_svg();
@@ -357,6 +371,46 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         }
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_ligation(
+    path: &std::path::Path,
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let plan = dnagent_app::ligation::load_plan(path)?;
+    let mut records = Vec::new();
+    for source in &plan.inputs {
+        records.push(
+            load_input(
+                &source.path,
+                strict,
+                matches!(output, OutputMode::Json),
+                warnings,
+            )?
+            .record,
+        );
+    }
+    let view = dnagent_app::ligation::simulate(&records, &plan)?;
+    match output {
+        OutputMode::Json => print_json("ligate", &view, warnings)?,
+        OutputMode::Text => {
+            println!(
+                "Topology: {:?}\nComponents: {}\nJunctions: {}\nTop (5-prime to 3-prime): {}\nBottom (5-prime to 3-prime): {}\nBottom forward-axis start: {}",
+                view.product.topology,
+                view.product.components.len(),
+                view.product.junctions.len(),
+                view.product.top_sequence_5to3,
+                view.product.bottom_sequence_5to3,
+                view.product.bottom_forward_start
+            );
+            for assumption in &view.assumptions {
+                println!("Assumption: {assumption}");
+            }
+        }
     }
     Ok(())
 }
