@@ -1,7 +1,7 @@
 //! Small, explicit restriction-enzyme catalogue and sequence-only cleavage geometry.
 //! Constants verified against Biopython 1.85 Bio.Restriction; see docs/restriction.md.
 
-use crate::{DnaSeq, Region, Strand, Topology};
+use crate::{DnaSeq, DomainError, Region, Strand, Topology};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -63,6 +63,8 @@ pub enum RestrictionError {
         "restriction scanning requires unambiguous A/C/G/T; found {symbol} at zero-based position {position}"
     )]
     AmbiguousSequence { symbol: char, position: usize },
+    #[error("invalid recognition coordinates: {0}")]
+    Coordinates(#[from] DomainError),
     #[error(
         "circular molecule length {length} is too short for {enzyme} recognition/cleavage span {required}"
     )]
@@ -185,7 +187,7 @@ pub fn find_sites(
                 {
                     continue;
                 }
-                sites.push(site_geometry(enzyme, start, strand, n, topology));
+                sites.push(site_geometry(enzyme, start, strand, n, topology)?);
             }
         }
     }
@@ -216,8 +218,15 @@ fn site_geometry(
     strand: Strand,
     n: usize,
     topology: Topology,
-) -> RestrictionSite {
+) -> Result<RestrictionSite, DomainError> {
     let m = enzyme.recognition_sequence.len();
+    // find_sites bounds start and motif length before calling us. Still propagate
+    // checked-region failures rather than panic if those invariants ever change.
+    let recognition = if topology == Topology::Linear || start + m <= n {
+        Region::linear(start, start + m, n)?
+    } else {
+        Region::circular_arc(start, m, n)?
+    };
     let (top_offset, bottom_offset) = if strand == Strand::Forward {
         (
             i128::from(enzyme.top_cut_offset),
@@ -240,13 +249,9 @@ fn site_geometry(
     let top_cut = boundary(top_offset);
     let bottom_cut = boundary(bottom_offset);
     let delta = enzyme.bottom_cut_offset - enzyme.top_cut_offset;
-    RestrictionSite {
+    Ok(RestrictionSite {
         enzyme: enzyme.name,
-        recognition: if start + m <= n {
-            Region::linear(start, start + m, n).unwrap()
-        } else {
-            Region::circular_arc(start, m, n).unwrap()
-        },
+        recognition,
         strand,
         top_cut,
         bottom_cut,
@@ -257,12 +262,20 @@ fn site_geometry(
             std::cmp::Ordering::Less => OverhangPolarity::ThreePrime,
         },
         overhang_length: delta.unsigned_abs() as usize,
-    }
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_site_geometry_returns_checked_coordinate_error() {
+        for topology in [Topology::Linear, Topology::Circular] {
+            assert!(site_geometry(&ENZYMES[0], 0, Strand::Forward, 3, topology).is_err());
+            assert!(site_geometry(&ENZYMES[0], 0, Strand::Forward, 0, topology).is_err());
+        }
+    }
     fn scan(sequence: &str, topology: Topology, enzyme: &str) -> RestrictionScan {
         find_sites(
             &DnaSeq::new(sequence).unwrap(),

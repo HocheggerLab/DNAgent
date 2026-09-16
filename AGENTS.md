@@ -6,7 +6,7 @@
 - CLI and GUI must call the same typed application layer; neither reimplements biology.
 - Keep the default CLI package build headless; gate desktop dependencies behind its `gui` feature.
 - Keep the versioned JSON Schema and live-output validation in sync with CLI changes.
-- Prioritise the CLI as an agent tool. Defer new GUI functionality until the CLI contracts and sequence operations are stable.
+- Prioritise the CLI as an agent tool. Follow `docs/roadmap.md`: Gibson cloning is required before GUI integration.
 - Preserve import warnings in every CLI projection; strict rejection must happen before output-file writes.
 - Keep GUI-only selection, hover, zoom and viewport state in `dnagent-gui`.
 - Use zero-based, half-open coordinates internally and in JSON.
@@ -34,6 +34,7 @@ cargo build -p dnagent-cli --locked
 uv run scripts/check_cli_schema.py --binary target/debug/dnagent
 uv run scripts/check_restriction.py --binary target/debug/dnagent
 uv run scripts/check_digest.py --binary target/debug/dnagent
+uv run scripts/check_compatibility.py --binary target/debug/dnagent
 ```
 
 Schema checks use public synthetic fixtures only. Private-corpus validation is

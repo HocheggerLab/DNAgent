@@ -21,9 +21,9 @@ fragment descriptions, not newly annotated `SequenceRecord` objects.
 
 ## Contract (envelope 0.4.0)
 
-The new versioned schema is `schemas/cli-envelope-0.4.0.schema.json`. The previous
-0.3.0 schema remains available unchanged for historical responses. Existing
-command payload shapes are unchanged; all current envelopes carry version 0.4.0.
+Digest simulation was introduced in `schemas/cli-envelope-0.4.0.schema.json`.
+Current envelopes use 0.5.0, which adds [end compatibility](compatibility.md);
+the digest payload shape is unchanged. Historical schemas remain available.
 
 A successful digest contains:
 
@@ -122,6 +122,7 @@ directories; committed examples reuse the public synthetic fixture generator.
 Optional private EcoRI/BamHI digests are hash-checked and output no sequences.
 No reference source code or enzyme database was copied.
 
-Next: explicit strand-product support for terminal/overlapping cuts, followed by
-annotation-aware fragment records and separate, well-scoped end compatibility
-analysis. Automatic ligation or cloning recommendations remain outside this slice.
+The separate [end-compatibility operation](compatibility.md) now evaluates these
+ends. Next milestones are annotation-aware fragments, restriction/ligation
+assembly, then Gibson cloning before GUI integration; see [the roadmap](roadmap.md).
+Terminal/overlapping strand-product support remains a follow-up limitation.

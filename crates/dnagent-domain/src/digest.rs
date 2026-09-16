@@ -9,10 +9,12 @@ use thiserror::Error;
 pub enum DigestError {
     #[error(transparent)]
     Restriction(#[from] RestrictionError),
-    #[error("cannot digest: {enzyme} site at {start} has a cut outside the linear molecule")]
+    #[error(
+        "complete digest refused: {enzyme} site at {start} has a cut outside the linear molecule; no partial products returned (use sites to inspect uncleavable sites)"
+    )]
     OutOfBounds { enzyme: &'static str, start: usize },
     #[error(
-        "cannot digest: {enzyme} cuts at a linear terminus; terminal single-stranded products are not modelled"
+        "complete digest refused: {enzyme} cuts at a linear terminus; terminal single-stranded products are not modelled and no partial products are returned"
     )]
     TerminalCut { enzyme: &'static str },
     #[error(
@@ -101,6 +103,11 @@ pub fn simulate_digest(
                 enzyme: site.enzyme,
             });
         }
+        // Deliberately do NOT reuse site.bottom_cut below: circular site cuts
+        // are modulo n, whereas partition needs a locally unwrapped cut pair.
+        // Reconstructing bottom = top + signed stagger preserves a 4-base end
+        // across the origin (including negative bottom coordinates for 3′ ends).
+        // Substituting the wrapped bottom would corrupt adjacent fragment windows.
         let delta = match site.overhang_polarity {
             OverhangPolarity::Blunt => 0,
             OverhangPolarity::FivePrime => site.overhang_length as i128,
@@ -408,6 +415,67 @@ mod tests {
             OverhangPolarity::ThreePrime
         );
     }
+    #[test]
+    fn two_cut_circle_keeps_bottom_unwrapped_across_origin() {
+        for (prefix, suffix, enzyme, expected_cuts, expected_lengths) in [
+            (
+                "TTC",
+                "GAA",
+                "EcoRI",
+                [(14, 14), (26, 2)],
+                [(12, 16), (16, 12)],
+            ),
+            (
+                "ACC",
+                "GGT",
+                "KpnI",
+                [(2, 26), (14, 14)],
+                [(12, 16), (16, 12)],
+            ),
+        ] {
+            let seq = format!("{prefix}{}GATATC{}{suffix}", "A".repeat(8), "A".repeat(8));
+            let d = digest(&seq, Topology::Circular, &[enzyme, "EcoRV"]).unwrap();
+            conserved(&d);
+            assert_eq!(d.input_length, 28);
+            assert_eq!(
+                d.cuts
+                    .iter()
+                    .map(|c| (c.top_cut, c.bottom_cut))
+                    .collect::<Vec<_>>(),
+                expected_cuts
+            );
+            assert_eq!(
+                d.fragments
+                    .iter()
+                    .map(|f| (f.top.length, f.bottom.length))
+                    .collect::<Vec<_>>(),
+                expected_lengths
+            );
+            assert!(d.fragments.iter().all(|f| f.paired_length == 12));
+            // Independent reconstruction of each entire source strand in forward
+            // coordinates, starting at the first reported boundary on that strand.
+            for bottom in [false, true] {
+                let start = if bottom {
+                    d.cuts[0].bottom_cut
+                } else {
+                    d.cuts[0].top_cut
+                };
+                let reconstructed: String = d
+                    .fragments
+                    .iter()
+                    .map(|f| {
+                        if bottom {
+                            reverse_complement(&f.bottom.sequence_5to3)
+                        } else {
+                            f.top.sequence_5to3.clone()
+                        }
+                    })
+                    .collect();
+                assert_eq!(reconstructed, format!("{}{}", &seq[start..], &seq[..start]));
+            }
+        }
+    }
+
     #[test]
     fn no_cut_retains_topology_and_multiple_cuts_conserve_strands() {
         for topology in [Topology::Linear, Topology::Circular] {

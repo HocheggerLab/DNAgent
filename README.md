@@ -17,6 +17,7 @@ dnagent map construct.dna --out map.svg
 dnagent enzymes --output json
 dnagent sites construct.dna --enzymes EcoRI,BamHI,BsaI --output json
 dnagent digest construct.dna --enzymes EcoRI,BamHI --output json
+dnagent compatible-ends vector.dna --enzymes BsaI --other insert.dna --other-enzymes BsmBI --output json
 # Only when built with --features gui:
 dnagent gui construct.dna
 ```
@@ -39,11 +40,22 @@ It assumes complete cleavage; terminal, out-of-bounds and overlapping cuts are
 rejected rather than approximated. Source annotations are not yet propagated.
 See [digest coordinates, limitations and validation](docs/digest.md).
 
+### End compatibility and roadmap
+
+`compatible-ends` compares all distinct ends from one or two digests, reporting
+matching/mismatching polarity and oligos, plus proposed relative orientation.
+It evaluates sequence compatibility, not experimental ligation or full assemblies.
+See [the compatibility contract](docs/compatibility.md).
+
+Next: annotated fragments/exports, restriction-ligation products, then **Gibson
+cloning before GUI integration**. See [the roadmap](docs/roadmap.md).
+
 ### Import warnings and strict mode
 
-All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`) return a
+All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
-The envelope schema version is now **0.4.0**, adding complete digest simulation.
+The envelope schema version is now **0.5.0**, adding end compatibility.
+Version 0.4.0 added complete digest simulation.
 Version 0.3.0 added feature qualifiers and the
 `primers` command. `inspect.result.warnings` remains as a compatibility duplicate. In text mode,
 warnings go to **stderr**, leaving sequence stdout suitable for piping.
@@ -63,7 +75,8 @@ conservative; warning-free does not guarantee complete format fidelity.
 
 CLI argument-parsing errors still use Clap's stderr diagnostics rather than a
 JSON envelope. Site-analysis failures use `restriction_scan_failed`, digest
-failures use `digest_failed`; other runtime failures retain `command_failed`.
+failures use `digest_failed`, compatibility-analysis failures use
+`compatibility_failed`; other runtime failures retain `command_failed`.
 
 ### Annotation and schema contract
 
@@ -76,8 +89,10 @@ these are not flattened into a dictionary.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The committed [JSON Schema](schemas/cli-envelope-0.4.0.schema.json) covers all eight
-commands' success and runtime-error envelopes. It validates structure and basic
+The committed [JSON Schema](schemas/cli-envelope-0.5.0.schema.json) covers all nine
+commands' success and runtime-error envelopes. Older schemas are retained only
+for archived responses, not emitted or accepted by the current CLI; see the
+[schema version policy](schemas/README.md). It validates structure and basic
 value constraints; relational coordinate bounds and biological correctness
 remain domain checks. To validate live output and deliberately invalid examples:
 

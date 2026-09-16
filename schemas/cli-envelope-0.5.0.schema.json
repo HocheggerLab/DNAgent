@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DNAagent CLI envelope 0.5.0",
+  "description": "Runtime JSON responses only. CLI argument errors and GUI output are not covered. Coordinates are zero-based and half-open; relational bounds require domain validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command", "ok", "warnings"],
+  "properties": {
+    "schema_version": {"const": "0.5.0"},
+    "command": {"enum": ["inspect", "features", "primers", "sequence", "map", "enzymes", "sites", "digest", "compatible-ends"]},
+    "ok": {"type": "boolean"},
+    "warnings": {"$ref": "#/$defs/warnings"},
+    "result": {},
+    "error": {"$ref": "#/$defs/error"}
+  },
+  "oneOf": [
+    {
+      "required": ["result"],
+      "not": {"required": ["error"]},
+      "properties": {"ok": {"const": true}},
+      "oneOf": [
+        {"properties": {"command": {"const": "inspect"}, "result": {"$ref": "#/$defs/inspect"}}},
+        {"properties": {"command": {"const": "features"}, "result": {"type": "array", "items": {"$ref": "#/$defs/feature"}}}},
+        {"properties": {"command": {"const": "primers"}, "result": {"type": "array", "items": {"$ref": "#/$defs/primer"}}}},
+        {"properties": {"command": {"const": "sequence"}, "result": {"$ref": "#/$defs/sequence"}}},
+        {"properties": {"command": {"const": "map"}, "result": {"$ref": "#/$defs/map"}}},
+        {"properties": {"command": {"const": "enzymes"}, "result": {"type": "array", "items": {"$ref": "#/$defs/enzyme"}}}},
+        {"properties": {"command": {"const": "sites"}, "result": {"$ref": "#/$defs/restriction_scan"}}},
+        {"properties": {"command": {"const": "digest"}, "result": {"$ref": "#/$defs/digest"}}},
+        {"properties": {"command": {"const": "compatible-ends"}, "result": {"$ref": "#/$defs/compatibility"}}}
+      ]
+    },
+    {"required": ["error"], "not": {"required": ["result"]}, "properties": {"ok": {"const": false}}}
+  ],
+  "$defs": {
+    "end_assessment": {"type": "object", "additionalProperties": false, "required": ["compatible", "reason", "second_fragment_orientation", "second_placement"], "properties": {"compatible": {"type": "boolean"}, "reason": {"enum": ["blunt_ends", "complementary_overhangs", "polarity_mismatch", "overhang_length_mismatch", "overhang_sequence_mismatch"]}, "second_fragment_orientation": {"enum": ["forward", "reverse"]}, "second_placement": {"enum": ["before_first", "after_first"]}}},
+    "endpoint": {"type": "object", "additionalProperties": false, "required": ["id", "input", "fragment_id", "side", "end"], "properties": {"id": {"type": "string", "minLength": 1}, "input": {"type": "integer", "minimum": 1, "maximum": 2}, "fragment_id": {"type": "string", "minLength": 1}, "side": {"enum": ["left", "right"]}, "end": {"$ref": "#/$defs/fragment_end"}}},
+    "end_pair": {"type": "object", "additionalProperties": false, "required": ["first", "second", "same_fragment", "assessment"], "properties": {"first": {"type": "string", "minLength": 1}, "second": {"type": "string", "minLength": 1}, "same_fragment": {"type": "boolean"}, "assessment": {"$ref": "#/$defs/end_assessment"}}},
+    "end_analysis": {"type": "object", "additionalProperties": false, "required": ["endpoints", "pairs", "assumptions"], "properties": {"endpoints": {"type": "array", "items": {"$ref": "#/$defs/endpoint"}, "maxItems": 128}, "pairs": {"type": "array", "items": {"$ref": "#/$defs/end_pair"}, "maxItems": 8128}, "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "compatibility_input": {"type": "object", "additionalProperties": false, "required": ["name", "digest"], "properties": {"name": {"type": "string"}, "digest": {"$ref": "#/$defs/digest"}}},
+    "compatibility": {"type": "object", "additionalProperties": false, "required": ["inputs", "analysis"], "properties": {"inputs": {"type": "array", "items": {"$ref": "#/$defs/compatibility_input"}, "minItems": 1, "maxItems": 2}, "analysis": {"$ref": "#/$defs/end_analysis"}}},
+
+    "position": {"type": "integer", "minimum": 0},
+    "strand": {"enum": ["forward", "reverse", "unknown"]},
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}},
+    "warning": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message", "packet_type"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string"},
+        "packet_type": {"type": ["integer", "null"], "minimum": 0, "maximum": 255}
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message"],
+      "properties": {"code": {"enum": ["command_failed", "import_warnings", "restriction_scan_failed", "digest_failed", "compatibility_failed"]}, "message": {"type": "string"}}
+    },
+    "inspect": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "length", "topology", "feature_count", "primer_count", "warnings"],
+      "properties": {
+        "name": {"type": "string"}, "length": {"type": "integer", "minimum": 1},
+        "topology": {"enum": ["linear", "circular"]},
+        "feature_count": {"$ref": "#/$defs/position"}, "primer_count": {"$ref": "#/$defs/position"},
+        "warnings": {"$ref": "#/$defs/warnings"}
+      }
+    },
+    "region": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "start", "end"],
+          "properties": {"kind": {"const": "linear"}, "start": {"$ref": "#/$defs/position"}, "end": {"type": "integer", "minimum": 1}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "start", "length"],
+          "properties": {"kind": {"const": "circular_arc"}, "start": {"$ref": "#/$defs/position"}, "length": {"type": "integer", "minimum": 1}}
+        }
+      ]
+    },
+    "location": {
+      "type": "object", "additionalProperties": false, "required": ["parts", "strand", "operator"],
+      "properties": {
+        "parts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/region"}},
+        "strand": {"$ref": "#/$defs/strand"}, "operator": {"enum": ["contiguous", "join", "order"]}
+      },
+      "oneOf": [
+        {"properties": {"operator": {"const": "contiguous"}, "parts": {"maxItems": 1}}},
+        {"properties": {"operator": {"enum": ["join", "order"]}, "parts": {"minItems": 2}}}
+      ]
+    },
+    "qualifier": {
+      "type": "object", "additionalProperties": false, "required": ["key", "value"],
+      "properties": {"key": {"type": "string"}, "value": {"type": ["string", "null"]}}
+    },
+    "feature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "kind", "strand", "location", "color", "qualifiers"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "label": {"type": "string"}, "kind": {"type": "string"},
+        "strand": {"$ref": "#/$defs/strand"}, "location": {"$ref": "#/$defs/location"},
+        "color": {"type": ["string", "null"]},
+        "qualifiers": {"type": "array", "items": {"$ref": "#/$defs/qualifier"}}
+      }
+    },
+    "primer": {
+      "type": "object", "additionalProperties": false, "required": ["name", "sequence", "description"],
+      "properties": {
+        "name": {"type": "string"}, "sequence": {"type": "string", "pattern": "^[ACGTRYSWKMBDHVN]+$"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "sequence": {
+      "type": "object", "additionalProperties": false, "required": ["start", "end", "sequence"],
+      "properties": {
+        "start": {"$ref": "#/$defs/position"}, "end": {"$ref": "#/$defs/position"},
+        "sequence": {"type": "string", "pattern": "^[ACGTRYSWKMBDHVN]*$"}
+      }
+    },
+    "enzyme": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "recognition_sequence", "top_cut_offset", "bottom_cut_offset"],
+      "properties": {
+        "name": {"enum": ["EcoRI", "BamHI", "EcoRV", "KpnI", "BsaI", "BsmBI"]},
+        "recognition_sequence": {"type": "string", "pattern": "^[ACGT]+$"},
+        "top_cut_offset": {"type": "integer"}, "bottom_cut_offset": {"type": "integer"}
+      }
+    },
+    "restriction_site": {
+      "type": "object", "additionalProperties": false,
+      "required": ["enzyme", "recognition", "strand", "top_cut", "bottom_cut", "cleavage_available", "overhang_polarity", "overhang_length"],
+      "properties": {
+        "enzyme": {"type": "string"}, "recognition": {"$ref": "#/$defs/region"},
+        "strand": {"enum": ["forward", "reverse"]},
+        "top_cut": {"type": ["integer", "null"], "minimum": 0},
+        "bottom_cut": {"type": ["integer", "null"], "minimum": 0},
+        "cleavage_available": {"type": "boolean"},
+        "overhang_polarity": {"enum": ["blunt", "five_prime", "three_prime"]},
+        "overhang_length": {"$ref": "#/$defs/position"}
+      }
+    },
+    "restriction_scan": {
+      "type": "object", "additionalProperties": false,
+      "required": ["length", "topology", "enzymes", "sites", "assumptions"],
+      "properties": {
+        "length": {"type": "integer", "minimum": 1},
+        "topology": {"enum": ["linear", "circular"]},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/enzyme"}},
+        "sites": {"type": "array", "items": {"$ref": "#/$defs/restriction_site"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "digest_cut": {
+      "type": "object", "additionalProperties": false,
+      "required": ["top_cut", "bottom_cut", "enzymes"],
+      "properties": {
+        "top_cut": {"$ref": "#/$defs/position"}, "bottom_cut": {"$ref": "#/$defs/position"},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "fragment_end": {
+      "type": "object", "additionalProperties": false,
+      "required": ["original_terminus", "polarity", "protruding_strand", "overhang_sequence", "enzymes"],
+      "properties": {
+        "original_terminus": {"type": "boolean"},
+        "polarity": {"enum": ["blunt", "five_prime", "three_prime"]},
+        "protruding_strand": {"enum": ["forward", "reverse", null]},
+        "overhang_sequence": {"type": "string", "pattern": "^[ACGT]*$"},
+        "enzymes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "fragment_strand": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_start", "length", "sequence_5to3"],
+      "properties": {
+        "source_start": {"$ref": "#/$defs/position"},
+        "length": {"type": "integer", "minimum": 1},
+        "sequence_5to3": {"type": "string", "pattern": "^[ACGT]+$"}
+      }
+    },
+    "digest_fragment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "topology", "top", "bottom", "paired_length", "left_end", "right_end"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "topology": {"enum": ["linear", "circular"]},
+        "top": {"$ref": "#/$defs/fragment_strand"}, "bottom": {"$ref": "#/$defs/fragment_strand"},
+        "paired_length": {"type": "integer", "minimum": 1},
+        "left_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]},
+        "right_end": {"anyOf": [{"$ref": "#/$defs/fragment_end"}, {"type": "null"}]}
+      }
+    },
+    "digest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input_length", "input_topology", "enzymes", "cuts", "fragments", "assumptions"],
+      "properties": {
+        "input_length": {"type": "integer", "minimum": 1}, "input_topology": {"enum": ["linear", "circular"]},
+        "enzymes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/enzyme"}},
+        "cuts": {"type": "array", "items": {"$ref": "#/$defs/digest_cut"}},
+        "fragments": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/digest_fragment"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "map": {
+      "type": "object", "additionalProperties": false, "required": ["output_path"],
+      "properties": {"output_path": {"type": "string"}}
+    }
+  }
+}

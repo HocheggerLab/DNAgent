@@ -1,7 +1,7 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use dnagent_app::{
-    AppError, InspectView, feature_views, open_path, primer_views, require_warning_free_import,
-    restriction_sites, sequence_range, simulate_digest,
+    AppError, InspectView, end_compatibility, feature_views, open_path, primer_views,
+    require_warning_free_import, restriction_sites, sequence_range, simulate_digest,
 };
 use dnagent_domain::restriction::ENZYMES;
 use dnagent_formats::{ImportReport, ImportWarning};
@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.4.0";
+const SCHEMA_VERSION: &str = "0.5.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -75,6 +75,8 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
+    /// Compare all distinct fragment ends from one or two complete digests.
+    CompatibleEnds(CompatibilityArgs),
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -84,6 +86,19 @@ enum Command {
     /// Open the desktop viewer (requires the gui build feature).
     #[cfg(feature = "gui")]
     Gui { input: Option<PathBuf> },
+}
+
+#[derive(Debug, Args)]
+struct CompatibilityArgs {
+    input: PathBuf,
+    #[arg(long, value_delimiter = ',', required = true)]
+    enzymes: Vec<String>,
+    #[arg(long, requires = "other_enzymes")]
+    other: Option<PathBuf>,
+    #[arg(long, value_delimiter = ',', requires = "other")]
+    other_enzymes: Vec<String>,
+    #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+    output: OutputMode,
 }
 
 impl Command {
@@ -97,6 +112,7 @@ impl Command {
             Self::Enzymes { .. } => "enzymes",
             Self::Sites { .. } => "sites",
             Self::Digest { .. } => "digest",
+            Self::CompatibleEnds(_) => "compatible-ends",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -111,6 +127,7 @@ impl Command {
             | Self::Sites { output, .. }
             | Self::Digest { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
+            Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Map { .. } => true,
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
@@ -183,6 +200,11 @@ fn main() -> ExitCode {
                             Some(AppError::Digest(_))
                         ) {
                             "digest_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Compatibility(_))
+                        ) {
+                            "compatibility_failed"
                         } else {
                             "command_failed"
                         },
@@ -285,6 +307,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
             enzymes,
             output,
         } => run_digest(&input, &enzymes, output, strict, warnings)?,
+        Command::CompatibleEnds(args) => run_compatibility(&args, strict, warnings)?,
         Command::Map { input, out } => {
             let report = load_input(&input, strict, requests_json, warnings)?;
             let svg = MapScene::from_record(&report.record).to_svg();
@@ -299,6 +322,49 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         }
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_compatibility(
+    args: &CompatibilityArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let json = matches!(args.output, OutputMode::Json);
+    let first = load_input(&args.input, strict, json, warnings)?;
+    let second = args
+        .other
+        .as_ref()
+        .map(|path| load_input(path, strict, json, warnings))
+        .transpose()?;
+    let mut inputs = vec![(&first.record, args.enzymes.as_slice())];
+    if let Some(second) = &second {
+        inputs.push((&second.record, args.other_enzymes.as_slice()));
+    }
+    let view = end_compatibility(&inputs)?;
+    match args.output {
+        OutputMode::Json => print_json("compatible-ends", &view, warnings)?,
+        OutputMode::Text => {
+            println!("Sequence-compatible ends only; not experimental ligation validation.");
+            println!(
+                "{} free ends; {} pair comparisons",
+                view.analysis.endpoints.len(),
+                view.analysis.pairs.len()
+            );
+            println!("first\tsecond\tcompatible\treason\tsecond_orientation\tsecond_placement");
+            for pair in view.analysis.pairs {
+                println!(
+                    "{}\t{}\t{}\t{:?}\t{:?}\t{:?}",
+                    pair.first,
+                    pair.second,
+                    pair.assessment.compatible,
+                    pair.assessment.reason,
+                    pair.assessment.second_fragment_orientation,
+                    pair.assessment.second_placement
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -402,9 +468,9 @@ fn load_input(
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<ImportReport, AppError> {
     let report = open_path(path)?;
-    warnings.clone_from(&report.warnings);
+    warnings.extend(report.warnings.iter().cloned());
     if !requests_json {
-        for warning in warnings.iter() {
+        for warning in &report.warnings {
             eprintln!("warning [{}]: {}", warning.code, warning.message);
         }
     }

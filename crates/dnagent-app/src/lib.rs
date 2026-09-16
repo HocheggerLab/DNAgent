@@ -1,5 +1,6 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
+use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
 use dnagent_domain::digest::{self, Digest, DigestError};
 use dnagent_domain::restriction::{self, RestrictionError, RestrictionScan};
 use dnagent_domain::{ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology};
@@ -29,6 +30,8 @@ pub enum AppError {
     Restriction(#[from] RestrictionError),
     #[error(transparent)]
     Digest(#[from] DigestError),
+    #[error(transparent)]
+    Compatibility(#[from] CompatibilityError),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -165,6 +168,41 @@ pub fn simulate_digest(record: &SequenceRecord, names: &[String]) -> Result<Dige
         record.topology(),
         names,
     )?)
+}
+
+#[derive(Debug, Serialize)]
+pub struct CompatibilityInput {
+    pub name: String,
+    pub digest: Digest,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CompatibilityView {
+    pub inputs: Vec<CompatibilityInput>,
+    pub analysis: CompatibilityReport,
+}
+
+/// Digest one or two records, then compare all distinct physical ends.
+pub fn end_compatibility(
+    inputs: &[(&SequenceRecord, &[String])],
+) -> Result<CompatibilityView, AppError> {
+    if !(1..=2).contains(&inputs.len()) {
+        return Err(CompatibilityError::InputCount.into());
+    }
+    let digests = inputs
+        .iter()
+        .map(|(record, names)| simulate_digest(record, names))
+        .collect::<Result<Vec<_>, _>>()?;
+    let analysis = compatibility::compatible_ends(&digests)?;
+    let inputs = inputs
+        .iter()
+        .zip(digests)
+        .map(|((record, _), digest)| CompatibilityInput {
+            name: record.name().to_owned(),
+            digest,
+        })
+        .collect();
+    Ok(CompatibilityView { inputs, analysis })
 }
 
 /// Checked sequence-range projection.
