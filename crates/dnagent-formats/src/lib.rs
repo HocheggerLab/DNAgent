@@ -1,5 +1,7 @@
 //! Shared format-adapter contracts.
 
+pub mod genbank;
+
 use dnagent_domain::{DomainError, SequenceRecord};
 use serde::Serialize;
 use thiserror::Error;

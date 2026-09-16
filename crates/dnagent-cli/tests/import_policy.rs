@@ -32,7 +32,7 @@ fn all_json_projections_expose_the_same_import_warnings() {
         assert!(output.status.success());
         assert!(output.stderr.is_empty());
         let body = json(&output);
-        assert_eq!(body["schema_version"], "0.5.0");
+        assert_eq!(body["schema_version"], "0.6.0");
         assert_eq!(body["warnings"], expected);
     }
 }

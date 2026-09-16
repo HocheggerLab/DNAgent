@@ -22,8 +22,9 @@ fragment descriptions, not newly annotated `SequenceRecord` objects.
 ## Contract (envelope 0.4.0)
 
 Digest simulation was introduced in `schemas/cli-envelope-0.4.0.schema.json`.
-Current envelopes use 0.5.0, which adds [end compatibility](compatibility.md);
-the digest payload shape is unchanged. Historical schemas remain available.
+Current envelopes use 0.6.0, adding [annotation projections](fragment-annotations.md)
+after 0.5.0's [end compatibility](compatibility.md). The digest payload shape is
+unchanged. Historical schemas remain available for archived responses only.
 
 A successful digest contains:
 
@@ -123,6 +124,9 @@ Optional private EcoRI/BamHI digests are hash-checked and output no sequences.
 No reference source code or enzyme database was copied.
 
 The separate [end-compatibility operation](compatibility.md) now evaluates these
-ends. Next milestones are annotation-aware fragments, restriction/ligation
-assembly, then Gibson cloning before GUI integration; see [the roadmap](roadmap.md).
+ends. The separate [fragments operation](fragment-annotations.md) now projects
+source annotations onto both strands and exports JSON/FASTA plus conservative
+[GenBank strand views](genbank-export.md). Next milestones are
+restriction/ligation assembly, then Gibson cloning
+before GUI integration; see [the roadmap](roadmap.md).
 Terminal/overlapping strand-product support remains a follow-up limitation.

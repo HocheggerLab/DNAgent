@@ -2,6 +2,7 @@
 
 pub mod compatibility;
 pub mod digest;
+pub mod fragment_annotations;
 pub mod restriction;
 
 use serde::Serialize;

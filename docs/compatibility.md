@@ -62,7 +62,8 @@ produce an error, not a plausible compatibility assessment.
 
 `schemas/cli-envelope-0.5.0.schema.json` adds `compatible-ends`; historical schemas
 remain unchanged. Existing command payload shapes are unchanged, with current
-envelopes now labelled 0.5.0.
+envelopes now labelled 0.6.0, which adds [annotation projections](fragment-annotations.md).
+The 0.5.0 schema is retired and retained for archived responses only.
 
 - `inputs`: one or two named, complete digest results, in command-line input order.
   This retains source intervals, strand sequences, enzyme/cut provenance and model
@@ -110,5 +111,6 @@ Mixed-polarity fixtures and explicit oversized-request rejection bring the total
 to 260 cases. All responses are schema-validated. These are software/model checks,
 not experimental ligation measurements; no private inputs are needed.
 
-Next: annotation-aware fragment records and exports, then explicit restriction/
-ligation products. [Gibson assembly remains required before GUI integration](roadmap.md).
+[Source-linked strand projections and JSON/FASTA exports](fragment-annotations.md)
+and [conservative GenBank views](genbank-export.md) are now implemented.
+Next: explicit restriction/ligation products. [Gibson assembly remains required before GUI integration](roadmap.md).

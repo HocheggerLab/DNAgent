@@ -2,8 +2,10 @@
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
 use dnagent_domain::digest::{self, Digest, DigestError};
+use dnagent_domain::fragment_annotations::{self, AnnotatedDigest, AnnotationError};
 use dnagent_domain::restriction::{self, RestrictionError, RestrictionScan};
 use dnagent_domain::{ImportedPrimer, Location, Qualifier, SequenceRecord, Strand, Topology};
+pub use dnagent_formats::genbank::ExportStrand;
 use dnagent_formats::{ImportError, ImportReport, ImportWarning};
 use serde::Serialize;
 use std::path::Path;
@@ -32,6 +34,10 @@ pub enum AppError {
     Digest(#[from] DigestError),
     #[error(transparent)]
     Compatibility(#[from] CompatibilityError),
+    #[error(transparent)]
+    Annotation(#[from] AnnotationError),
+    #[error(transparent)]
+    Genbank(#[from] dnagent_formats::genbank::GenbankError),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -203,6 +209,47 @@ pub fn end_compatibility(
         })
         .collect();
     Ok(CompatibilityView { inputs, analysis })
+}
+
+/// Feature projections on each product strand; original metadata is retained as provenance.
+pub fn annotated_fragments(
+    record: &SequenceRecord,
+    names: &[String],
+) -> Result<AnnotatedDigest, AppError> {
+    Ok(fragment_annotations::annotated_digest(record, names)?)
+}
+
+/// Conservative GenBank selected-strand views; full provenance remains in JSON.
+pub fn fragment_genbank(
+    report: &AnnotatedDigest,
+    strand: ExportStrand,
+) -> Result<String, AppError> {
+    Ok(dnagent_formats::genbank::export(report, strand)?)
+}
+
+/// Explicit strand FASTA, not an annotated or duplex-preserving exchange format.
+#[must_use]
+pub fn fragment_fasta(report: &AnnotatedDigest) -> String {
+    use std::fmt::Write;
+    let mut text = String::new();
+    for fragment in &report.digest.fragments {
+        for (label, strand) in [("top", &fragment.top), ("bottom", &fragment.bottom)] {
+            writeln!(
+                text,
+                ">{}|{label} length={} source_start={} strand_sequence=5to3",
+                fragment.id, strand.length, strand.source_start
+            )
+            .expect("writing to String cannot fail");
+            for (i, base) in strand.sequence_5to3.chars().enumerate() {
+                if i > 0 && i % 80 == 0 {
+                    text.push('\n');
+                }
+                text.push(base);
+            }
+            text.push('\n');
+        }
+    }
+    text
 }
 
 /// Checked sequence-range projection.

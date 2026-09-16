@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.5.0";
+const SCHEMA_VERSION: &str = "0.6.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -77,6 +77,8 @@ enum Command {
     },
     /// Compare all distinct fragment ends from one or two complete digests.
     CompatibleEnds(CompatibilityArgs),
+    /// Project source annotations onto each digest strand; export JSON or strand FASTA.
+    Fragments(FragmentArgs),
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -101,6 +103,31 @@ struct CompatibilityArgs {
     output: OutputMode,
 }
 
+#[derive(Debug, Args)]
+struct FragmentArgs {
+    input: PathBuf,
+    #[arg(long, value_delimiter = ',', required = true)]
+    enzymes: Vec<String>,
+    #[arg(long, value_enum, default_value_t = FragmentOutput::Json)]
+    output: FragmentOutput,
+    /// Required for GenBank only: explicitly select the exported strand view.
+    #[arg(long, value_enum, required_if_eq("output", "genbank"))]
+    strand: Option<FragmentStrandSelection>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum FragmentOutput {
+    Json,
+    Fasta,
+    Genbank,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum FragmentStrandSelection {
+    Top,
+    Bottom,
+}
+
 impl Command {
     const fn name(&self) -> &'static str {
         match self {
@@ -113,6 +140,7 @@ impl Command {
             Self::Sites { .. } => "sites",
             Self::Digest { .. } => "digest",
             Self::CompatibleEnds(_) => "compatible-ends",
+            Self::Fragments(_) => "fragments",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -128,6 +156,7 @@ impl Command {
             | Self::Digest { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
+            Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
             Self::Map { .. } => true,
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
@@ -205,6 +234,11 @@ fn main() -> ExitCode {
                             Some(AppError::Compatibility(_))
                         ) {
                             "compatibility_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Annotation(_))
+                        ) {
+                            "annotation_failed"
                         } else {
                             "command_failed"
                         },
@@ -308,6 +342,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
             output,
         } => run_digest(&input, &enzymes, output, strict, warnings)?,
         Command::CompatibleEnds(args) => run_compatibility(&args, strict, warnings)?,
+        Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
         Command::Map { input, out } => {
             let report = load_input(&input, strict, requests_json, warnings)?;
             let svg = MapScene::from_record(&report.record).to_svg();
@@ -322,6 +357,47 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         }
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+    }
+    Ok(())
+}
+
+fn run_fragments(
+    args: &FragmentArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.strand.is_some() && !matches!(args.output, FragmentOutput::Genbank) {
+        return Err("--strand is only supported with --output genbank".into());
+    }
+    let report = load_input(
+        &args.input,
+        strict,
+        matches!(args.output, FragmentOutput::Json),
+        warnings,
+    )?;
+    let view = dnagent_app::annotated_fragments(&report.record, &args.enzymes)?;
+    match args.output {
+        FragmentOutput::Json => print_json("fragments", &view, warnings)?,
+        FragmentOutput::Fasta => {
+            eprintln!(
+                "Sequence-only strand FASTA; use JSON for annotation mappings and duplex end geometry."
+            );
+            print!("{}", dnagent_app::fragment_fasta(&view));
+        }
+        FragmentOutput::Genbank => {
+            let strand = match args
+                .strand
+                .ok_or("GenBank requires --strand top or bottom")?
+            {
+                FragmentStrandSelection::Top => dnagent_app::ExportStrand::Top,
+                FragmentStrandSelection::Bottom => dnagent_app::ExportStrand::Bottom,
+            };
+            let text = dnagent_app::fragment_genbank(&view, strand)?;
+            eprintln!(
+                "Selected-strand GenBank view, not a duplex product; mapped pieces are misc_feature. Keep JSON for source annotations and end geometry."
+            );
+            print!("{text}");
+        }
     }
     Ok(())
 }

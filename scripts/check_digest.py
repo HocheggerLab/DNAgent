@@ -65,7 +65,7 @@ def main():
     args = parser.parse_args()
     binary = args.binary.resolve()
     validator = Draft202012Validator(
-        json.loads((ROOT / "schemas/cli-envelope-0.5.0.schema.json").read_text())
+        json.loads((ROOT / "schemas/cli-envelope-0.6.0.schema.json").read_text())
     )
 
     def check(path, names, success=True):

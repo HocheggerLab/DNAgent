@@ -15,8 +15,9 @@ target/debug/dnagent sites construct.dna --enzymes EcoRI,BamHI,BsaI --output jso
 Selection is explicit, case-insensitive and deduplicated. Catalogue output has a
 fixed order; sites are ordered by recognition start, enzyme name, then strand.
 `enzymes` and `sites` were introduced in the 0.3.0 envelope/schema. Current
-responses use 0.5.0, adding [end compatibility](compatibility.md) after the
-separate [`digest` command](digest.md) introduced in 0.4.0.
+responses use 0.6.0, adding [annotation projections](fragment-annotations.md)
+after 0.5.0's [end compatibility](compatibility.md) and the separate
+[`digest` command](digest.md) introduced in 0.4.0.
 
 ## Small catalogue and provenance
 

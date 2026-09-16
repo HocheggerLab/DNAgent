@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.5.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.6.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -141,6 +141,31 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected compatibility response")
         checked.append(body)
+    for fixture, enzymes, success, strict in [
+        ("synthetic_multipart_origin.dna", "EcoRI", True, False),
+        ("synthetic_restriction_linear.dna", "EcoRI,BamHI", True, False),
+        ("synthetic_restriction_end.dna", "BsaI", False, False),
+        ("synthetic_circular.dna", "EcoRI", False, True),
+        ("synthetic_partial.dna", "EcoRI", True, False),
+    ]:
+        proc = subprocess.run(
+            [
+                str(binary),
+                "fragments",
+                str(ROOT / "fixtures/formats/snapgene" / fixture),
+                "--enzymes",
+                enzymes,
+                *(["--strict"] if strict else []),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        body = json.loads(proc.stdout)
+        validator.validate(body)
+        if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+            raise ValueError("unexpected fragments response")
+        checked.append(body)
     proc = subprocess.run(
         [str(binary), "enzymes", "--output", "json"],
         capture_output=True,
@@ -203,6 +228,20 @@ def main():
     bad["result"]["analysis"]["pairs"][0]["assessment"][
         "second_fragment_orientation"
     ] = "unknown"
+    mutations.append(bad)
+    annotated = next(
+        b
+        for b in checked
+        if b["command"] == "fragments" and b["ok"] and b["result"]["source_features"]
+    )
+    bad = copy.deepcopy(annotated)
+    bad["result"]["annotations"][0]["top"][0]["complete"] = "yes"
+    mutations.append(bad)
+    bad = copy.deepcopy(annotated)
+    bad["result"]["annotations"][0]["bottom"][0]["parts"][0]["source_part"] = -1
+    mutations.append(bad)
+    bad = copy.deepcopy(annotated)
+    del bad["result"]["source_features"][0]["qualifiers"]
     mutations.append(bad)
     if any(validator.is_valid(body) for body in mutations):
         raise ValueError("schema accepted an intentionally invalid response")
