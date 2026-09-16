@@ -11,7 +11,7 @@ dnagent fragments construct.dna --enzymes EcoRI,BamHI --output fasta > strands.f
 It does not skip unavailable, terminal or overlapping cuts. Failed calculations
 return no partial products. Global `--strict` rejects import warnings before
 emitting either export. Runtime annotation/digest failures use `annotation_failed`;
-import failures retain the usual import error codes. Current JSON envelopes are **0.8.0** (fragment projections were introduced in 0.6.0).
+import failures retain the usual import error codes. Current JSON envelopes are **0.9.0** (fragment projections were introduced in 0.6.0).
 
 ## Why separate strand projections?
 

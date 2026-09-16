@@ -27,7 +27,7 @@ from check_private_corpus import packets
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = Draft202012Validator(
-    json.loads((ROOT / "schemas/cli-envelope-0.8.0.schema.json").read_text())
+    json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
 )
 
 

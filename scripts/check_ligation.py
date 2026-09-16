@@ -23,7 +23,7 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = Draft202012Validator(
-    json.loads((ROOT / "schemas/cli-envelope-0.8.0.schema.json").read_text())
+    json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
 )
 PLAN_VALIDATOR = Draft202012Validator(
     json.loads((ROOT / "schemas/ligation-plan-1.schema.json").read_text())

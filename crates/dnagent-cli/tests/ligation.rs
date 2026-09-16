@@ -20,7 +20,7 @@ fn relative_sources_resolve_against_plan_and_both_strands_are_conserved() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(body["schema_version"], "0.8.0");
+    assert_eq!(body["schema_version"], "0.9.0");
     assert_eq!(body["command"], "ligate");
     let product = &body["result"]["product"];
     assert_eq!(product["paired_length"], 156);

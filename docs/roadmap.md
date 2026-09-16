@@ -19,14 +19,20 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
 - First [Gibson PCR-tail design slice](gibson.md): explicit core intervals/order/
   orientation, fixed-length primer candidates, exact-site/overlap uniqueness,
   PCR-product junction verification and annotated-product component placements.
+- [Primer optimisation](primer-optimisation.md): bounded annealing-length search,
+  explicit nearest-neighbour Tm conditions and full-oligo sequence screens, checked
+  against pinned Biopython and an exhaustive independent candidate search.
+- [Existing-overlap assembly](existing-overlaps.md): explicit variable homology,
+  linear/circular exact merges and both source associations in shared overlaps.
 
 ## Next milestones, in order
 
-1. **Gibson hardening and scope review** — thermodynamic/secondary-structure primer
-   assessment, pre-existing-overlap intake, real-template design coverage and a
-   separate assembly-engine comparison. Current fixed-length PCR-tail candidates
-   are not ordering-ready. Preserve the distinction between model predictions and
-   experimentally validated designs; review this scope before GUI integration.
+1. **Gibson hardening and scope review** — full folding-energy assessment,
+   real-template design coverage and a separate assembly-engine comparison.
+   NN annealing Tm is available, but hairpin/dimer checks are sequence screens,
+   not structure thermodynamics. Candidate oligos are not ordering-ready.
+   Preserve the distinction between model predictions and experimentally validated
+   designs; review this scope before GUI integration.
 2. **GUI integration** — expose the validated shared application operations;
    resolve existing display/selection issues without reimplementing biology.
 

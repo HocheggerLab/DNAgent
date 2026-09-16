@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const SCHEMA_VERSION: &str = "0.8.0";
+const SCHEMA_VERSION: &str = "0.9.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -91,6 +91,11 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Json)]
         output: OutputMode,
     },
+    /// Optimise PCR-tail primers under explicit Tm and sequence-screen constraints (JSON).
+    #[command(alias = "gibson-optimize")]
+    GibsonOptimise { plan: PathBuf },
+    /// Assemble declared existing overlaps without designing PCR tails (JSON).
+    GibsonAssemble { plan: PathBuf },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -155,6 +160,8 @@ impl Command {
             Self::Fragments(_) => "fragments",
             Self::Ligate { .. } => "ligate",
             Self::Gibson { .. } => "gibson",
+            Self::GibsonOptimise { .. } => "gibson-optimise",
+            Self::GibsonAssemble { .. } => "gibson-assemble",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -171,6 +178,7 @@ impl Command {
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
+            Self::GibsonOptimise { .. } | Self::GibsonAssemble { .. } => true,
             Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
                 matches!(output, OutputMode::Json)
             }
@@ -372,6 +380,8 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
         Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
         Command::Gibson { plan, output } => run_gibson(&plan, output, strict, warnings)?,
+        Command::GibsonOptimise { plan } => run_extended_gibson(&plan, true, strict, warnings)?,
+        Command::GibsonAssemble { plan } => run_extended_gibson(&plan, false, strict, warnings)?,
         Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
@@ -395,6 +405,43 @@ fn run_map(
         warnings,
     )?;
     Ok(())
+}
+
+fn run_extended_gibson(
+    path: &Path,
+    optimise: bool,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use dnagent_app::gibson_extensions as operations;
+    if optimise {
+        let plan = operations::load_optimisation(path)?;
+        let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
+        print_json(
+            "gibson-optimise",
+            &operations::optimise(&records, &plan)?,
+            warnings,
+        )?;
+    } else {
+        let plan = operations::load_existing(path)?;
+        let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
+        print_json(
+            "gibson-assemble",
+            &operations::assemble(&records, &plan)?,
+            warnings,
+        )?;
+    }
+    Ok(())
+}
+fn load_gibson_sources(
+    sources: &[dnagent_app::gibson::GibsonSource],
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<Vec<dnagent_domain::SequenceRecord>, AppError> {
+    sources
+        .iter()
+        .map(|s| load_input(&s.path, strict, true, warnings).map(|r| r.record))
+        .collect()
 }
 
 fn run_gibson(

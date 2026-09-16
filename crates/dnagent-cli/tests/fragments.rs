@@ -21,7 +21,7 @@ fn json_retains_source_metadata_and_separate_strand_mappings() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["schema_version"], "0.8.0");
+    assert_eq!(value["schema_version"], "0.9.0");
     assert_eq!(value["command"], "fragments");
     let view = &value["result"];
     assert_eq!(view["source_features"].as_array().unwrap().len(), 1);

@@ -86,19 +86,34 @@ See [the plan/product contract](docs/ligation.md).
 fixed-length annealing oligos with overlap tails, and predicts a linear/circular
 product with source annotation placements. Exact primer-site and overlap uniqueness
 are checked. **These are primer candidates, not thermodynamically validated or
-ordering-ready oligos.** Pre-existing-overlap intake is not yet supported.
+ordering-ready oligos.**
 
 ```bash
 dnagent gibson fixtures/plans/synthetic-gibson.json --output json
 ```
 
-See [the Gibson contract and limitations](docs/gibson.md). GUI work remains deferred.
+Two separate, JSON-only operations extend this without changing fixed-length plans:
+
+```bash
+dnagent gibson-optimise fixtures/plans/synthetic-gibson-optimisation.json
+dnagent gibson-assemble fixtures/plans/synthetic-gibson-existing.json
+```
+
+`gibson-optimise` searches annealing lengths under explicit nearest-neighbour Tm,
+GC and full-oligo sequence-screen constraints. `gibson-assemble` merges declared
+existing homology and retains both source associations in shared overlap regions.
+Neither predicts experimental success. Hairpin/dimer checks are **sequence screens,
+not folding-energy calculations**; there is no silent fallback on failed constraints.
+
+See [fixed-length Gibson](docs/gibson.md), [primer optimisation](docs/primer-optimisation.md)
+and [existing overlaps](docs/existing-overlaps.md). GUI work remains deferred.
 
 ### Import warnings and strict mode
 
-All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`) return a
+All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`, `gibson-optimise`, `gibson-assemble`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
-The envelope schema version is now **0.8.0**, adding PCR-tail Gibson candidates.
+The envelope schema version is now **0.9.0**, adding primer optimisation and existing-overlap assembly.
+Version 0.8.0 added PCR-tail Gibson candidates.
 Version 0.7.0 added explicit ligation products.
 Version 0.6.0 added annotation-aware fragments.
 Version 0.5.0 added end compatibility.
@@ -139,7 +154,7 @@ these are not flattened into a dictionary.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The current [JSON Schema](schemas/cli-envelope-0.8.0.schema.json) covers all twelve
+The current [JSON Schema](schemas/cli-envelope-0.9.0.schema.json) covers all fourteen
 commands' success and runtime-error envelopes. Older schemas are retained only
 for archived responses, not emitted or accepted by the current CLI; see the
 [schema version policy](schemas/README.md). It validates structure and basic

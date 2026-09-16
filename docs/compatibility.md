@@ -62,7 +62,7 @@ produce an error, not a plausible compatibility assessment.
 
 `schemas/cli-envelope-0.5.0.schema.json` adds `compatible-ends`; historical schemas
 remain unchanged. Existing command payload shapes are unchanged, with current
-envelopes now labelled 0.8.0, adding [Gibson candidates](gibson.md) after
+envelopes now labelled 0.9.0; 0.8.0 added [Gibson candidates](gibson.md) after
 0.7.0's [ligation products](ligation.md) and
 0.6.0's [annotation projections](fragment-annotations.md).
 The 0.5.0 schema is retired and retained for archived responses only.

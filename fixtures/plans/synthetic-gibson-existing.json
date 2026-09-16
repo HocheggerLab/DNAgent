@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "inputs": [{"path": "synthetic_gibson.dna"}],
+  "fragments": [
+    {"input": 1, "start": 0, "length": 180, "orientation": "forward"},
+    {"input": 1, "start": 155, "length": 170, "orientation": "forward"}
+  ],
+  "topology": "circular",
+  "overlaps": [25, 25]
+}

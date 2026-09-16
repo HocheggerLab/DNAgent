@@ -10,7 +10,10 @@ This first Gibson operation designs **PCR-tailed fragments** and predicts their
 ideal overlap-directed product. It is **not** an assembler for supplied fragments
 with pre-existing overlaps, and does not optimise primer thermodynamics. Generated
 oligos are inspectable **candidates**, not ordering-ready or experimentally validated
-recommendations. No GUI integration is included in this milestone.
+recommendations. Separate commands now provide
+[bounded primer optimisation](primer-optimisation.md) and
+[existing-overlap assembly](existing-overlaps.md); neither changes this fixed-length
+plan contract. No GUI integration is included in this milestone.
 
 ## Plan and coordinate contract
 
@@ -30,7 +33,7 @@ recommendations. No GUI integration is included in this milestone.
 
 This is the shape of the synthetic example, not a design for an unspecified real
 300-base template. The [version-1 plan schema](../schemas/gibson-plan-1.schema.json)
-is independent of the current **0.8.0** CLI output-envelope schema. Relative paths
+is independent of the current **0.9.0** CLI output-envelope schema. Relative paths
 resolve against the plan directory. Unknown fields, missing orientations and
 unsupported versions fail explicitly.
 
@@ -141,7 +144,7 @@ warning retention. These are software-model checks, **not** wet-lab validation o
 an independent thermodynamic/experimental assembly oracle. The new Gibson checker
 uses synthetic originals only; private-template design coverage remains a gap.
 
-Next Gibson work: validated thermodynamic/secondary-structure primer assessment,
-pre-existing-overlap intake, richer product annotation/export, real-template designs
-and a separate assembly-engine comparison. GUI adapters remain deferred while these
-scope boundaries are reviewed.
+Bounded NN-Tm primer optimisation and explicit existing-overlap intake are now
+available as separate operations. Next work: full folding-energy assessment, richer
+product annotation/export, real-template designs and a separate assembly-engine
+comparison. GUI adapters remain deferred while these scope boundaries are reviewed.

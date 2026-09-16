@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.8.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -166,6 +166,41 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected fragments response")
         checked.append(body)
+    for command, filename, schema_file in [
+        (
+            "gibson-optimise",
+            "synthetic-gibson-optimisation.json",
+            "gibson-optimisation-plan-1.schema.json",
+        ),
+        (
+            "gibson-assemble",
+            "synthetic-gibson-existing.json",
+            "gibson-existing-plan-1.schema.json",
+        ),
+    ]:
+        plan = ROOT / "fixtures/plans" / filename
+        Draft202012Validator(
+            json.loads((ROOT / "schemas" / schema_file).read_text())
+        ).validate(json.loads(plan.read_text()))
+        for path, success in [
+            (plan, True),
+            (ROOT / "fixtures/plans/synthetic_gibson.dna", False),
+        ]:
+            proc = subprocess.run(
+                [str(binary), command, str(path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            body = json.loads(proc.stdout)
+            validator.validate(body)
+            if (
+                (proc.returncode == 0) != success
+                or body["ok"] != success
+                or proc.stderr
+            ):
+                raise ValueError("unexpected extended Gibson response")
+            checked.append(body)
     gibson_plan = ROOT / "fixtures/plans/synthetic-gibson.json"
     Draft202012Validator(
         json.loads((ROOT / "schemas/gibson-plan-1.schema.json").read_text())
@@ -320,6 +355,19 @@ def main():
     mutations.append(bad)
     bad = copy.deepcopy(gibson)
     bad["result"]["overlap_length"] = 19
+    mutations.append(bad)
+    optimised = next(
+        b for b in checked if b["command"] == "gibson-optimise" and b["ok"]
+    )
+    bad = copy.deepcopy(optimised)
+    bad["result"]["pairs"][0]["forward"]["annealing_tm_c"] = "62 C"
+    mutations.append(bad)
+    bad = copy.deepcopy(optimised)
+    bad["result"]["constraints"]["solution"]["magnesium_mm"] = -1
+    mutations.append(bad)
+    existing = next(b for b in checked if b["command"] == "gibson-assemble" and b["ok"])
+    bad = copy.deepcopy(existing)
+    bad["result"]["components"][0]["product_start"] = -1
     mutations.append(bad)
     if any(validator.is_valid(body) for body in mutations):
         raise ValueError("schema accepted an intentionally invalid response")

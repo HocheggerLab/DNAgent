@@ -10,7 +10,7 @@ dnagent ligate fixtures/plans/synthetic-closure.json
 JSON is the default; `--output text` gives a human-readable sequence/assumption
 summary. No product files are written by the program. Plans use
 [`ligation-plan-1.schema.json`](../schemas/ligation-plan-1.schema.json); output
-envelopes are **0.8.0** (ligation was introduced in 0.7.0). Plan version 1 is independent of envelope versioning.
+envelopes are **0.9.0** (ligation was introduced in 0.7.0). Plan version 1 is independent of envelope versioning.
 
 ## Explicit selection, never inferred copies
 

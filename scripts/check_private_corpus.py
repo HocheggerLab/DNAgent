@@ -23,7 +23,7 @@ from Bio import SeqIO
 from jsonschema import Draft202012Validator
 
 SCHEMA_PATH = (
-    Path(__file__).resolve().parents[1] / "schemas/cli-envelope-0.8.0.schema.json"
+    Path(__file__).resolve().parents[1] / "schemas/cli-envelope-0.9.0.schema.json"
 )
 VALIDATOR = Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
 

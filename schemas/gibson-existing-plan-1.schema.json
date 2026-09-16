@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gibson-existing-plan-1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inputs",
+    "topology",
+    "fragments",
+    "overlaps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "topology": {
+      "enum": [
+        "linear",
+        "circular"
+      ]
+    },
+    "fragments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "start",
+          "length",
+          "orientation"
+        ],
+        "properties": {
+          "input": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "orientation": {
+            "enum": [
+              "forward",
+              "reverse"
+            ]
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 128
+    },
+    "overlaps": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 20,
+        "maximum": 60
+      },
+      "minItems": 0,
+      "maxItems": 128
+    }
+  }
+}

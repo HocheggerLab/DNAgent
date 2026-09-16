@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "inputs": [{"path": "synthetic_gibson.dna"}],
+  "cores": [
+    {"input": 1, "start": 270, "length": 90, "orientation": "forward"},
+    {"input": 1, "start": 65, "length": 100, "orientation": "reverse"}
+  ],
+  "topology": "circular",
+  "overlap_length": 25,
+  "constraints": {
+    "min_length": 18, "max_length": 32,
+    "min_tm_c": 58, "max_tm_c": 66, "target_tm_c": 62,
+    "max_pair_tm_difference_c": 3,
+    "min_gc_fraction": 0.3, "max_gc_fraction": 0.7,
+    "max_hairpin_stem": 6, "max_dimer_run": 8, "max_three_prime_run": 4,
+    "solution": {"sodium_mm": 50, "potassium_mm": 0, "tris_mm": 0, "magnesium_mm": 1.5, "dntp_mm": 0.2, "primer_nm": 250}
+  }
+}

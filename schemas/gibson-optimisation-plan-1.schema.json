@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gibson-optimisation-plan-1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inputs",
+    "topology",
+    "cores",
+    "overlap_length",
+    "constraints"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "topology": {
+      "enum": [
+        "linear",
+        "circular"
+      ]
+    },
+    "cores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "start",
+          "length",
+          "orientation"
+        ],
+        "properties": {
+          "input": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 36,
+            "maximum": 1000000
+          },
+          "orientation": {
+            "enum": [
+              "forward",
+              "reverse"
+            ]
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 128
+    },
+    "overlap_length": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 60
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_length",
+        "max_length",
+        "min_tm_c",
+        "max_tm_c",
+        "target_tm_c",
+        "max_pair_tm_difference_c",
+        "min_gc_fraction",
+        "max_gc_fraction",
+        "max_hairpin_stem",
+        "max_dimer_run",
+        "max_three_prime_run",
+        "solution"
+      ],
+      "properties": {
+        "min_length": {
+          "type": "integer",
+          "minimum": 18,
+          "maximum": 40
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 18,
+          "maximum": 40
+        },
+        "min_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "target_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_pair_tm_difference_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "min_gc_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_gc_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_hairpin_stem": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "max_dimer_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "max_three_prime_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "solution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sodium_mm",
+            "potassium_mm",
+            "tris_mm",
+            "magnesium_mm",
+            "dntp_mm",
+            "primer_nm"
+          ],
+          "properties": {
+            "sodium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "potassium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "tris_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 200
+            },
+            "magnesium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "dntp_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "primer_nm": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
 pub mod gibson;
+pub mod gibson_extensions;
 pub mod ligation;
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};

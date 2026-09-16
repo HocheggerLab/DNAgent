@@ -2,9 +2,11 @@
 
 pub mod compatibility;
 pub mod digest;
+pub mod existing_overlaps;
 pub mod fragment_annotations;
 pub mod gibson;
 pub mod ligation;
+pub mod primer_optimisation;
 pub mod restriction;
 
 use serde::{Deserialize, Serialize};

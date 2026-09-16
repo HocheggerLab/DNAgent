@@ -64,7 +64,7 @@ pub struct GibsonReport {
     pub inputs: Vec<SequenceRecord>,
     pub topology: Topology,
     pub overlap_length: usize,
-    pub annealing_length: usize,
+    pub annealing_length: Option<usize>,
     pub product_sequence_5to3: String,
     pub components: Vec<GibsonComponent>,
     pub junctions: Vec<GibsonJunction>,
@@ -113,6 +113,21 @@ pub fn design(
     annealing: usize,
 ) -> Result<GibsonReport, GibsonError> {
     validate_request(records.len(), selected, overlap, annealing)?;
+    let mut report = design_with_lengths(
+        records,
+        selected,
+        topology,
+        overlap,
+        &vec![(annealing, annealing); selected.len()],
+    )?;
+    report.assumptions.extend([
+        "Primer candidates use explicit fixed annealing lengths; GC counts are descriptive, not optimisation or thermodynamic validation",
+        "Exact primer-site uniqueness is checked on each full template in both orientations; mismatched/off-template binding, dimers, hairpins and melting temperatures are not evaluated",
+    ]);
+    Ok(report)
+}
+
+pub(crate) fn validate_templates(records: &[SequenceRecord]) -> Result<(), GibsonError> {
     if records.iter().any(|r| {
         r.sequence().len() > MAX_BASES
             || !r.sequence().as_str().bytes().all(|b| b"ACGT".contains(&b))
@@ -121,6 +136,18 @@ pub fn design(
             "templates must be unambiguous ACGT and at most 1,000,000 bases",
         ));
     }
+    Ok(())
+}
+
+pub(crate) fn design_with_lengths(
+    records: &[SequenceRecord],
+    selected: &[CoreSelection],
+    topology: Topology,
+    overlap: usize,
+    lengths: &[(usize, usize)],
+) -> Result<GibsonReport, GibsonError> {
+    validate_lengths(records.len(), selected, overlap, lengths)?;
+    validate_templates(records)?;
     let cores = selected
         .iter()
         .map(|s| core(&records[s.input - 1], s))
@@ -131,8 +158,8 @@ pub fn design(
     let mut product_start = 0;
     for (i, (selection, sequence)) in selected.iter().zip(&cores).enumerate() {
         let template = &records[selection.input - 1];
-        let forward_anneal = &sequence[..annealing];
-        let reverse_anneal = reverse_complement(&sequence[sequence.len() - annealing..]);
+        let forward_anneal = &sequence[..lengths[i].0];
+        let reverse_anneal = reverse_complement(&sequence[sequence.len() - lengths[i].1..]);
         for primer in [forward_anneal, &reverse_anneal] {
             if !unique_duplex_site(template.sequence().as_str(), primer, template.topology()) {
                 return Err(GibsonError::Component {
@@ -185,15 +212,16 @@ pub fn design(
         inputs: records.to_vec(),
         topology,
         overlap_length: overlap,
-        annealing_length: annealing,
+        annealing_length: lengths
+            .iter()
+            .all(|&(f, r)| f == lengths[0].0 && r == f)
+            .then_some(lengths[0].0),
         product_sequence_5to3,
         components,
         junctions,
         assumptions: vec![
             "PCR-tail design mode: requested cores concatenate without deduplicating endogenous sequence; this is not intake of pre-existing overlapping fragments",
             "Only reverse primers receive 5-prime tails, derived from the next oriented core prefix; forward primers have no synthetic tails",
-            "Primer candidates use explicit fixed annealing lengths; GC counts are descriptive, not optimisation or thermodynamic validation",
-            "Exact primer-site uniqueness is checked on each full template in both orientations; mismatched/off-template binding, dimers, hairpins and melting temperatures are not evaluated",
             "Overlaps must occur exactly once in the intended product across both orientations, including circular-origin matches",
             "Assumes clean sequence-faithful PCR and ideal overlap-directed assembly; reaction yield, enzyme conditions and experimental validity are not predicted",
             "Core-local annotations map through product_start; feature reunion/fusion, translations and biological function are not inferred",
@@ -204,7 +232,26 @@ pub fn design(
     })
 }
 
-fn core_annotations(
+fn validate_lengths(
+    input_count: usize,
+    selected: &[CoreSelection],
+    overlap: usize,
+    lengths: &[(usize, usize)],
+) -> Result<(), GibsonError> {
+    validate_request(input_count, selected, overlap, 18)?;
+    if lengths.len() != selected.len()
+        || lengths.iter().zip(selected).any(|(&(f, r), s)| {
+            !(18..=40).contains(&f) || !(18..=40).contains(&r) || f + r > s.length
+        })
+    {
+        return Err(GibsonError::Invalid(
+            "invalid or overlapping primer annealing lengths",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn core_annotations(
     template: &SequenceRecord,
     selection: &CoreSelection,
     sequence: &str,
@@ -230,7 +277,10 @@ fn core_annotations(
         .map(|m| m.into_iter().filter(|m| !m.parts.is_empty()).collect())
 }
 
-fn core(record: &SequenceRecord, selection: &CoreSelection) -> Result<String, GibsonError> {
+pub(crate) fn core(
+    record: &SequenceRecord,
+    selection: &CoreSelection,
+) -> Result<String, GibsonError> {
     let n = record.sequence().len();
     let end = selection
         .start
@@ -257,7 +307,7 @@ fn core(record: &SequenceRecord, selection: &CoreSelection) -> Result<String, Gi
     })
 }
 
-fn primer(annealing: &str, tail: &str) -> PrimerCandidate {
+pub(crate) fn primer(annealing: &str, tail: &str) -> PrimerCandidate {
     PrimerCandidate {
         sequence_5to3: format!("{tail}{annealing}"),
         annealing_sequence_5to3: annealing.into(),
@@ -269,7 +319,7 @@ fn primer(annealing: &str, tail: &str) -> PrimerCandidate {
     }
 }
 
-fn unique_duplex_site(sequence: &str, motif: &str, topology: Topology) -> bool {
+pub(crate) fn unique_duplex_site(sequence: &str, motif: &str, topology: Topology) -> bool {
     let rc = reverse_complement(motif);
     if rc == motif || motif.len() > sequence.len() {
         return false;
