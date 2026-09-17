@@ -36,9 +36,20 @@ pub struct Diagnostic {
 }
 
 #[derive(Debug, Serialize, TS)]
+pub struct UnplacedPrimer {
+    pub name: String,
+    pub sequence_5to3: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, TS)]
 pub struct Document {
     pub name: String,
     pub sequence: String,
+    /// Complement aligned to forward coordinates, left-to-right 3′→5′.
+    pub aligned_complement_3to5: String,
+    /// Imported oligos only; binding coordinates are not retained by the importer.
+    pub unplaced_primers: Vec<UnplacedPrimer>,
     pub circular: bool,
     pub features: Vec<Feature>,
     pub warnings: Vec<Diagnostic>,
@@ -86,6 +97,15 @@ pub fn open_document(path: &Path) -> Result<Document, Diagnostic> {
     Ok(Document {
         name: record.name().into(),
         sequence: record.sequence().as_str().into(),
+        aligned_complement_3to5: record.sequence().aligned_complement_3to5(),
+        unplaced_primers: dnagent_app::primer_views(&record)
+            .iter()
+            .map(|primer| UnplacedPrimer {
+                name: primer.name.clone(),
+                sequence_5to3: primer.sequence.as_str().into(),
+                description: primer.description.clone(),
+            })
+            .collect(),
         circular: record.topology() == Topology::Circular,
         features,
         warnings: report
@@ -107,6 +127,7 @@ pub fn typescript() -> String {
         Direction::decl(),
         Feature::decl(),
         Diagnostic::decl(),
+        UnplacedPrimer::decl(),
         Document::decl(),
     ];
     let mut result = String::from(
@@ -137,6 +158,20 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/formats/snapgene");
         let doc = open_document(&root.join("synthetic_linear.dna")).unwrap();
         assert!(!doc.circular);
+        assert_eq!(doc.unplaced_primers.len(), 1);
+        assert_eq!(doc.unplaced_primers[0].name, "synthetic primer");
+        assert_eq!(doc.unplaced_primers[0].sequence_5to3, "ACGTN");
+        assert_eq!(
+            doc.unplaced_primers[0].description.as_deref(),
+            Some("retained description")
+        );
+        assert_eq!(doc.aligned_complement_3to5.len(), doc.sequence.len());
+        assert_eq!(
+            doc.aligned_complement_3to5,
+            dnagent_domain::DnaSeq::new(&doc.sequence)
+                .unwrap()
+                .aligned_complement_3to5()
+        );
         assert!(
             doc.features
                 .iter()

@@ -7,4 +7,13 @@ export type Feature = { id: string, label: string, kind: string, color: string |
  */
 parts: Array<Segment>, };
 export type Diagnostic = { code: string, message: string, };
-export type Document = { name: string, sequence: string, circular: boolean, features: Array<Feature>, warnings: Array<Diagnostic>, };
+export type UnplacedPrimer = { name: string, sequence_5to3: string, description: string | null, };
+export type Document = { name: string, sequence: string,
+/**
+ * Complement aligned to forward coordinates, left-to-right 3′→5′.
+ */
+aligned_complement_3to5: string,
+/**
+ * Imported oligos only; binding coordinates are not retained by the importer.
+ */
+unplaced_primers: Array<UnplacedPrimer>, circular: boolean, features: Array<Feature>, warnings: Array<Diagnostic>, };

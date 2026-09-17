@@ -77,6 +77,33 @@ impl DnaSeq {
         &self.0
     }
 
+    /// Complement aligned to the forward reference, read left-to-right 3′→5′.
+    /// This does not reverse the coordinate frame or return a 5′→3′ reverse complement.
+    #[must_use]
+    pub fn aligned_complement_3to5(&self) -> String {
+        self.0
+            .bytes()
+            .map(|base| match base {
+                b'A' => 'T',
+                b'T' => 'A',
+                b'C' => 'G',
+                b'G' => 'C',
+                b'R' => 'Y',
+                b'Y' => 'R',
+                b'S' => 'S',
+                b'W' => 'W',
+                b'K' => 'M',
+                b'M' => 'K',
+                b'B' => 'V',
+                b'V' => 'B',
+                b'D' => 'H',
+                b'H' => 'D',
+                b'N' => 'N',
+                _ => unreachable!("DnaSeq validates IUPAC DNA"),
+            })
+            .collect()
+    }
+
     /// Return the number of bases.
     #[must_use]
     pub fn len(&self) -> usize {
@@ -508,6 +535,14 @@ impl SequenceRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aligned_complement_preserves_positions_and_all_iupac_symbols() {
+        let sequence = DnaSeq::new("ACGTRYSWKMBDHVN").unwrap();
+        assert_eq!(sequence.aligned_complement_3to5(), "TGCAYRSWMKVHDBN");
+        let complement = DnaSeq::new(sequence.aligned_complement_3to5()).unwrap();
+        assert_eq!(complement.aligned_complement_3to5(), sequence.as_str());
+    }
 
     #[test]
     fn sequence_is_validated_and_canonicalized() {

@@ -2,18 +2,45 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { Document, Diagnostic, Feature } from './bindings';
 import { contains, displayEndpoints, featureColor, labelPositions } from './map-layout';
+import { renderSequence } from './sequence-view';
 import './style.css';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 let current: Document | null = null;
 let selected: string | null = null;
 let revision = 0;
+let activeTab: 'map' | 'sequence' = 'map';
 const ns = 'http://www.w3.org/2000/svg';
 
 function select(id: string) {
   selected = id;
   render();
-  document.querySelector('#sequence mark')?.scrollIntoView({ block: 'nearest' });
+  if (activeTab === 'sequence') revealSelection();
+}
+
+function revealSelection() {
+  document.querySelector('#sequence mark')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function showTab(tab: 'map' | 'sequence') {
+  activeTab = tab;
+  for (const name of ['map', 'sequence'] as const) {
+    element(`panel-${name}`).hidden = name !== tab;
+    element(`tab-${name}`).setAttribute('aria-selected', String(name === tab));
+    element(`tab-${name}`).tabIndex = name === tab ? 0 : -1;
+  }
+  render();
+  if (tab === 'sequence') revealSelection();
+}
+
+for (const name of ['map', 'sequence'] as const) {
+  element(`tab-${name}`).onclick = () => showTab(name);
+  element(`tab-${name}`).onkeydown = event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 'map' : event.key === 'End' ? 'sequence' : name === 'map' ? 'sequence' : 'map';
+    showTab(next); element(`tab-${next}`).focus();
+  };
 }
 
 function renderMap(doc: Document) {
@@ -73,7 +100,7 @@ function renderMap(doc: Document) {
       const x = right ? 655 : 245;
       const y = positions[index];
       shape('polyline', {points:`${anchor.x},${anchor.y} ${right ? 635 : 265},${y} ${x},${y}`,fill:'none',stroke:anchor.color,'stroke-width':'1',opacity:'0.65'});
-      const label = shape('text', {x:String(x + (right ? 4 : -4)),y:String(y + 4),'text-anchor':right ? 'start' : 'end',class:`map-label${anchor.feature.id === selected ? ' active' : ''}`,fill:anchor.color});
+      const label = shape('text', {x:String(x + (right ? 4 : -4)),y:String(y + 4),'text-anchor':right ? 'start' : 'end',class:`map-label${anchor.feature.id === selected ? ' active' : ''}`,fill:'#203344'});
       const name = anchor.feature.label || anchor.feature.kind;
       label.textContent = name.length > 28 ? name.slice(0,27) + '…' : name;
       interactive(label,anchor.feature);
@@ -90,7 +117,7 @@ function render() {
   element('selection').textContent = active
     ? `${active.label} · ${active.strand} strand · source parts ${active.parts.map(p => `[${p.start}, ${p.start + p.length})`).join(', ')} (zero-based; circular parts may wrap)`
     : 'Select a feature. Sequence is always shown in the forward reference orientation.';
-  const list = element('features'); list.replaceChildren();
+  const list = element('features'); const listScroll = list.scrollTop; list.replaceChildren();
   for (const feature of doc.features) {
     const button = document.createElement('button');
     button.textContent = `${feature.label || feature.kind} (${feature.strand})`;
@@ -100,21 +127,9 @@ function render() {
     button.onclick = () => select(feature.id);
     list.append(button);
   }
-  renderMap(doc);
-  const sequence = element('sequence'); sequence.replaceChildren();
-  const ruler = document.createElement('div'); ruler.className = 'ruler';
-  ruler.textContent = 'offset  ' + Array.from({length:8}, (_,i) => String(i * 10).padEnd(11)).join('');
-  sequence.append(ruler);
-  for (let start = 0; start < length; start += 80) {
-    const row = document.createElement('div');
-    const label = document.createElement('span'); label.className = 'offset'; label.textContent = String(start).padStart(6); row.append(label);
-    for (let pos = start; pos < Math.min(start + 80, length); pos++) {
-      if (pos > start && (pos - start) % 10 === 0) row.append(document.createTextNode(' '));
-      const base = document.createElement(active && contains(active, pos, length) ? 'mark' : 'span');
-      base.textContent = doc.sequence[pos]; base.dataset.position = String(pos); row.append(base);
-    }
-    sequence.append(row);
-  }
+  list.scrollTop = listScroll;
+  if (activeTab === 'map') renderMap(doc);
+  else renderSequence(element('sequence'),doc,active,select);
 }
 
 element('sequence').onclick = event => {
@@ -131,6 +146,15 @@ async function load(path: string) {
     const result = await invoke<Document>('open_document', { path });
     if (request !== revision) return;
     current = result; selected = null;
+    element('primer-summary').textContent = `Imported primers: ${result.unplaced_primers.length} (unplaced)`;
+    element('primer-list').replaceChildren();
+    for (const primer of result.unplaced_primers) {
+      const item = document.createElement('div'); item.className = 'primer-item';
+      const name = document.createElement('strong'); name.textContent = primer.name;
+      const sequence = document.createElement('code'); sequence.textContent = primer.sequence_5to3;
+      const description = document.createElement('p'); description.textContent = primer.description ?? '';
+      item.append(name,sequence,description); element('primer-list').append(item);
+    }
     element('warnings').replaceChildren();
     if (result.warnings.length) {
       const details = document.createElement('details');
@@ -142,7 +166,7 @@ async function load(path: string) {
       messages.textContent = result.warnings.map(w => `${w.code}: ${w.message}`).join('\n');
       details.append(summary,explanation,messages); element('warnings').append(details);
     }
-    element('status').textContent = 'Read-only preview. Arrows indicate strand direction for each source part; unknown strands have no arrows. Click sequence bases to cycle overlapping features.';
+    element('status').textContent = 'Read-only · Map and Sequence share feature selection · Unknown strands have no arrows · Click sequence bases to cycle overlapping features.';
     render();
   } catch (error) {
     if (request !== revision) return;

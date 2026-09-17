@@ -28,7 +28,14 @@ trade-offs; its egui recommendation is superseded by this agreed decision.
 `dnagent-desktop-api` is a workspace library providing explicit DTOs and a read-only
 open operation over `dnagent-app`. `ts-rs` generates `desktop/src/bindings.ts`; a Rust
 test detects drift. The Tauri shell invokes this service on a blocking worker thread.
-The web frontend renders circular/linear maps, feature selection and forward sequence.
+The web frontend provides Map and Sequence tabs with shared feature selection.
+The Sequence tab displays the forward reference (5′→3′) and its coordinate-aligned
+complement (3′→5′), computed by an IUPAC-aware domain method in Rust. It renders
+source feature parts as tracks on fixed 60-base lines. Display clipping preserves
+multipart gaps and origin crossings; strand arrowheads appear only at real source-part
+ends, not at artificial line breaks. Imported primer names, sequences and descriptions
+are available in an explicitly unplaced list: the current importer does not retain
+binding coordinates. No primer positions, translations or enzyme sites are inferred.
 Ordered multipart/circular intervals retain their original meaning; UI highlighting
 is a display projection, not a second biological calculation.
 
@@ -55,14 +62,18 @@ Feature lanes are illustrative, not collision-free layouts. Map labels use verti
 spaced leaders, with full names available on hover; arrowheads indicate each source
 part's strand direction (unknown strands have no arrows). Imported feature-level hex
 colours are retained, with stable fallback colours; per-segment colours are not exposed.
-Sequence clicks cycle overlapping features. Bases are grouped by ten with a sticky
-zero-based offset ruler. Import warnings remain available in a collapsed details panel. Reverse
+Sequence clicks cycle overlapping features on either strand; the coordinate ruler
+marks every ten reference bases. Map label text is dark independently of imported
+feature colours for readability. Import warnings remain available in a collapsed
+details panel. Tab controls support arrow keys, Home and End. Reverse
 features highlight their reference positions without reverse-complementing the view.
 
 ## Next acceptance milestone
 
 Manually test the native window with public linear, reverse/multipart and origin-spanning
 fixtures. Display-helper tests cover origin crossings, arrow traversal, colour validation
-and label spacing; end-to-end selection, picker and stale-request tests remain to add.
+and label spacing, plus row clipping and real source-end preservation. Rust tests
+cover all IUPAC complementary symbols and the generated transport contract.
+End-to-end selection, tabs, picker and stale-request tests remain to add.
 Then add a validated assembly/junction view. Harden file limits and command
 contracts before treating this as a supported release.

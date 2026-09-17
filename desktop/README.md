@@ -17,7 +17,12 @@ npm run tauri dev
 Use **Browse…** or enter an absolute path to a `.dna` or single-record `.fasta` file. Try the repository's
 `fixtures/formats/snapgene/synthetic_linear.dna` and
 `synthetic_multipart_origin.dna`. Select a feature in the list or map; click sequence
-bases to select features (repeated clicks cycle overlapping annotations). Map labels
+bases to select features (repeated clicks cycle overlapping annotations). **Map** and
+**Sequence** tabs share the current selection. The Sequence view shows the forward
+5′→3′ strand, aligned 3′→5′ complement and imported feature tracks; row breaks are
+not treated as feature ends. Coordinates remain zero-based. Imported primers appear
+in an **unplaced** list because binding coordinates are not retained by the importer.
+Translation and restriction-site tracks are deferred. Map labels
 and arrows show feature identity and each part's strand direction. Imported colours
 are retained where available. Expand the import-warning panel to review fidelity limits.
 
