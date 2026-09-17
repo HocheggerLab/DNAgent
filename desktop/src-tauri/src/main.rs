@@ -15,6 +15,7 @@ async fn open_document(path: String) -> Result<Document, Diagnostic> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![open_document])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

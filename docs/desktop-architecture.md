@@ -42,21 +42,27 @@ This is prototype packaging, not a claim that separate release processes are nee
 
 ## Security and limitations
 
-No shell, filesystem or network plugins are exposed to JavaScript. One custom command
-reads a user-entered local file path through the existing importer. It is not a file
+No shell, filesystem or network plugin commands are exposed to JavaScript. The
+native dialog plugin grants only `dialog:allow-open` to the main window. One custom
+command reads a user-entered or picker-selected local file path through the existing importer. It is not a file
 sandbox; compromised trusted frontend code could invoke that command on other paths.
 Do not load remote frontend content. A CSP restricts production content and connections.
 
-Read-only, one document, no project persistence, file picker, editing, undo, assembly
-UI, jobs API or WASM. A 100,000-base viewer limit bounds DOM rendering after import;
+Read-only, one document, no project persistence, editing, undo, assembly UI, jobs API
+or WASM. A native file picker supplements path entry. A 100,000-base viewer limit bounds DOM rendering after import;
 it does not impose an input-file byte limit. Rendering is intentionally unvirtualised.
-Feature lanes are illustrative, not collision-free layouts; map arcs have strand text
-but not directional arrowheads. Sequence clicks cycle overlapping features. Reverse
+Feature lanes are illustrative, not collision-free layouts. Map labels use vertically
+spaced leaders, with full names available on hover; arrowheads indicate each source
+part's strand direction (unknown strands have no arrows). Imported feature-level hex
+colours are retained, with stable fallback colours; per-segment colours are not exposed.
+Sequence clicks cycle overlapping features. Bases are grouped by ten with a sticky
+zero-based offset ruler. Import warnings remain available in a collapsed details panel. Reverse
 features highlight their reference positions without reverse-complementing the view.
 
 ## Next acceptance milestone
 
 Manually test the native window with public linear, reverse/multipart and origin-spanning
-fixtures. Then add frontend tests for selection, stale requests and overlapping features,
-a file picker, and a validated assembly/junction view. Harden file limits and command
+fixtures. Display-helper tests cover origin crossings, arrow traversal, colour validation
+and label spacing; end-to-end selection, picker and stale-request tests remain to add.
+Then add a validated assembly/junction view. Harden file limits and command
 contracts before treating this as a supported release.

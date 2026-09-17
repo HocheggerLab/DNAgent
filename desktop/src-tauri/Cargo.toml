@@ -8,6 +8,7 @@ license = "MIT"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+tauri-plugin-dialog = "2"
 tauri = { version = "2", features = [] }
 dnagent-desktop-api = { path = "../../crates/dnagent-desktop-api" }
 

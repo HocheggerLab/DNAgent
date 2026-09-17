@@ -14,10 +14,12 @@ npm ci
 npm run tauri dev
 ```
 
-Enter an absolute path to a `.dna` or single-record `.fasta` file. Try the repository's
+Use **Browse…** or enter an absolute path to a `.dna` or single-record `.fasta` file. Try the repository's
 `fixtures/formats/snapgene/synthetic_linear.dna` and
 `synthetic_multipart_origin.dna`. Select a feature in the list or map; click sequence
-bases to select features (repeated clicks cycle overlapping annotations).
+bases to select features (repeated clicks cycle overlapping annotations). Map labels
+and arrows show feature identity and each part's strand direction. Imported colours
+are retained where available. Expand the import-warning panel to review fidelity limits.
 
 A plain `npm run dev` serves only the frontend: native imports require the Tauri window.
 
@@ -28,6 +30,7 @@ A plain `npm run dev` serves only the frontend: native imports require the Tauri
 cargo run -p dnagent-desktop-api --example export_types > desktop/src/bindings.ts
 cargo test -p dnagent-desktop-api
 cd desktop
+npm test # Node 22.6+ (native TypeScript stripping)
 npm run build
 cargo check --manifest-path src-tauri/Cargo.toml --locked
 npm run tauri build -- --no-bundle

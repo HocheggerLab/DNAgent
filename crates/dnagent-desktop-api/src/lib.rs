@@ -15,6 +15,7 @@ pub struct Feature {
     pub id: String,
     pub label: String,
     pub kind: String,
+    pub color: Option<String>,
     pub strand: Direction,
     /// Ordered source parts. Circular parts may cross the origin.
     pub parts: Vec<Segment>,
@@ -65,6 +66,7 @@ pub fn open_document(path: &Path) -> Result<Document, Diagnostic> {
             id: feature.id().as_str().into(),
             label: feature.label().into(),
             kind: feature.kind().into(),
+            color: feature.display().color.clone(),
             strand: match feature.location().strand() {
                 Strand::Forward => Direction::Forward,
                 Strand::Reverse => Direction::Reverse,
@@ -112,8 +114,10 @@ pub fn typescript() -> String {
     );
     for declaration in declarations {
         result.push_str("export ");
-        result.push_str(&declaration);
-        result.push('\n');
+        for line in declaration.lines() {
+            result.push_str(line.trim_end());
+            result.push('\n');
+        }
     }
     result
 }
