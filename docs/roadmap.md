@@ -1,7 +1,9 @@
 # CLI-first cloning roadmap
 
-The GUI is an adapter to the tested application layer, not the place to develop
-biological algorithms. **Gibson cloning is required before GUI integration.**
+The GUI is a central product interface over the shared application layer, not the
+place to develop biological algorithms. Initial Gibson support is implemented;
+**Tauri desktop prototyping now proceeds alongside engine hardening**. Native Rust
+runs the biology; WASM is deferred. See [desktop architecture](desktop-architecture.md).
 
 ## Completed implementation slices
 
@@ -29,7 +31,7 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
   retained primer candidates. Exact-overlap products export as sequence-only FASTA
   or conservative component-provenance GenBank.
 
-## Next milestones, in order
+## Next workstreams
 
 1. **Gibson hardening and scope review** — full folding-energy assessment,
    broader real-template design coverage and a separate assembly-engine comparison.
@@ -37,8 +39,11 @@ biological algorithms. **Gibson cloning is required before GUI integration.**
    not structure thermodynamics. Candidate oligos are not ordering-ready.
    Preserve the distinction between model predictions and experimentally validated
    designs; review this scope before GUI integration.
-2. **GUI integration** — expose the validated shared application operations;
-   resolve existing display/selection issues without reimplementing biology.
+2. **Tauri desktop prototype** — native Rust services, explicit transport DTOs and
+   generated TypeScript types; linked map/feature/sequence selection first, then
+   validated assembly and junction views. Keep the egui viewer during evaluation.
+3. **Architecture consolidation** — prepared-artifact provenance, shared diagnostics
+   and composable coordinate mappings; discuss the scope in `architecture-review.md`.
 
 ## Follow-up coverage
 

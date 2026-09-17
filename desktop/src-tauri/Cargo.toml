@@ -1,0 +1,14 @@
+[package]
+name = "dnagent-desktop"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+dnagent-desktop-api = { path = "../../crates/dnagent-desktop-api" }
+
+[workspace]

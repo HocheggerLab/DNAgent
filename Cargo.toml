@@ -8,8 +8,10 @@ members = [
     "crates/dnagent-render",
     "crates/dnagent-gui",
     "crates/dnagent-cli",
+    "crates/dnagent-desktop-api",
 ]
 default-members = ["crates/dnagent-cli"]
+exclude = ["desktop/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"

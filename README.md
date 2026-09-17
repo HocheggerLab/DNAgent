@@ -1,5 +1,13 @@
 # DNAagent
 
+## Desktop direction
+
+The GUI is a central product interface. A read-only **Tauri 2 + TypeScript** prototype
+is available in [`desktop/`](desktop/README.md), with native Rust calculations and
+generated transport types. WASM is deferred; the CLI and existing egui viewer remain
+available. See the [architecture decision](docs/desktop-architecture.md) and
+[architecture review](docs/architecture-review.md).
+
 **An agent-friendly DNA design and cloning workbench.**
 
 DNAagent is a Rust, library-first replacement for the plasmid viewing and cloning workflows commonly performed in SnapGene. Biological operations live in reusable crates. Development is currently CLI-first for agent use; the desktop GUI remains a basic viewer, with further interaction work deferred.
