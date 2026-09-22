@@ -310,7 +310,7 @@ pub fn annealing_tm(sequence: &str, solution: &Solution) -> Result<f64, GibsonEr
 }
 
 // Private screens only receive bounded, validated ACGT oligos.
-fn dimer_screen(a: &str, b: &str) -> DimerScreen {
+pub(crate) fn dimer_screen(a: &str, b: &str) -> DimerScreen {
     let b = reverse_complement(b);
     let mut previous = vec![0; b.len() + 1];
     let mut result = DimerScreen {
@@ -333,7 +333,7 @@ fn dimer_screen(a: &str, b: &str) -> DimerScreen {
     }
     result
 }
-fn hairpin_stem(s: &str) -> usize {
+pub(crate) fn hairpin_stem(s: &str) -> usize {
     let rc = reverse_complement(s);
     let mut best = 0;
     for left in 0..s.len() {

@@ -31,6 +31,12 @@ runs the biology; WASM is deferred. See [desktop architecture](desktop-architect
   retained primer candidates. Exact-overlap products export as sequence-only FASTA
   or conservative component-provenance GenBank.
 
+- First [offline amplification-design slice](amplification.md): explicit windows and
+  primer-spanning junctions, positive/negative template screening, hashed provenance,
+  versioned NN/contiguous-structure model and circular product coordinates. This is
+  not Primer3 or whole-genome specificity; automatic shared-region discovery, BLAST
+  and GUI primer inspection remain follow-ups.
+
 ## Next workstreams
 
 1. **Gibson hardening and scope review** — full folding-energy assessment,

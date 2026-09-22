@@ -167,6 +167,7 @@ def main():
             raise ValueError("unexpected fragments response")
         checked.append(body)
     for command, filename, schema_file in [
+        ("primer-design", "synthetic-primer-design.json", "primer-design-plan-1.schema.json"),
         (
             "gibson-optimise",
             "synthetic-gibson-optimisation.json",

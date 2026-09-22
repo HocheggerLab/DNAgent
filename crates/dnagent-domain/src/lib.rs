@@ -1,5 +1,6 @@
 //! Biological domain types shared by every DNAagent adapter.
 
+pub mod amplification;
 pub mod compatibility;
 pub mod digest;
 pub mod existing_overlaps;

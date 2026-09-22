@@ -1,5 +1,9 @@
 # CLI envelope version policy
 
+`primer-design` accepts the strict [amplification plan](primer-design-plan-1.schema.json)
+and returns a named object containing provenance and the design. Rust additionally
+checks cross-field bounds and complete positive/negative input partitioning.
+
 **Current emitted version: 0.9.0.** Every current JSON command emits that version.
 The CLI does not negotiate older versions and does not accept JSON envelopes as
 input. Envelope schemas describe outputs, not an import API. General sequence
@@ -25,7 +29,7 @@ that retains `gibson-optimise` in envelopes.
 | 0.6.0 | Retired; not emitted by current CLI | Historical fragment annotation/export responses |
 | 0.7.0 | Retired; not emitted by current CLI | Historical restriction/ligation responses |
 | 0.8.0 | Retired; not emitted by current CLI | Historical PCR-tail Gibson candidates and products |
-| 0.9.0 | Current | Adds constrained primer optimisation and existing-overlap assembly |
+| 0.9.0 | Current | Adds constrained primer optimisation, existing-overlap assembly and the additive offline `primer-design` command |
 
 Retired schemas remain unchanged so archived responses can still be validated
 against their declared version. Their presence does not imply current runtime

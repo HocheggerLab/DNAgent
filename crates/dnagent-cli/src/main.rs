@@ -100,6 +100,8 @@ enum Command {
     /// Optimise PCR-tail primers under explicit Tm and sequence-screen constraints (JSON).
     #[command(alias = "gibson-optimize")]
     GibsonOptimise { plan: PathBuf },
+    /// Design offline amplification primers against declared positive/negative templates (JSON).
+    PrimerDesign { plan: PathBuf },
     /// Assemble declared existing overlaps; export JSON, FASTA or conservative GenBank.
     GibsonAssemble {
         plan: PathBuf,
@@ -178,6 +180,7 @@ impl Command {
             Self::Ligate { .. } => "ligate",
             Self::Gibson { .. } => "gibson",
             Self::GibsonOptimise { .. } => "gibson-optimise",
+            Self::PrimerDesign { .. } => "primer-design",
             Self::GibsonAssemble { .. } => "gibson-assemble",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
@@ -195,7 +198,7 @@ impl Command {
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
-            Self::GibsonOptimise { .. } => true,
+            Self::GibsonOptimise { .. } | Self::PrimerDesign { .. } => true,
             Self::GibsonAssemble { output, .. } => matches!(output, AssemblyOutput::Json),
             Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
                 matches!(output, OutputMode::Json)
@@ -292,6 +295,11 @@ fn main() -> ExitCode {
                             Some(AppError::Gibson(_) | AppError::GibsonPlan(_))
                         ) {
                             "gibson_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Amplification(_) | AppError::AmplificationPlan(_))
+                        ) {
+                            "amplification_failed"
                         } else {
                             "command_failed"
                         },
@@ -386,6 +394,10 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
         Command::Gibson { plan, output } => run_gibson(&plan, output, strict, warnings)?,
         Command::GibsonOptimise { plan } => run_gibson_optimise(&plan, strict, warnings)?,
+        Command::PrimerDesign { plan } => {
+            let result = dnagent_app::amplification::run(&plan, strict, warnings)?;
+            print_json("primer-design", &result, warnings)?;
+        }
         Command::GibsonAssemble { plan, output } => {
             run_gibson_assemble(&plan, output, strict, warnings)?;
         }

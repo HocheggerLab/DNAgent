@@ -72,7 +72,8 @@ dnagent fragments construct.dna --enzymes EcoRI,BamHI --output genbank --strand 
 See [the annotation/export contract](docs/fragment-annotations.md) and
 [conservative GenBank views](docs/genbank-export.md). GenBank requires an explicit
 strand and uses source-linked `misc_feature` pieces, not inferred functional CDSs.
-See [the roadmap](docs/roadmap.md): **Gibson cloning remains required before GUI integration**.
+See [the roadmap](docs/roadmap.md): Tauri desktop work and shared-engine hardening
+proceed together; the CLI and GUI call the same application layer.
 
 ### Restriction/ligation products
 
@@ -87,6 +88,16 @@ dnagent ligate fixtures/plans/synthetic-religation.json --output json
 ```
 
 See [the plan/product contract](docs/ligation.md).
+
+### Offline amplification primers
+
+`dnagent primer-design fixtures/plans/synthetic-primer-design.json` designs bounded
+candidate pairs within an explicit reference window, optionally crossing a junction,
+and screens them against declared positive/negative templates. Results include source
+hashes, explicit thermodynamics, binding sites and predicted template intervals.
+See [amplification design](docs/amplification.md) for the model and hard limits:
+this is not Primer3, genome-wide specificity or experimental validation. GUI integration
+and automatic shared-region discovery are deferred.
 
 ### Gibson PCR-tail candidates
 
@@ -130,9 +141,11 @@ and [existing overlaps](docs/existing-overlaps.md). GUI work remains deferred.
 
 ### Import warnings and strict mode
 
-All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`, `gibson-optimise`, `gibson-assemble`) return a
+All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`, `gibson-optimise`, `gibson-assemble`, `primer-design`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
 The envelope schema version is now **0.9.0**, adding primer optimisation and existing-overlap assembly.
+The additive `primer-design` command also uses 0.9.0; existing command result shapes
+remain unchanged. Its plan/design failures use `amplification_failed`.
 Version 0.8.0 added PCR-tail Gibson candidates.
 Version 0.7.0 added explicit ligation products.
 Version 0.6.0 added annotation-aware fragments.

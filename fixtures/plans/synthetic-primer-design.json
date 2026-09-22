@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    "../formats/fasta/primer_positive.fasta",
+    "../formats/fasta/primer_reverse_positive.fasta",
+    "../formats/fasta/primer_negative.fasta"
+  ],
+  "feature_id": null,
+  "request": {
+    "reference_input": 1,
+    "window_start": 0,
+    "window_length": 180,
+    "junction_offset": 60,
+    "junction_min_bases": 4,
+    "positive_inputs": [
+      1,
+      2
+    ],
+    "negative_inputs": [
+      3
+    ],
+    "min_product_length": 80,
+    "max_product_length": 140,
+    "screen_max_product_length": 1000,
+    "max_mismatches": 1,
+    "exact_three_prime_bases": 8,
+    "max_results": 3,
+    "constraints": {
+      "min_length": 20,
+      "max_length": 22,
+      "min_tm_c": 50,
+      "max_tm_c": 75,
+      "target_tm_c": 62,
+      "max_pair_tm_difference_c": 3,
+      "min_gc_fraction": 0.3,
+      "max_gc_fraction": 0.7,
+      "max_hairpin_stem": 5,
+      "max_dimer_run": 8,
+      "max_three_prime_run": 4,
+      "solution": {
+        "sodium_mm": 50,
+        "potassium_mm": 0,
+        "tris_mm": 0,
+        "magnesium_mm": 1.5,
+        "dntp_mm": 0.2,
+        "primer_nm": 250
+      }
+    }
+  }
+}

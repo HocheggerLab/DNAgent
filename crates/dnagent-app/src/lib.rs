@@ -1,5 +1,6 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
+pub mod amplification;
 pub mod gibson;
 pub mod gibson_extensions;
 pub mod ligation;
@@ -60,6 +61,10 @@ pub enum AppError {
     Gibson(#[from] dnagent_domain::gibson::GibsonError),
     #[error("invalid Gibson plan JSON: {0}")]
     GibsonPlan(serde_json::Error),
+    #[error(transparent)]
+    Amplification(#[from] dnagent_domain::amplification::DesignError),
+    #[error("invalid amplification plan JSON: {0}")]
+    AmplificationPlan(serde_json::Error),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -74,7 +79,7 @@ pub enum AppError {
 pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
     let extension = path
         .extension()
-        .and_then(|value| value.to_str())
+        .and_then(|s| s.to_str())
         .map(str::to_ascii_lowercase);
     if !matches!(extension.as_deref(), Some("dna" | "fa" | "fasta" | "fna")) {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
@@ -83,16 +88,25 @@ pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
         path: path.display().to_string(),
         source,
     })?;
+    import_path_bytes(path, &bytes)
+}
+
+/// Import the exact byte snapshot supplied by the caller (e.g. for hashed provenance).
+pub fn import_path_bytes(path: &Path, bytes: &[u8]) -> Result<ImportReport, AppError> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(str::to_ascii_lowercase);
+    if !matches!(extension.as_deref(), Some("dna" | "fa" | "fasta" | "fna")) {
+        return Err(AppError::UnsupportedExtension(path.display().to_string()));
+    }
     let fallback_name = path
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("untitled");
     match extension.as_deref() {
-        Some("dna") => Ok(dnagent_format_snapgene::import_bytes(
-            &bytes,
-            fallback_name,
-        )?),
-        Some("fa" | "fasta" | "fna") => import_single_fasta(&bytes, fallback_name),
+        Some("dna") => Ok(dnagent_format_snapgene::import_bytes(bytes, fallback_name)?),
+        Some("fa" | "fasta" | "fna") => import_single_fasta(bytes, fallback_name),
         _ => Err(AppError::UnsupportedExtension(path.display().to_string())),
     }
 }
