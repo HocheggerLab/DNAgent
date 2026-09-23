@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profile": "human-refseq-grch38",
+  "release": "GCF_000001405.40-RS_2025_08",
+  "organism": "Homo sapiens",
+  "taxid": 9606,
+  "assembly": "GCF_000001405.40",
+  "assembly_name": "GRCh38.p14",
+  "annotation_release": "GCF_000001405.40-RS_2025_08",
+  "checksum_source": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/md5checksums.txt",
+  "checksum_retrieved": "2026-09-22",
+  "base_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/",
+  "notes": [
+    "Full RefSeq assembly includes primary, alternate, patch and non-nuclear sequences. Hits on alternative representations are not automatically distinct biological off-target loci.",
+    "Transcripts are the assembly-associated RefSeq RNA set, not all-species refseq_rna and not a single representative isoform per gene.",
+    "NCBI may replace files at these URLs; pinned checksum mismatch must fail, never silently update.",
+    "Public reference data from NCBI RefSeq/Genome Reference Consortium; retain original headers and assembly/annotation provenance. No private query sequences are downloaded or uploaded."
+  ],
+  "files": [
+    {"name":"GCF_000001405.40_GRCh38.p14_genomic.fna.gz","md5":"c30471567037b2b2389d43c908c653e1","database":"genome","max_download_bytes":1610612736,"max_uncompressed_bytes":4831838208},
+    {"name":"GCF_000001405.40_GRCh38.p14_rna.fna.gz","md5":"b4a2ce202c90c0f24f22850c6bc7d774","database":"transcripts","max_download_bytes":536870912,"max_uncompressed_bytes":2147483648},
+    {"name":"GCF_000001405.40_GRCh38.p14_assembly_report.txt","md5":"21f3ac4aa8245a99eb874082051b9dde","max_download_bytes":1048576},
+    {"name":"README_GCF_000001405.40-RS_2025_08","md5":"b8b3776ac2911e98a18532e4319839b5","max_download_bytes":1048576}
+  ]
+}

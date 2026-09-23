@@ -41,6 +41,7 @@ uv run scripts/check_ligation.py --binary target/debug/dnagent
 uv run scripts/check_gibson.py --binary target/debug/dnagent
 uv run scripts/check_gibson_extensions.py --binary target/debug/dnagent
 uv run scripts/check_amplification.py --binary target/debug/dnagent
+python3 scripts/test_manage_references.py
 ```
 
 Schema checks use public synthetic fixtures only. Private-corpus validation is

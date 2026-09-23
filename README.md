@@ -89,6 +89,13 @@ dnagent ligate fixtures/plans/synthetic-religation.json --output json
 
 See [the plan/product contract](docs/ligation.md).
 
+### Local reference data
+
+A pinned human GRCh38/RefSeq RNA profile can be installed outside Git with
+`python3 scripts/manage_references.py install` (requires BLAST+ and 20 GiB free).
+Use `plan` to inspect it without downloading. See [reference storage](docs/reference-store.md).
+This provisions databases only; BLAST specificity is not yet connected to primer design.
+
 ### Offline amplification primers
 
 `dnagent primer-design fixtures/plans/synthetic-primer-design.json` designs bounded
