@@ -57,6 +57,11 @@
         {
           "state": "map.fills_panel",
           "equals": true
+        },
+        {
+          "state": "map.layout_current",
+          "equals": true,
+          "message": "the map was re-laid out for the current size"
         }
       ],
       "screenshot": true
@@ -111,6 +116,11 @@
         {
           "state": "map.fills_panel",
           "equals": true
+        },
+        {
+          "state": "map.layout_current",
+          "equals": true,
+          "message": "the map was re-laid out for the current size"
         }
       ],
       "screenshot": true
@@ -165,6 +175,11 @@
         {
           "state": "map.fills_panel",
           "equals": true
+        },
+        {
+          "state": "map.layout_current",
+          "equals": true,
+          "message": "the map was re-laid out for the current size"
         }
       ],
       "screenshot": true
@@ -219,6 +234,11 @@
         {
           "state": "map.fills_panel",
           "equals": true
+        },
+        {
+          "state": "map.layout_current",
+          "equals": true,
+          "message": "the map was re-laid out for the current size"
         }
       ],
       "screenshot": true
@@ -302,6 +322,11 @@
         {
           "state": "map.fills_panel",
           "equals": true
+        },
+        {
+          "state": "map.layout_current",
+          "equals": true,
+          "message": "the map was re-laid out for the current size"
         }
       ],
       "screenshot": true

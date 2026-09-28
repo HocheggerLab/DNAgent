@@ -40,6 +40,8 @@ export interface AppState {
   /** Rendered map accounting and geometry checks; null unless the Map tab is visible. */
   map: null | {
     width: number; height: number; radius: number; fills_panel: boolean;
+    /** The drawn layout was computed for the canvas's current size (resize handled). */
+    layout_current: boolean;
     drawn_ids: string[];
     labels: { id: string; mode: string }[];
     unlabelled_ids: string[]; unlabelled_names: string[]; unlabelled_count: number;
@@ -123,6 +125,8 @@ function mapState(current: Document): AppState['map'] {
   return {
     width: Number(svg.dataset.width), height: Number(svg.dataset.height), radius: Number(svg.dataset.radius),
     fills_panel: Math.abs(box.width - panelBox.width) <= 2 && Math.abs(box.bottom - panelBox.bottom) <= 2,
+    layout_current: Math.abs(Number(svg.dataset.width) - Math.max(320, svg.clientWidth)) <= 1
+      && Math.abs(Number(svg.dataset.height) - Math.max(320, svg.clientHeight)) <= 1,
     drawn_ids: drawn, labels,
     unlabelled_ids: unlabelled, unlabelled_names: unlabelled.map(id => names.get(id) ?? id), unlabelled_count: unlabelled.length,
     badged_ids: badged, notice_count: notice.hidden ? 0 : Number.parseInt(notice.textContent ?? '', 10),
