@@ -20,7 +20,8 @@ export interface AppState {
   path_input: string;
   active_tab: 'map' | 'sequence' | 'inconsistent';
   visible_panels: string[];
-  document: null | { name: string; length: number; topology: 'circular' | 'linear'; title: string };
+  /** Parsed from the displayed title, so display bugs are caught; null before any load. */
+  document: null | { name: string | null; length: number | null; topology: string | null; title: string };
   features: { id: string; name: string; selected: boolean; text: string }[];
   selection: {
     feature_id: string | null;
@@ -75,6 +76,13 @@ function reconstructParts(length: number): { parts: ReconstructedPart[]; indices
   return { parts, indices };
 }
 
+/** Read `name · 1,234 bp · topology` back from the rendered title. */
+function displayedDocument(title: string): NonNullable<AppState['document']> {
+  const match = title.match(/^(.*) · ([\d,.\s]+) bp · (\w+)$/);
+  if (!match) return { name: null, length: null, topology: null, title };
+  return { name: match[1], length: Number(match[2].replace(/\D/g, '')), topology: match[3], title };
+}
+
 export function getState(model: ModelView): AppState {
   const { current, selected } = model;
   const tabs = (['map', 'sequence'] as const).filter(name => document.getElementById(`tab-${name}`)!.getAttribute('aria-selected') === 'true');
@@ -96,12 +104,7 @@ export function getState(model: ModelView): AppState {
     path_input: document.querySelector<HTMLInputElement>('[data-testid="path-input"]')!.value,
     active_tab: consistent ? model.activeTab : 'inconsistent',
     visible_panels: panels,
-    document: current && {
-      name: current.name,
-      length: current.sequence.length,
-      topology: current.circular ? 'circular' : 'linear',
-      title: document.getElementById('title')!.textContent ?? '',
-    },
+    document: current && displayedDocument(document.getElementById('title')!.textContent ?? ''),
     features: byTestId('feature-item').map(button => ({
       id: button.dataset.featureId!,
       name: required(button.querySelector('[data-testid="feature-name"]'), 'feature name').textContent ?? '',

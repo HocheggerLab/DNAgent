@@ -10,6 +10,7 @@ test('keys, indices, wildcards and filters', () => {
   assert.equal(queryOne(envelope, "result[?(@.label=='it\\'s')].id"), 'b');
   assert.deepEqual(query(envelope, 'warnings[*]'), []);
   assert.deepEqual(query(envelope, 'result[*].parts[*]'), [1, 2]);
+  assert.deepEqual(query(envelope, 'warnings[*].code'), []);
 });
 
 test('no match is an error, never an empty pass', () => {

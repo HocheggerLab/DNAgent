@@ -58,6 +58,8 @@ export function queryAll(root: unknown, path: string): unknown[] {
   let current: unknown[] = [root];
   let prefix = '';
   for (const token of parsePath(path)) {
+    // A wildcard over an empty array yields nothing; later steps then stay empty.
+    if (!current.length) return [];
     const next: unknown[] = [];
     for (const value of current) {
       if (token.kind === 'key') {
