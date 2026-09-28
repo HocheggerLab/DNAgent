@@ -1,0 +1,104 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "map-hidden-labels-notice",
+  "description": "Labels that do not fit are counted in a notice that reveals them in the (collapsed) feature list",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 900,
+        "height": 600
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "click": {
+        "testid": "toggle-features"
+      },
+      "note": "collapse the list; the map takes the space"
+    },
+    {
+      "expect": [
+        {
+          "state": "layout.feature_list_collapsed",
+          "equals": true
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "collapsed list: every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "map-hidden-notice"
+      },
+      "note": "the notice's Show in list button"
+    },
+    {
+      "expect": [
+        {
+          "state": "layout.feature_list_collapsed",
+          "equals": false,
+          "message": "the list re-opens to show unlabelled features"
+        },
+        {
+          "state": "features[?(@.unlabelled==true)].id",
+          "equals_state": "map.unlabelled_ids"
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

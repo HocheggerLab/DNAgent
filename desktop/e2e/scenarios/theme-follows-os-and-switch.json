@@ -1,0 +1,97 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "theme-follows-os-and-switch",
+  "description": "Appearance follows the OS by default, can be overridden, and the choice survives a reload",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_color_scheme": "dark"
+    },
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "theme.preference",
+          "equals": "system"
+        },
+        {
+          "state": "theme.resolved",
+          "equals": "dark"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "set_color_scheme": "light"
+    },
+    {
+      "expect": [
+        {
+          "state": "theme.resolved",
+          "equals": "light",
+          "message": "System follows an OS change live"
+        }
+      ]
+    },
+    {
+      "select_option": {
+        "testid": "theme-select",
+        "value": "dark"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "theme.preference",
+          "equals": "dark"
+        },
+        {
+          "state": "theme.resolved",
+          "equals": "dark",
+          "message": "explicit choice overrides the light OS"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "reload": true
+    },
+    {
+      "expect": [
+        {
+          "state": "theme.preference",
+          "equals": "dark",
+          "message": "remembered across reloads"
+        },
+        {
+          "state": "theme.resolved",
+          "equals": "dark"
+        },
+        {
+          "state": "document",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "select_option": {
+        "testid": "theme-select",
+        "value": "system"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "theme.preference",
+          "equals": "system"
+        },
+        {
+          "state": "theme.resolved",
+          "equals": "light"
+        }
+      ]
+    }
+  ]
+}

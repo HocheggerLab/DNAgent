@@ -1,0 +1,310 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "map-layout-accounting",
+  "description": "On a realistic plasmid every feature is drawn and every label is placed or reported, at any window size",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "1440×900: every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "set_viewport": {
+        "width": 1024,
+        "height": 700
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "1024×700: every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "set_viewport": {
+        "width": 900,
+        "height": 600
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "900×600 (crowded): every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "set_viewport": {
+        "width": 700,
+        "height": 520
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "700×520: every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_feature": {
+        "label": "EcoRI site"
+      },
+      "note": "a 6-bp feature in the crowded polylinker",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='EcoRI site')].id"
+          }
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='EcoRI site')].location",
+            "transform": "parts"
+          },
+          "message": "selection band per source part"
+        },
+        {
+          "state": "selection.map.active_labels",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='EcoRI site')].label"
+          },
+          "message": "the selected feature's label is always shown"
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "with a selection: every feature is drawn, in source order"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "each feature has exactly one label, or none and a list badge"
+        },
+        {
+          "state": "map.badged_ids",
+          "equals_state": "map.unlabelled_ids",
+          "message": "list badges mark exactly the unlabelled features"
+        },
+        {
+          "state": "map.notice_count",
+          "equals_state": "map.unlabelled_count",
+          "message": "the notice counts exactly the unlabelled features"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0,
+          "message": "the notice never covers a label"
+        },
+        {
+          "state": "map.fills_panel",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}
