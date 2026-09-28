@@ -28,6 +28,7 @@ python3 fixtures/formats/snapgene/generate_cases.py
 | `synthetic_linear.dna` | Lowercase IUPAC DNA, reverse multipart annotation, repeated/valueless qualifiers, primer and description |
 | `synthetic_unannotated.dna` | Minimal linear record without annotations |
 | `synthetic_multipart_origin.dna` | Reverse feature with an origin-spanning part followed by a linear part |
+| `synthetic_overlaps.dna` | Linear record with three hand-authored annotations (forward, reverse, forward two-part) sharing bases 11–12; used by GUI click-cycling tests |
 | `synthetic_partial.dna` | Invalid feature segments and primer, explicit warnings, retained XML and opaque binary metadata |
 | `invalid_duplicate_sequence.dna` | Duplicate DNA packets rejected |
 | `invalid_missing_sequence.dna` | Missing DNA packet rejected |

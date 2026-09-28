@@ -70,6 +70,14 @@ def cases():
     partial += packet(6, b"<Notes><Custom>synthetic opaque notes</Custom></Notes>")
     partial += packet(0x1C, b"\x00\xffopaque")
     yield "synthetic_partial.dna", partial
+    # Three hand-authored annotations sharing zero-based bases 11 and 12, for
+    # GUI click-cycling tests. Arbitrary sequence without restriction motifs.
+    overlaps = molecule("ATGACCGTTAGCCTAGCATTCATTGCAGTC")
+    overlaps += packet(
+        10,
+        b"""<Features><Feature name="overlap forward" type="misc_feature" directionality="1"><Segment range="6-15"/></Feature><Feature name="overlap reverse" type="misc_feature" directionality="2"><Segment range="11-20"/></Feature><Feature name="overlap multipart" type="misc_feature" directionality="1"><Segment range="2-4"/><Segment range="12-13"/></Feature></Features>""",
+    )
+    yield "synthetic_overlaps.dna", overlaps
     yield "invalid_duplicate_sequence.dna", molecule("ACGT") + packet(0, b"\x00TGCA")
     yield "invalid_missing_sequence.dna", COOKIE
     yield "invalid_truncated.dna", COOKIE + struct.pack(">BI", 0, 8) + b"\x00AC"

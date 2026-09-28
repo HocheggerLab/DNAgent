@@ -88,6 +88,36 @@ fn multipart_origin_feature_keeps_part_order_and_strand() {
 }
 
 #[test]
+fn overlapping_features_share_bases_in_source_order() {
+    let report = import("synthetic_overlaps.dna");
+    let features = report.record.features();
+    let labels: Vec<_> = features.iter().map(|f| f.label()).collect();
+    assert_eq!(
+        labels,
+        ["overlap forward", "overlap reverse", "overlap multipart"]
+    );
+    assert_eq!(report.record.topology(), Topology::Linear);
+    assert_eq!(
+        features[0].location().parts(),
+        &[Region::linear(5, 15, 30).unwrap()]
+    );
+    assert_eq!(features[1].location().strand(), Strand::Reverse);
+    assert_eq!(
+        features[1].location().parts(),
+        &[Region::linear(10, 20, 30).unwrap()]
+    );
+    assert_eq!(features[2].location().operator(), LocationOperator::Join);
+    assert_eq!(
+        features[2].location().parts(),
+        &[
+            Region::linear(1, 4, 30).unwrap(),
+            Region::linear(11, 13, 30).unwrap(),
+        ]
+    );
+    assert!(report.warnings.is_empty());
+}
+
+#[test]
 fn partial_import_reports_losses_and_retains_source_bytes() {
     let report = import("synthetic_partial.dna");
     let codes: Vec<_> = report.warnings.iter().map(|w| w.code.as_str()).collect();
