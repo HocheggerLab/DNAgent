@@ -185,7 +185,8 @@ export function getState(model: ModelView): AppState {
       } : null,
       sequence,
     },
-    theme: themeState(),
+    // The theme actually applied to the page, not a recomputation of the preference.
+    theme: { preference: themeState().preference, resolved: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' },
     layout: { feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false' },
     map: current && panels.includes('map') ? mapState(current) : null,
     warnings: {
