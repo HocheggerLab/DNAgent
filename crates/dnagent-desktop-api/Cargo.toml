@@ -10,5 +10,8 @@ dnagent-domain = { path = "../dnagent-domain" }
 serde.workspace = true
 ts-rs = "11"
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true

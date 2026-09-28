@@ -1,0 +1,358 @@
+{
+  "fixtures/formats/fasta/primer_negative.fasta": {
+    "ok": {
+      "name": "primer_negative",
+      "sequence": "CATGTACGTGTTGTAAAACGACAATCCCGTAATTTGTATTACGTGATTCGATGTTCATCAGGAGGCTCTAGCTAAGGTGAGGTGTCTTCACCGTCTTACACACTGCGGGCCCTGGGGGAGGTAGCTCTTCATGCTCCGGCATGGCGGTGTGCCGGTCGAGTTGATATTGATTGCACAACA",
+      "aligned_complement_3to5": "GTACATGCACAACATTTTGCTGTTAGGGCATTAAACATAATGCACTAAGCTACAAGTAGTCCTCCGAGATCGATTCCACTCCACAGAAGTGGCAGAATGTGTGACGCCCGGGACCCCCTCCATCGAGAAGTACGAGGCCGTACCGCCACACGGCCAGCTCAACTATAACTAACGTGTTGT",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": [
+        {
+          "code": "fasta_sequence_only_linear",
+          "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/fasta/primer_positive.fasta": {
+    "ok": {
+      "name": "primer_positive",
+      "sequence": "GATCACCAAAGAAACCCAAAATTCGGCGCCACTGCCTGTCATACCCTGTGCGGTAGCCACCTGTCCGGCTTAGAGATTATGGCCCGGAAACGTATAGACAGAAGTTGCATCCATGCACCCAACCATATCTACAGACCATCCAAGGGATGGACCGCACATATCGGCGAACAATTAGATCGG",
+      "aligned_complement_3to5": "CTAGTGGTTTCTTTGGGTTTTAAGCCGCGGTGACGGACAGTATGGGACACGCCATCGGTGGACAGGCCGAATCTCTAATACCGGGCCTTTGCATATCTGTCTTCAACGTAGGTACGTGGGTTGGTATAGATGTCTGGTAGGTTCCCTACCTGGCGTGTATAGCCGCTTGTTAATCTAGCC",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": [
+        {
+          "code": "fasta_sequence_only_linear",
+          "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/fasta/primer_reverse_positive.fasta": {
+    "ok": {
+      "name": "primer_reverse_positive",
+      "sequence": "CCGATCTAATTGTTCGCCGATATGTGCGGTCCATCCCTTGGATGGTCTGTAGATATGGTTGGGTGCATGGATGCAACTTCTGTCTATACGTTTCCGGGCCATAATCTCTAAGCCGGACAGGTGGCTACCGCACAGGGTATGACAGGCAGTGGCGCCGAATTTTGGGTTTCTTTGGTGATC",
+      "aligned_complement_3to5": "GGCTAGATTAACAAGCGGCTATACACGCCAGGTAGGGAACCTACCAGACATCTATACCAACCCACGTACCTACGTTGAAGACAGATATGCAAAGGCCCGGTATTAGAGATTCGGCCTGTCCACCGATGGCGTGTCCCATACTGTCCGTCACCGCGGCTTAAAACCCAAAGAAACCACTAG",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": [
+        {
+          "code": "fasta_sequence_only_linear",
+          "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/fasta/synthetic_digest_source.fasta": {
+    "ok": {
+      "name": "synthetic_digest_source",
+      "sequence": "CGCAGATACGTGTTGGCATATATCCGCTGCGCACGAATCTCAAGCATGCGAGAGGGAGTGCCTAAGACACGGTTCAGGTAGAATTCTGCTGGCAGTTCGGGCAGCGGTAAGATTCCATCTTTACGGCCCATAAGTTGCGTTTTGGTGAGGCTTTGCCTCTTGCAAG",
+      "aligned_complement_3to5": "GCGTCTATGCACAACCGTATATAGGCGACGCGTGCTTAGAGTTCGTACGCTCTCCCTCACGGATTCTGTGCCAAGTCCATCTTAAGACGACCGTCAAGCCCGTCGCCATTCTAAGGTAGAAATGCCGGGTATTCAACGCAAAACCACTCCGAAACGGAGAACGTTC",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": [
+        {
+          "code": "fasta_sequence_only_linear",
+          "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/snapgene/invalid_duplicate_sequence.dna": {
+    "err": {
+      "code": "import_failed",
+      "message": "more than one DNA sequence packet was present"
+    }
+  },
+  "fixtures/formats/snapgene/invalid_feature_xml.dna": {
+    "err": {
+      "code": "import_failed",
+      "message": "invalid XML in packet type 0x0a: syntax error: tag not closed: `>` not found before end of input"
+    }
+  },
+  "fixtures/formats/snapgene/invalid_missing_sequence.dna": {
+    "err": {
+      "code": "import_failed",
+      "message": "no DNA sequence packet was present"
+    }
+  },
+  "fixtures/formats/snapgene/invalid_truncated.dna": {
+    "err": {
+      "code": "import_failed",
+      "message": "truncated packet at byte 24: expected 8 bytes, found 3"
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_circular.dna": {
+    "ok": {
+      "name": "synthetic_circular",
+      "sequence": "ACGTACGTACGTACGTACGT",
+      "aligned_complement_3to5": "TGCATGCATGCATGCATGCA",
+      "unplaced_primers": [
+        {
+          "name": "test_primer",
+          "sequence_5to3": "ACGTAC",
+          "description": "synthetic"
+        }
+      ],
+      "circular": true,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "forward_feature",
+          "kind": "misc_feature",
+          "color": "#4c78a8",
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 2,
+              "length": 6
+            }
+          ]
+        },
+        {
+          "id": "feature-0002",
+          "label": "origin_wrap",
+          "kind": "promoter",
+          "color": "#e45756",
+          "strand": "reverse",
+          "parts": [
+            {
+              "start": 17,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "code": "snapgene_packet_not_interpreted",
+          "message": "preserved uninterpreted packet 0x1c (23 bytes)"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_linear.dna": {
+    "ok": {
+      "name": "synthetic_linear",
+      "sequence": "ACGTRYSWKMBDHVN",
+      "aligned_complement_3to5": "TGCAYRSWMKVHDBN",
+      "unplaced_primers": [
+        {
+          "name": "synthetic primer",
+          "sequence_5to3": "ACGTN",
+          "description": "retained description"
+        }
+      ],
+      "circular": false,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "reverse multipart",
+          "kind": "CDS",
+          "color": "#123456",
+          "strand": "reverse",
+          "parts": [
+            {
+              "start": 1,
+              "length": 3
+            },
+            {
+              "start": 9,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_multipart_origin.dna": {
+    "ok": {
+      "name": "synthetic_multipart_origin",
+      "sequence": "ACGTACGTACGT",
+      "aligned_complement_3to5": "TGCATGCATGCA",
+      "unplaced_primers": [],
+      "circular": true,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "multipart wrap",
+          "kind": "misc_feature",
+          "color": null,
+          "strand": "reverse",
+          "parts": [
+            {
+              "start": 10,
+              "length": 4
+            },
+            {
+              "start": 4,
+              "length": 2
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_overlaps.dna": {
+    "ok": {
+      "name": "synthetic_overlaps",
+      "sequence": "ATGACCGTTAGCCTAGCATTCATTGCAGTC",
+      "aligned_complement_3to5": "TACTGGCAATCGGATCGTAAGTAACGTCAG",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "overlap forward",
+          "kind": "misc_feature",
+          "color": null,
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 5,
+              "length": 10
+            }
+          ]
+        },
+        {
+          "id": "feature-0002",
+          "label": "overlap reverse",
+          "kind": "misc_feature",
+          "color": null,
+          "strand": "reverse",
+          "parts": [
+            {
+              "start": 10,
+              "length": 10
+            }
+          ]
+        },
+        {
+          "id": "feature-0003",
+          "label": "overlap multipart",
+          "kind": "misc_feature",
+          "color": null,
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 1,
+              "length": 3
+            },
+            {
+              "start": 11,
+              "length": 2
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_partial.dna": {
+    "ok": {
+      "name": "synthetic_partial",
+      "sequence": "ACGTACGTACGT",
+      "aligned_complement_3to5": "TGCATGCATGCA",
+      "unplaced_primers": [
+        {
+          "name": "valid",
+          "sequence_5to3": "ACGT",
+          "description": null
+        }
+      ],
+      "circular": false,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "partial",
+          "kind": "misc_feature",
+          "color": null,
+          "strand": "unknown",
+          "parts": [
+            {
+              "start": 0,
+              "length": 3
+            }
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "code": "snapgene_notes_not_interpreted",
+          "message": "preserved uninterpreted packet 0x06 (54 bytes)"
+        },
+        {
+          "code": "snapgene_packet_not_interpreted",
+          "message": "preserved uninterpreted packet 0x1c (8 bytes)"
+        },
+        {
+          "code": "snapgene_feature_range_unsupported",
+          "message": "feature 1 range \"10-99\": invalid region for molecule length 12: linear interval [9, 99)"
+        },
+        {
+          "code": "snapgene_feature_range_unsupported",
+          "message": "feature 2 range \"0-2\": SnapGene coordinates must be one-based"
+        },
+        {
+          "code": "snapgene_feature_skipped",
+          "message": "feature 2 has no supported segments"
+        },
+        {
+          "code": "snapgene_primer_skipped",
+          "message": "primer 2 has an invalid sequence: invalid IUPAC DNA symbol '!' at byte 2"
+        }
+      ]
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_restriction_circular.dna": {
+    "ok": {
+      "name": "synthetic_restriction_circular",
+      "sequence": "TTCAAAAAAAAAAAAAAAAAAAAGAA",
+      "aligned_complement_3to5": "AAGTTTTTTTTTTTTTTTTTTTTCTT",
+      "unplaced_primers": [],
+      "circular": true,
+      "features": [],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_restriction_end.dna": {
+    "ok": {
+      "name": "synthetic_restriction_end",
+      "sequence": "GGTCTC",
+      "aligned_complement_3to5": "CCAGAG",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_restriction_linear.dna": {
+    "ok": {
+      "name": "synthetic_restriction_linear",
+      "sequence": "AAAAAAAAAAAAGAATTCAAAAAAAAAAAAGGATCCAAAAAAAAAAAAGATATCAAAAAAAAAAAAGGTACCAAAAAAAAAAAAGGTCTCAAAAAAAAAAAAGAGACCAAAAAAAAAAAACGTCTCAAAAAAAAAAAAGAGACGAAAAAAAAAAAA",
+      "aligned_complement_3to5": "TTTTTTTTTTTTCTTAAGTTTTTTTTTTTTCCTAGGTTTTTTTTTTTTCTATAGTTTTTTTTTTTTCCATGGTTTTTTTTTTTTCCAGAGTTTTTTTTTTTTCTCTGGTTTTTTTTTTTTGCAGAGTTTTTTTTTTTTCTCTGCTTTTTTTTTTTT",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": []
+    }
+  },
+  "fixtures/formats/snapgene/synthetic_unannotated.dna": {
+    "ok": {
+      "name": "synthetic_unannotated",
+      "sequence": "ACGT",
+      "aligned_complement_3to5": "TGCA",
+      "unplaced_primers": [],
+      "circular": false,
+      "features": [],
+      "warnings": []
+    }
+  }
+}

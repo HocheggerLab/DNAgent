@@ -916,6 +916,7 @@ dependencies = [
  "dnagent-app",
  "dnagent-domain",
  "serde",
+ "serde_json",
  "ts-rs",
 ]
 
