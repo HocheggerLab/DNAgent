@@ -1,0 +1,170 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "sequence-click-cycles-overlaps",
+  "description": "Repeated clicks on one base cycle through the overlapping features in source order",
+  "fixture": "fixtures/formats/snapgene/synthetic_overlaps.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          }
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 11,
+      "note": "click 1 on shared base 11"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 11
+            },
+            "index": 0
+          },
+          "message": "cycle position 0 in source order"
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 11,
+      "note": "click 2 on shared base 11",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 11
+            },
+            "index": 1
+          },
+          "message": "cycle position 1 in source order"
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 11,
+      "note": "click 3 on shared base 11"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 11
+            },
+            "index": 2
+          },
+          "message": "cycle position 2 in source order"
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 11,
+      "note": "click 4 on shared base 11"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 11
+            },
+            "index": 0
+          },
+          "message": "cycle position 0 in source order"
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 5,
+      "note": "base covered by one feature"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 5
+            },
+            "index": 0
+          }
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 5
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 5
+            },
+            "index": 0
+          },
+          "message": "a single covering feature stays selected"
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 25,
+      "note": "uncovered base leaves the selection unchanged"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "ids_covering",
+              "base": 5
+            },
+            "index": 0
+          }
+        }
+      ]
+    }
+  ]
+}

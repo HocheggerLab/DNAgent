@@ -1,0 +1,85 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "browse-picker",
+  "description": "Browse… loads the picked file and fills the path field",
+  "fixture": "fixtures/formats/snapgene/synthetic_circular.dna",
+  "steps": [
+    {
+      "browse": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "path_input",
+          "equals": "fixtures/formats/snapgene/synthetic_circular.dna"
+        },
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "document.topology",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.topology"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          }
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "label": "origin_wrap"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='origin_wrap')].id"
+          }
+        },
+        {
+          "state": "features[?(@.selected==true)].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='origin_wrap')].id"
+          },
+          "message": "exactly the selected item is pressed"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='origin_wrap')].location",
+            "transform": "parts"
+          },
+          "message": "every source part highlighted, in source order"
+        },
+        {
+          "state": "selection.map.active_labels",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='origin_wrap')].label"
+          }
+        },
+        {
+          "state": "selection.sequence",
+          "equals": null,
+          "message": "hidden view reports nothing"
+        }
+      ]
+    }
+  ]
+}

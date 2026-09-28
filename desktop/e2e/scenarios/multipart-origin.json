@@ -1,0 +1,118 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "multipart-origin",
+  "description": "An origin-spanning multipart feature keeps every part, in source order, in both views",
+  "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "document.topology",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.topology"
+          }
+        }
+      ]
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "click": {
+        "testid": "sequence-track",
+        "index": 0
+      },
+      "note": "real click on a feature track",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "active_tab",
+          "equals": "sequence"
+        },
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='multipart wrap')].id"
+          },
+          "message": "selection survives the tab switch"
+        },
+        {
+          "state": "selection.sequence.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='multipart wrap')].location",
+            "transform": "parts"
+          },
+          "message": "track spans rebuild each source part, in source order"
+        },
+        {
+          "state": "selection.sequence.highlighted_positions",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='multipart wrap')].location",
+            "transform": "positions"
+          }
+        },
+        {
+          "state": "selection.sequence.complement_highlighted_positions",
+          "equals_state": "selection.sequence.highlighted_positions"
+        },
+        {
+          "state": "selection.map",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "select_tab": "map",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='multipart wrap')].id"
+          }
+        },
+        {
+          "state": "features[?(@.selected==true)].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='multipart wrap')].id"
+          },
+          "message": "exactly the selected item is pressed"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='multipart wrap')].location",
+            "transform": "parts"
+          },
+          "message": "every source part highlighted, in source order"
+        },
+        {
+          "state": "selection.map.active_labels",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='multipart wrap')].label"
+          }
+        },
+        {
+          "state": "selection.sequence",
+          "equals": null,
+          "message": "hidden view reports nothing"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "warnings-panel",
+  "description": "The warnings panel shows exactly the engine's import warnings",
+  "fixture": "fixtures/formats/snapgene/synthetic_partial.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "warnings.present",
+          "equals": true
+        },
+        {
+          "state": "warnings.count_shown",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "count"
+          },
+          "message": "summary count"
+        },
+        {
+          "state": "warnings.items",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "count"
+          }
+        },
+        {
+          "state": "warnings.codes",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "codes"
+          },
+          "message": "same codes, same order"
+        },
+        {
+          "state": "warnings.open",
+          "equals": false,
+          "message": "collapsed by default"
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].label"
+          },
+          "message": "only supported features are listed"
+        },
+        {
+          "state": "primers.count",
+          "equals_cli": {
+            "command": "primers",
+            "path": "result",
+            "transform": "count"
+          }
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "warnings-summary"
+      },
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "warnings.open",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/synthetic_unannotated.dna"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "warnings.present",
+          "equals": false
+        },
+        {
+          "state": "warnings.count_shown",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "count"
+          }
+        },
+        {
+          "state": "warnings.items",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "count"
+          }
+        },
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name"
+          }
+        }
+      ]
+    }
+  ]
+}

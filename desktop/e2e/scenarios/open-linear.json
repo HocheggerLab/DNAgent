@@ -1,0 +1,85 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "open-linear",
+  "description": "Opening a linear construct shows the engine's summary and feature list",
+  "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "idle",
+          "equals": true
+        },
+        {
+          "state": "active_tab",
+          "equals": "map"
+        },
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "document.length",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.length"
+          }
+        },
+        {
+          "state": "document.topology",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.topology"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "same features, same order"
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].label"
+          }
+        },
+        {
+          "state": "selection.feature_id",
+          "equals": null
+        },
+        {
+          "state": "primers.count",
+          "equals_cli": {
+            "command": "primers",
+            "path": "result",
+            "transform": "count"
+          }
+        },
+        {
+          "state": "warnings.items",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "count"
+          }
+        },
+        {
+          "state": "visible_panels",
+          "equals": [
+            "map"
+          ]
+        }
+      ]
+    }
+  ]
+}

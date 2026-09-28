@@ -1,0 +1,113 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "stale-request",
+  "description": "A slow earlier open cannot overwrite a newer document or its selection",
+  "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna",
+  "steps": [
+    {
+      "open": {
+        "delay_ms": 1000,
+        "wait": false
+      },
+      "note": "A: delayed"
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+        "wait": false
+      },
+      "note": "B: answers immediately"
+    },
+    {
+      "select_feature": {
+        "label": "reverse multipart"
+      },
+      "note": "select in B while A is still pending"
+    },
+    {
+      "expect": [
+        {
+          "state": "idle",
+          "equals": false,
+          "message": "A must still be in flight, or this scenario proves nothing"
+        }
+      ]
+    },
+    {
+      "wait_idle": true
+    },
+    {
+      "expect": [
+        {
+          "state": "idle",
+          "equals": true
+        },
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "document.length",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.length"
+          }
+        },
+        {
+          "state": "document.topology",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.topology"
+          }
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].label"
+          }
+        },
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='reverse multipart')].id"
+          }
+        },
+        {
+          "state": "features[?(@.selected==true)].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='reverse multipart')].id"
+          },
+          "message": "exactly the selected item is pressed"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='reverse multipart')].location",
+            "transform": "parts"
+          },
+          "message": "every source part highlighted, in source order"
+        },
+        {
+          "state": "selection.map.active_labels",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[?(@.label=='reverse multipart')].label"
+          }
+        },
+        {
+          "state": "selection.sequence",
+          "equals": null,
+          "message": "hidden view reports nothing"
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}
