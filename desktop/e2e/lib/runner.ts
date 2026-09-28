@@ -49,13 +49,15 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()); });
 
-  await page.goto('/');
-  await page.waitForFunction(() => window.__DNAGENT_TEST__ !== undefined, null, { timeout: IDLE_TIMEOUT_MS })
-    .catch(() => { throw new Error('window.__DNAGENT_TEST__ is missing: is Vite running with --mode e2e?'); });
-
   const waitIdle = () => page.waitForFunction(() => window.__DNAGENT_TEST__!.getState().idle, null, { timeout: IDLE_TIMEOUT_MS })
     .catch(() => { throw new Error(`app did not become idle within ${IDLE_TIMEOUT_MS} ms`); });
   const state = () => page.evaluate(() => window.__DNAGENT_TEST__!.getState());
+  // Two animation frames: the map re-lays out on the frame after a resize.
+  const settle = () => page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+  const ready = () => page.waitForFunction(() => window.__DNAGENT_TEST__ !== undefined, null, { timeout: IDLE_TIMEOUT_MS })
+    .catch(() => { throw new Error('window.__DNAGENT_TEST__ is missing: is Vite running with --mode e2e?'); });
+  await page.goto('/');
+  await ready();
   let fixture = scenario.fixture;
 
   const checkOpened = async (expectError: boolean) => {
@@ -93,9 +95,22 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       // A trusted Playwright pointer click, not a synthetic element.click().
       await page.getByTestId(step.click.testid).nth(step.click.index ?? 0).click({ timeout: IDLE_TIMEOUT_MS });
       await waitIdle();
+      await settle();
     } else if ('wait_idle' in step) {
       await waitIdle();
-    } else {
+    } else if ('set_viewport' in step) {
+      await page.setViewportSize(step.set_viewport);
+      await settle();
+    } else if ('set_color_scheme' in step) {
+      await page.emulateMedia({ colorScheme: step.set_color_scheme });
+      await settle();
+    } else if ('select_option' in step) {
+      await page.getByTestId(step.select_option.testid).selectOption(step.select_option.value, { timeout: IDLE_TIMEOUT_MS });
+      await settle();
+    } else if ('reload' in step) {
+      await page.reload();
+      await ready();
+    } else if ('expect' in step) {
       const snapshot = await state();
       const failures: string[] = [];
       for (const [item, assertion] of step.expect.entries()) {
@@ -112,6 +127,8 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
         }
       }
       if (failures.length) throw new Error(failures.join('\n    '));
+    } else {
+      throw new Error(`unhandled step ${JSON.stringify(step)}`);
     }
   };
 

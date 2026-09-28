@@ -3,6 +3,7 @@
 // Never set application state directly here, or the scenarios prove nothing.
 import type { Document } from '../bindings';
 import { pendingRequests } from '../ipc';
+import { themeState } from '../theme';
 import { queuePick, setDelay } from './stub-backend';
 
 export interface ModelView {
@@ -22,7 +23,7 @@ export interface AppState {
   visible_panels: string[];
   /** Parsed from the displayed title, so display bugs are caught; null before any load. */
   document: null | { name: string | null; length: number | null; topology: string | null; title: string };
-  features: { id: string; name: string; selected: boolean; text: string }[];
+  features: { id: string; name: string; selected: boolean; unlabelled: boolean; text: string }[];
   selection: {
     feature_id: string | null;
     map: null | { parts: Part[]; active_labels: string[] };
@@ -34,6 +35,19 @@ export interface AppState {
     };
   };
   /** No panel is rendered for warning-free documents: counts are then 0 and `present` false. */
+  theme: { preference: string; resolved: 'light' | 'dark' };
+  layout: { feature_list_collapsed: boolean };
+  /** Rendered map accounting and geometry checks; null unless the Map tab is visible. */
+  map: null | {
+    width: number; height: number; radius: number; fills_panel: boolean;
+    drawn_ids: string[];
+    labels: { id: string; mode: string }[];
+    unlabelled_ids: string[]; unlabelled_names: string[]; unlabelled_count: number;
+    badged_ids: string[]; notice_count: number;
+    /** Ids (drawn order) with exactly one label, or none and a list badge. */
+    accounted_ids: string[];
+    overlapping_labels: number; labels_outside_viewport: number; labels_under_notice: number;
+  };
   warnings: { present: boolean; count_shown: number; items: number; codes: string[]; open: boolean };
   primers: { count: number; summary: string };
 }
@@ -76,6 +90,51 @@ function reconstructParts(length: number): { parts: ReconstructedPart[]; indices
   return { parts, indices };
 }
 
+/** Text a user sees: all descendants except hover <title> tooltips. */
+function visibleText(node: Element): string {
+  return [...node.childNodes].map(child => child.nodeType === Node.TEXT_NODE ? child.textContent ?? ''
+    : child instanceof Element && child.tagName.toLowerCase() !== 'title' ? visibleText(child) : '').join('');
+}
+
+const unique = (ids: string[]) => ids.filter((id, index) => ids.indexOf(id) === index);
+
+function intersects(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+}
+
+function mapState(current: Document): AppState['map'] {
+  const svg = document.getElementById('map')!;
+  const panel = document.getElementById('panel-map')!;
+  const box = svg.getBoundingClientRect();
+  const panelBox = panel.getBoundingClientRect();
+  const drawn = unique([...svg.querySelectorAll<SVGElement>('[data-testid="map-feature"]')].map(node => node.dataset.featureId!));
+  const labelNodes = [...svg.querySelectorAll<SVGElement>('[data-testid="map-label"]')];
+  const labels = labelNodes.map(node => ({ id: node.dataset.featureId!, mode: node.dataset.labelMode ?? '' }));
+  const unlabelled = drawn.filter(id => !labels.some(label => label.id === id));
+  const badged = [...document.querySelectorAll<HTMLElement>('[data-testid="feature-item"]')]
+    .filter(item => item.querySelector('[data-testid="feature-unlabelled"]')).map(item => item.dataset.featureId!);
+  const notice = document.getElementById('map-notice')!;
+  const pills = labelNodes.filter(node => node.dataset.labelMode === 'outside').map(node => node.getBoundingClientRect());
+  let overlapping = 0;
+  pills.forEach((a, i) => pills.slice(i + 1).forEach(b => { if (intersects(a, b)) overlapping++; }));
+  const outside = labelNodes.map(node => node.getBoundingClientRect())
+    .filter(r => r.left < box.left - 0.5 || r.right > box.right + 0.5 || r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5).length;
+  const names = new Map(current.features.map(f => [f.id, f.label || f.kind]));
+  return {
+    width: Number(svg.dataset.width), height: Number(svg.dataset.height), radius: Number(svg.dataset.radius),
+    fills_panel: Math.abs(box.width - panelBox.width) <= 2 && Math.abs(box.bottom - panelBox.bottom) <= 2,
+    drawn_ids: drawn, labels,
+    unlabelled_ids: unlabelled, unlabelled_names: unlabelled.map(id => names.get(id) ?? id), unlabelled_count: unlabelled.length,
+    badged_ids: badged, notice_count: notice.hidden ? 0 : Number.parseInt(notice.textContent ?? '', 10),
+    accounted_ids: drawn.filter(id => {
+      const count = labels.filter(label => label.id === id).length;
+      return count === 1 || (count === 0 && badged.includes(id));
+    }),
+    overlapping_labels: overlapping, labels_outside_viewport: outside,
+    labels_under_notice: notice.hidden ? 0 : labelNodes.filter(node => intersects(node.getBoundingClientRect(), notice.getBoundingClientRect())).length,
+  };
+}
+
 /** Read `name · 1,234 bp · topology` back from the rendered title. */
 function displayedDocument(title: string): NonNullable<AppState['document']> {
   const match = title.match(/^(.*) · ([\d,.\s]+) bp · (\w+)$/);
@@ -109,6 +168,7 @@ export function getState(model: ModelView): AppState {
       id: button.dataset.featureId!,
       name: required(button.querySelector('[data-testid="feature-name"]'), 'feature name').textContent ?? '',
       selected: button.getAttribute('aria-pressed') === 'true',
+      unlabelled: button.querySelector('[data-testid="feature-unlabelled"]') !== null,
       text: button.textContent ?? '',
     })),
     selection: {
@@ -117,12 +177,13 @@ export function getState(model: ModelView): AppState {
         parts: byTestId('map-selection-part').map(node => ({
           start: Number(node.dataset.partStart), length: Number(node.dataset.partLength),
         })),
-        // Visible label text only; the hover <title> child is excluded.
-        active_labels: [...document.querySelectorAll('#map .map-label.active')]
-          .map(node => [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent).join('')),
+        active_labels: [...document.querySelectorAll('#map [data-testid="map-label"].active')].map(visibleText),
       } : null,
       sequence,
     },
+    theme: themeState(),
+    layout: { feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false' },
+    map: current && panels.includes('map') ? mapState(current) : null,
     warnings: {
       present: details !== null,
       count_shown: details ? Number.parseInt(byTestId('warnings-summary')[0]?.textContent ?? '', 10) : 0,

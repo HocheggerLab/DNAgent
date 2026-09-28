@@ -378,6 +378,114 @@
               "type": "string"
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "set_viewport"
+          ],
+          "properties": {
+            "set_viewport": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "width",
+                "height"
+              ],
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "minimum": 320,
+                  "maximum": 3840
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 240,
+                  "maximum": 2160
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "set_color_scheme"
+          ],
+          "properties": {
+            "set_color_scheme": {
+              "enum": [
+                "light",
+                "dark"
+              ],
+              "description": "Emulated OS appearance (prefers-color-scheme)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_option"
+          ],
+          "properties": {
+            "select_option": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "testid",
+                "value"
+              ],
+              "properties": {
+                "testid": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reload"
+          ],
+          "properties": {
+            "reload": {
+              "const": true,
+              "description": "Reload the page (local preferences persist; the document does not)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
         }
       ]
     }

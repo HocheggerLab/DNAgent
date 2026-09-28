@@ -10,7 +10,8 @@ export const SCENARIO_DIR = resolve(E2E_DIR, 'scenarios');
 const schema = JSON.parse(readFileSync(resolve(E2E_DIR, 'scenario.schema.json'), 'utf8'));
 const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
-export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect'] as const;
+export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
+  'set_viewport', 'set_color_scheme', 'select_option', 'reload'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | { name: 'ids_covering'; base: number };
 export interface CliExpectation { command: 'inspect' | 'features' | 'primers'; fixture?: string; path?: string; one?: string; transform?: Transform; index?: number }
 export interface Assertion { state: string; equals?: unknown; equals_cli?: CliExpectation; equals_state?: string; message?: string }
@@ -22,7 +23,11 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { click_sequence_base: number }
   | { click: { testid: string; index?: number } }
   | { wait_idle: true }
-  | { expect: Assertion[] });
+  | { expect: Assertion[] }
+  | { set_viewport: { width: number; height: number } }
+  | { set_color_scheme: 'light' | 'dark' }
+  | { select_option: { testid: string; value: string } }
+  | { reload: true });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**

@@ -4,12 +4,12 @@
 <body>
 <main>
   <header>
-    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button></form>
+    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
     <p id="status" data-testid="status" role="status">Read-only DNAagent prototype.</p>
     <div id="warnings" data-testid="warnings"></div>
   </header>
   <section class="workspace">
-    <aside><h2>Features</h2><div id="features" data-testid="feature-list"></div></aside>
+    <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div></aside>
     <article>
       <h2 id="title" data-testid="title">No construct loaded</h2>
       <nav role="tablist" aria-label="Construct views">
@@ -18,6 +18,7 @@
       </nav>
       <p id="selection" data-testid="selection-summary">No feature selected</p>
       <section id="panel-map" role="tabpanel" aria-labelledby="tab-map" tabindex="0">
+        <button id="map-notice" type="button" data-testid="map-hidden-notice" hidden></button>
         <svg id="map" data-testid="map" viewBox="0 0 900 440" aria-label="Construct map"></svg>
       </section>
       <section id="panel-sequence" role="tabpanel" aria-labelledby="tab-sequence" tabindex="0" hidden>
