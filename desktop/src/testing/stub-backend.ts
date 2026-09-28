@@ -5,7 +5,10 @@ import type { Diagnostic, Document } from '../bindings';
 import recordingsJson from '../../e2e/fixtures/recordings.json';
 
 type Recording = { ok: Document } | { err: Diagnostic };
-const recordings = recordingsJson as unknown as Record<string, Recording>;
+// Optional, gitignored recordings of local (possibly private) files written by
+// `npm run review`. Scenarios can only name public fixtures, so they never depend on these.
+const local = import.meta.glob<Record<string, Recording>>('../../e2e/artifacts/local-review/recordings.json', { eager: true, import: 'default' });
+const recordings: Record<string, Recording> = Object.assign({}, ...Object.values(local), recordingsJson as unknown as Record<string, Recording>);
 const delays = new Map<string, number>();
 const picks: (string | null)[] = [];
 

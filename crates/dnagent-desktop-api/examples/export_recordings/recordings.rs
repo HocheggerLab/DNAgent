@@ -13,6 +13,30 @@ enum Recording {
     Err(dnagent_desktop_api::Diagnostic),
 }
 
+fn record(path: &Path) -> Recording {
+    match dnagent_desktop_api::open_document(path) {
+        Ok(document) => Recording::Ok(document),
+        Err(diagnostic) => Recording::Err(diagnostic),
+    }
+}
+
+fn to_json(recordings: &BTreeMap<String, Recording>) -> String {
+    let mut json = serde_json::to_string_pretty(recordings).expect("serialisable recordings");
+    json.push('\n');
+    json
+}
+
+/// Record explicitly named local files, keyed by the path as given. Used for the
+/// gitignored design-review gallery; output must never be committed.
+#[allow(dead_code)] // Used by the example only, not by the drift test.
+pub fn local_recordings_json(paths: &[String]) -> String {
+    let recordings = paths
+        .iter()
+        .map(|path| (path.clone(), record(Path::new(path))))
+        .collect();
+    to_json(&recordings)
+}
+
 /// Serialise the real `open_document` result for every public fixture, keyed by
 /// repository-relative path, in sorted order.
 pub fn recordings_json(repo_root: &Path) -> String {
@@ -29,16 +53,10 @@ pub fn recordings_json(repo_root: &Path) -> String {
                 .file_name()
                 .and_then(|n| n.to_str())
                 .expect("UTF-8 name");
-            let recording = match dnagent_desktop_api::open_document(&path) {
-                Ok(document) => Recording::Ok(document),
-                Err(diagnostic) => Recording::Err(diagnostic),
-            };
-            recordings.insert(format!("{dir}/{name}"), recording);
+            recordings.insert(format!("{dir}/{name}"), record(&path));
         }
     }
-    let mut json = serde_json::to_string_pretty(&recordings).expect("serialisable recordings");
-    json.push('\n');
-    json
+    to_json(&recordings)
 }
 
 pub fn repo_root() -> std::path::PathBuf {

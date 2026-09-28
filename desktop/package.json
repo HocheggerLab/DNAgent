@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "e2e": "node e2e/check-prod-bundle.ts && cargo build -q -p dnagent-cli --locked --manifest-path ../Cargo.toml && playwright test",
     "e2e:headed": "cargo build -q -p dnagent-cli --locked --manifest-path ../Cargo.toml && playwright test --headed",
-    "e2e:check-prod": "node e2e/check-prod-bundle.ts"
+    "e2e:check-prod": "node e2e/check-prod-bundle.ts",
+    "review": "cargo build -q -p dnagent-cli --locked --manifest-path ../Cargo.toml && node e2e/review.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
