@@ -42,7 +42,14 @@ uv run scripts/check_gibson.py --binary target/debug/dnagent
 uv run scripts/check_gibson_extensions.py --binary target/debug/dnagent
 uv run scripts/check_amplification.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
+cargo test -p dnagent-desktop-api --test e2e_recordings  # recorded GUI responses match Rust
+(cd desktop && npm test && npm run e2e)  # GUI scenarios checked against the CLI
 ```
+
+GUI changes need a passing `npm run e2e`. Expected biological values in scenarios
+come from the CLI, never from literals; see `desktop/e2e/README.md`. After changing
+DTOs or public fixtures, regenerate `desktop/e2e/fixtures/recordings.json` with
+`cargo run -p dnagent-desktop-api --example export_recordings`.
 
 Schema checks use public synthetic fixtures only. Private-corpus validation is
 optional and must keep manifests, constructs and reports outside Git.

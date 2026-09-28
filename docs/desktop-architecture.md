@@ -74,6 +74,9 @@ Manually test the native window with public linear, reverse/multipart and origin
 fixtures. Display-helper tests cover origin crossings, arrow traversal, colour validation
 and label spacing, plus row clipping and real source-end preservation. Rust tests
 cover all IUPAC complementary symbols and the generated transport contract.
-End-to-end selection, tabs, picker and stale-request tests remain to add.
+End-to-end selection, tab, picker, overlap-cycling, warning and stale-request
+scenarios run in headless Chromium against Rust-generated recordings, with CLI
+output as ground truth (`desktop/e2e/README.md`). They do not exercise the
+native webview or shell.
 Then add a validated assembly/junction view. Harden file limits and command
 contracts before treating this as a supported release.

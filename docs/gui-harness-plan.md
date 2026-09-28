@@ -1,6 +1,6 @@
 # GUI test harness plan
 
-Status: approved 2026-09-28. Branch: `gui-harness` (from `main`, fast-forwarded to
+Status: implemented 2026-09-28 (see `desktop/e2e/README.md` for the current contract). Branch: `gui-harness` (from `main`, fast-forwarded to
 the former `feat/offline-primer-design`).
 
 ## Findings that shape the plan

@@ -41,6 +41,23 @@ cargo check --manifest-path src-tauri/Cargo.toml --locked
 npm run tauri build -- --no-bundle
 ```
 
+## End-to-end GUI scenarios
+
+```bash
+# From desktop/ (first time: npx playwright install chromium)
+npm run e2e         # headless Chromium; checks GUI state against the dnagent CLI
+npm run e2e:headed  # watch the same scenarios run
+# From repository root, after DTO or fixture changes:
+cargo run -p dnagent-desktop-api --example export_recordings > desktop/e2e/fixtures/recordings.json
+```
+
+Scenarios in `e2e/scenarios/*.json` drive the real frontend through a test-only
+automation API (Vite `e2e` mode, absent from production builds). Native calls are
+answered from Rust-generated recordings, which `cargo test -p dnagent-desktop-api`
+checks for drift. The harness uses Chromium, not the production WKWebView/WebKitGTK,
+so it tests app logic and layout, not the webview engine or the native shell. See
+[`e2e/README.md`](e2e/README.md).
+
 The drift test deliberately fails if Rust DTOs change without regenerating the
 committed bindings. The shell has a separate Cargo lockfile; the engine workspace
 remains headless by default. Native build success is not a visual/interaction test.
