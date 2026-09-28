@@ -121,6 +121,34 @@ fn overlapping_features_share_bases_in_source_order() {
 }
 
 #[test]
+fn puc19_transcribes_record_features_and_polylinker_sites() {
+    let report = import("pUC19_M77789.dna");
+    let record = &report.record;
+    assert_eq!(record.sequence().len(), 2686);
+    assert_eq!(record.topology(), Topology::Circular);
+    let features = record.features();
+    assert_eq!(features.len(), 17);
+    assert_eq!(features[6].label(), "pBR322");
+    assert_eq!(features[6].location().strand(), Strand::Reverse);
+    assert_eq!(
+        features[6].location().parts(),
+        &[Region::linear(684, 2686, 2686).unwrap()]
+    );
+    // SmaI (CCCGGG) and KpnI (GGTACC) overlap by one base in the polylinker.
+    assert_eq!(features[13].label(), "SmaI site");
+    assert_eq!(
+        features[13].location().parts(),
+        &[Region::linear(267, 273, 2686).unwrap()]
+    );
+    assert_eq!(
+        features[14].location().parts(),
+        &[Region::linear(271, 277, 2686).unwrap()]
+    );
+    assert_eq!(&record.sequence().as_str()[267..277], "CCCGGGTACC");
+    assert!(report.warnings.is_empty());
+}
+
+#[test]
 fn partial_import_reports_losses_and_retains_source_bytes() {
     let report = import("synthetic_partial.dna");
     let codes: Vec<_> = report.warnings.iter().map(|w| w.code.as_str()).collect();

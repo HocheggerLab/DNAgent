@@ -78,6 +78,7 @@ def cases():
         b"""<Features><Feature name="overlap forward" type="misc_feature" directionality="1"><Segment range="6-15"/></Feature><Feature name="overlap reverse" type="misc_feature" directionality="2"><Segment range="11-20"/></Feature><Feature name="overlap multipart" type="misc_feature" directionality="1"><Segment range="2-4"/><Segment range="12-13"/></Feature></Features>""",
     )
     yield "synthetic_overlaps.dna", overlaps
+    yield "pUC19_M77789.dna", puc19()
     yield "invalid_duplicate_sequence.dna", molecule("ACGT") + packet(0, b"\x00TGCA")
     yield "invalid_missing_sequence.dna", COOKIE
     yield "invalid_truncated.dna", COOKIE + struct.pack(">BI", 0, 8) + b"\x00AC"
@@ -85,6 +86,54 @@ def cases():
         "invalid_feature_xml.dna",
         molecule("ACGT") + packet(10, b"<Features><Feature"),
     )
+
+
+# Recognition sequences of the polylinker enzymes named in the M77789.2 note.
+PUC19_SITES = [
+    ("HindIII", "AAGCTT"), ("SphI", "GCATGC"), ("PstI", "CTGCAG"), ("SalI", "GTCGAC"),
+    ("XbaI", "TCTAGA"), ("BamHI", "GGATCC"), ("SmaI", "CCCGGG"), ("KpnI", "GGTACC"),
+    ("SacI", "GAGCTC"), ("EcoRI", "GAATTC"),
+]
+
+
+def puc19():
+    """Public pUC19 (NCBI GenBank M77789.2) for realistic-size map layout tests.
+
+    The seven misc_features are transcribed from the record's feature table
+    (one-based, inclusive). Site features are located by exact, unique
+    recognition-sequence match. Colours are display-only choices.
+    """
+    fasta = (ROOT.parent / "fasta" / "pUC19_M77789.fasta").read_text().splitlines()
+    sequence = "".join(line for line in fasta if not line.startswith(">"))
+    assert len(sequence) == 2686
+    record = [
+        ("M13mp19", "1-447", None, None),
+        ("Lac-operon", "1-230", None, "#b1ff67"),
+        ("polylinker of M13mp19", "233-289", None, "#ffef86"),
+        ("Lac-Operon", "290-447", None, "#b1ff67"),
+        ("pBR322", "448-547", "2", "#ffffff"),
+        ("pBR322", "548-684", "2", "#c6c9d1"),
+        ("pBR322", "685-2686", "2", "#ffd4a1"),
+    ]
+    features = []
+    for name, segment, direction, color in record:
+        strand = f' directionality="{direction}"' if direction else ""
+        colour = f' color="{color}"' if color else ""
+        features.append(
+            f'<Feature name="{name}" type="misc_feature"{strand}>'
+            f'<Segment range="{segment}"{colour}/>'
+            '<Q name="note"><V text="transcribed from GenBank M77789.2"/></Q></Feature>'
+        )
+    for enzyme, motif in PUC19_SITES:
+        hits = [i for i in range(len(sequence)) if sequence.startswith(motif, i)]
+        assert len(hits) == 1 and 232 <= hits[0] and hits[0] + 6 <= 289, (enzyme, hits)
+        start = hits[0] + 1
+        features.append(
+            f'<Feature name="{enzyme} site" type="misc_feature">'
+            f'<Segment range="{start}-{start + 5}"/></Feature>'
+        )
+    xml = "<Features>" + "".join(features) + "</Features>"
+    return molecule(sequence, circular=True) + packet(10, xml.encode("ascii"))
 
 
 if __name__ == "__main__":
