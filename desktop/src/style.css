@@ -28,7 +28,7 @@ aside,article{background:var(--panel);border-radius:8px;padding:16px;min-width:0
 #toggle-features{padding:2px 9px;font-size:16px;line-height:1.2}
 .list-collapsed aside{padding:10px 6px}.list-collapsed .aside-head h2,.list-collapsed #features{display:none}.list-collapsed .aside-head{justify-content:center}
 h2{font-size:16px;margin:0 0 12px;overflow-wrap:anywhere}
-#features{overflow:auto;flex:1}#features button{display:block;width:100%;text-align:left;margin-bottom:6px;font-size:12px}
+#features{overflow:auto;flex:1}#features button{display:block;width:100%;text-align:left;margin-bottom:6px;font-size:12px;border-left-width:6px;box-shadow:inset 1px 0 0 var(--feature-outline)}
 #features button.selected{background:var(--selection-pill);border-color:var(--selection-pill);color:var(--selection-text)}
 .badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:8px;font-size:10px;background:var(--panel-soft);color:var(--muted);border:1px solid var(--border)}
 #features button.selected .badge{color:inherit;background:transparent;border-color:currentColor}

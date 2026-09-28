@@ -75,7 +75,7 @@ function render() {
       badge.textContent = 'not labelled on map'; button.append(badge);
     }
     button.dataset.testid = 'feature-item'; button.dataset.featureId = feature.id;
-    button.style.borderLeft = `5px solid ${featureColor(feature)}`;
+    button.style.borderLeftColor = featureColor(feature);
     button.classList.toggle('selected', feature.id === selected);
     button.setAttribute('aria-pressed', String(feature.id === selected));
     button.onclick = () => select(feature.id);
