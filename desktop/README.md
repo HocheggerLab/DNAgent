@@ -14,6 +14,9 @@ npm ci
 npm run tauri dev
 ```
 
+Appearance follows macOS light/dark mode; override it with the **Appearance** menu.
+The feature list collapses with **‹** so the map can use the whole window.
+
 Use **Browse…** or enter an absolute path to a `.dna` or single-record `.fasta` file. Try the repository's
 `fixtures/formats/snapgene/synthetic_linear.dna` and
 `synthetic_multipart_origin.dna`. Select a feature in the list or map; click sequence
@@ -50,6 +53,18 @@ npm run e2e:headed  # watch the same scenarios run
 # From repository root, after DTO or fixture changes:
 cargo run -p dnagent-desktop-api --example export_recordings > desktop/e2e/fixtures/recordings.json
 ```
+
+### Design review gallery
+
+```bash
+npm run review                          # public fixtures, including pUC19
+npm run review -- ~/path/to/private.dna # plus local files, never committed
+```
+
+Renders each construct's map in light and dark mode at three window sizes plus
+selected-feature views, and writes `e2e/artifacts/review/latest/index.html` with the
+previous run shown underneath each tile for before/after comparison. Local files are
+recorded through the Rust desktop API into the gitignored `e2e/artifacts/` folder.
 
 Scenarios in `e2e/scenarios/*.json` drive the real frontend through a test-only
 automation API (Vite `e2e` mode, absent from production builds). Native calls are

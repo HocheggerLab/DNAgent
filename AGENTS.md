@@ -50,6 +50,10 @@ GUI changes need a passing `npm run e2e`. Expected biological values in scenario
 come from the CLI, never from literals; see `desktop/e2e/README.md`. After changing
 DTOs or public fixtures, regenerate `desktop/e2e/fixtures/recordings.json` with
 `cargo run -p dnagent-desktop-api --example export_recordings`.
+Map scenarios assert that every feature is drawn and every label is placed or
+reported; keep those invariants when changing the layout. `npm run review -- <file>`
+may render private constructs for design review, but only into the gitignored
+`desktop/e2e/artifacts/`.
 
 Schema checks use public synthetic fixtures only. Private-corpus validation is
 optional and must keep manifests, constructs and reports outside Git.

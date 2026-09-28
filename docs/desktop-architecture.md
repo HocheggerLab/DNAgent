@@ -58,13 +58,22 @@ Do not load remote frontend content. A CSP restricts production content and conn
 Read-only, one document, no project persistence, editing, undo, assembly UI, jobs API
 or WASM. A native file picker supplements path entry. A 100,000-base viewer limit bounds DOM rendering after import;
 it does not impose an input-file byte limit. Rendering is intentionally unvirtualised.
-Feature lanes are illustrative, not collision-free layouts. Map labels use vertically
-spaced leaders, with full names available on hover; arrowheads indicate each source
-part's strand direction (unknown strands have no arrows). Imported feature-level hex
-colours are retained, with stable fallback colours; per-segment colours are not exposed.
+The map fills its panel and is re-laid out on resize. Features are outlined block
+arrows packed into overlap lanes (all parts of a feature share a lane); arrowheads
+mark each source part's strand direction, so an adjacent two-part feature shows an
+internal head where SnapGene draws a divider (unknown strands have no arrows). Labels
+go on the arc when they fit, otherwise into outside pills de-overlapped per side;
+labels that still do not fit are counted in a notice and badged in the feature list —
+every feature is always drawn. The selected feature's label is always placed; its
+source parts get a selection band outside the ring. Layout is a display projection
+(`map-geometry.ts`, unit-tested), not biology. Imported feature-level hex colours are
+retained, with outlines and automatic black/white text for contrast; saturated
+fallback colours are stable per feature id; per-segment colours are not exposed.
+Appearance follows the OS (light/dark) by default and can be overridden; the choice
+and the collapsible feature list state are stored locally. Only macOS/WKWebView
+appearance has been targeted so far.
 Sequence clicks cycle overlapping features on either strand; the coordinate ruler
-marks every ten reference bases. Map label text is dark independently of imported
-feature colours for readability. Import warnings remain available in a collapsed
+marks every ten reference bases. Import warnings remain available in a collapsed
 details panel. Tab controls support arrow keys, Home and End. Reverse
 features highlight their reference positions without reverse-complementing the view.
 

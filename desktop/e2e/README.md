@@ -13,6 +13,7 @@ npm run e2e          # prod-bundle check, cargo build of the CLI, then all scena
 npm run e2e:headed   # same scenarios in a visible browser, for humans
 npm run e2e:check-prod  # only: prove the production bundle has no test code
 npm test             # unit tests, including the harness's path/transform/validator tests
+npm run review       # design-review gallery (see below); add local .dna paths to include them
 ```
 
 Exit status is nonzero on any failure. Screenshots go to `e2e/artifacts/<scenario-id>/`
@@ -75,12 +76,23 @@ Every command dispatches the same event a user would. None of them sets app stat
 - `features`: the displayed list in DOM order, as `{id, name, selected, text}`.
 - `selection.feature_id` comes from the model. `selection.map` and `selection.sequence`
   are only reported for the **visible** view; the hidden view is `null`.
-  - `map.parts`: one `{start,length}` per highlight polyline, in draw order.
+  - `map.parts`: one `{start,length}` per selection-band part, in draw order.
     `map.active_labels`: the visible label text.
   - `sequence.parts`: rebuilt from the selected track spans, grouped by source-part
     index, into one circular interval each, in source order. Discontinuous coverage
     becomes `{error, positions}`. `highlighted_positions` and
     `complement_highlighted_positions` are the sorted `<mark>` positions on each strand.
+- `map` (Map tab only, else `null`): canvas `width`/`height`/`radius`; `fills_panel` (the map
+  fills its panel) and `layout_current` (the drawing was computed for the current canvas
+  size); `drawn_ids` (features with at least one drawn part, drawing order = source order);
+  `labels` (`{id, mode: inline|outside}`); `unlabelled_ids`/`_names`/`_count` (drawn but no
+  label); `badged_ids` (list items badged "not labelled on map"); `notice_count` (number
+  in the notice, 0 when hidden); `accounted_ids` (features with exactly one label, or none
+  plus a badge); `overlapping_labels`, `labels_outside_viewport`, `labels_under_notice`
+  (bounding-box checks on the rendered labels).
+- `theme`: `{preference: system|light|dark, resolved}` — `resolved` is the theme actually
+  applied to the page. `layout.feature_list_collapsed`.
+- `features[*].unlabelled`: the item carries the "not labelled on map" badge.
 - `warnings`: `{present, count_shown, items, codes, open}`; all counts are 0 when no panel is rendered.
 - `primers`: `{count, summary}`.
 
@@ -124,6 +136,10 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `click_sequence_base: n` | |
 | `click: {testid, index?}` | A real Playwright pointer click on the nth `data-testid` element. |
 | `wait_idle: true` | Wait until no request is pending. |
+| `set_viewport: {width, height}` | Resize the browser window, then wait two animation frames for re-layout. |
+| `set_color_scheme: "light" \| "dark"` | Emulate the OS appearance (`prefers-color-scheme`). |
+| `select_option: {testid, value}` | Choose an option in a real `<select>`, e.g. `theme-select`. |
+| `reload: true` | Reload the page: local preferences survive, the open document does not. |
 | `expect: [...]` | Assertions against one `getState()` snapshot; every failure in the step is reported. |
 
 Selection, tab and base-click steps don't wait for idle: they issue no request and
@@ -131,7 +147,20 @@ render synchronously. That way, a stale request can still be pending at the next
 
 Useful `data-testid`s: `feature-item`, `feature-name`, `tab-map`, `tab-sequence`,
 `map-feature`, `map-selection-part`, `sequence-track`, `warnings-summary`,
-`warnings-panel`, `warning-item`, `primer-item`, `path-input`, `open-form`, `browse`.
+`warnings-panel`, `warning-item`, `primer-item`, `path-input`, `open-form`, `browse`,
+`map-label` (pills and on-arc labels), `map-hidden-notice`, `feature-unlabelled`,
+`toggle-features`, `theme-select`. Click map pills rather than `map-feature` arcs:
+Playwright clicks an element's bounding-box centre, which for an arc lies off the shape.
+
+### Map invariants
+
+`map-layout-accounting` and `map-hidden-labels-notice` pin the display contract for
+realistic plasmids (public pUC19, `fixtures/formats/snapgene/pUC19_M77789.dna`) at
+several window sizes: every feature drawn (`drawn_ids` = CLI ids), every label placed
+or reported (`accounted_ids` = CLI ids, `badged_ids` = `unlabelled_ids`, `notice_count`
+= `unlabelled_count`), no overlapping, clipped or notice-covered labels, and a layout
+that fills and matches the canvas. Literal zeros and booleans are allowed there because
+they are geometry checks, not biology. Keep these invariants when redesigning.
 
 ### Assertions
 
@@ -193,6 +222,37 @@ These bugs were introduced one at a time and then reverted:
 | Title length off by one | open-linear, stale-request (initially missed; `document` is now parsed from the title) |
 | Complement highlights shifted by one | list-selection-links-views, multipart-origin |
 
+Second round, after the map redesign (2026-09-28):
+
+| Injected bug | Caught by |
+| --- | --- |
+| Features under 10 bp not drawn | map-layout-accounting, map-hidden-labels-notice, multipart-origin, browse-picker |
+| Unplaced labels dropped without a report | map-layout-accounting, map-hidden-labels-notice |
+| Label spreading disabled (overlaps) | map-layout-accounting, map-hidden-labels-notice |
+| Labels not clamped to the canvas | map-layout-accounting |
+| Selected label not prioritised | map-layout-accounting |
+| No re-layout on resize | map-layout-accounting, map-hidden-labels-notice (via `layout_current`, added for this) |
+| Theme choice not persisted | theme-follows-os-and-switch |
+| OS appearance changes ignored | theme-follows-os-and-switch (initially missed; `theme.resolved` now reads the applied theme) |
+| Notice count off by one | map-layout-accounting, map-hidden-labels-notice |
+| Selection band parts sorted by start | multipart-origin |
+| Notice collapses the list instead of opening it | map-hidden-labels-notice |
+
+The notice-covering-a-label bug was found in a screenshot, not by a scenario; the
+`labels_under_notice` invariant was added and shown to fail before the fix.
+
+## Design review gallery
+
+`npm run review [-- local.dna …]` renders every public review fixture and any local files
+in light and dark mode at 1440×900, 1100×720 and 1920×1200, plus the largest and first
+multipart feature selected, and writes `e2e/artifacts/review/latest/index.html`. The
+previous run moves to `review/previous/` and appears dimmed under each tile. Each tile
+notes drawn features, hidden labels and selection parts from `getState()`. Local files
+are recorded with `cargo run -p dnagent-desktop-api --example export_recordings -- <paths>`
+into `e2e/artifacts/local-review/recordings.json`, which the e2e stub merges when present;
+scenarios cannot reference them (fixture paths must be under `fixtures/formats/`). The
+gallery is for human judgement; correctness stays with `npm run e2e`.
+
 ## Limits
 
 - **Chromium, not the production webview.** Production runs in WKWebView (macOS) or
@@ -200,7 +260,7 @@ These bugs were introduced one at a time and then reverted:
   Chromium; it doesn't test the webview engine, native `invoke` serialisation, the
   Tauri shell or the native dialog. Real-shell testing (tauri-driver on Linux) is out
   of scope.
-- Map `parts` come from per-part data on the highlight polylines, so dropped,
+- Map `parts` come from per-part data on the selection bands, so dropped,
   reordered or shifted parts are caught. Errors in the arc/line geometry are
   not caught; only the screenshots show those.
 - No visual regression baselines, keyboard-navigation scenarios or open-failure
