@@ -91,7 +91,10 @@ fn multipart_origin_feature_keeps_part_order_and_strand() {
 fn overlapping_features_share_bases_in_source_order() {
     let report = import("synthetic_overlaps.dna");
     let features = report.record.features();
-    let labels: Vec<_> = features.iter().map(|f| f.label()).collect();
+    let labels: Vec<_> = features
+        .iter()
+        .map(dnagent_domain::Feature::label)
+        .collect();
     assert_eq!(
         labels,
         ["overlap forward", "overlap reverse", "overlap multipart"]
