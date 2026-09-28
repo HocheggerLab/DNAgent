@@ -6,3 +6,6 @@
 .DS_Store
 *.dna
 !fixtures/**/*.dna
+/desktop/e2e/artifacts/
+/desktop/test-results/
+/desktop/playwright-report/

@@ -1,0 +1,385 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dnagent.local/desktop/e2e/scenario.schema.json",
+  "title": "DNAgent desktop e2e scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "description",
+    "fixture",
+    "steps"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixture": {
+      "$ref": "#/definitions/fixture"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/step"
+      }
+    }
+  },
+  "definitions": {
+    "fixture": {
+      "type": "string",
+      "pattern": "^fixtures/formats/[a-z]+/[A-Za-z0-9_]+\\.(dna|fasta)$",
+      "description": "Repository-relative public fixture path."
+    },
+    "state_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path into getState() (JSON path subset, see e2e/README.md)."
+    },
+    "transform": {
+      "oneOf": [
+        {
+          "enum": [
+            "parts",
+            "positions",
+            "count",
+            "codes"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "base"
+          ],
+          "properties": {
+            "name": {
+              "const": "ids_covering"
+            },
+            "base": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "cli_expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "one"
+          ]
+        }
+      ],
+      "properties": {
+        "command": {
+          "enum": [
+            "inspect",
+            "features",
+            "primers"
+          ]
+        },
+        "fixture": {
+          "$ref": "#/definitions/fixture"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Array for wildcard/filter paths, else the single value."
+        },
+        "one": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must match exactly one value."
+        },
+        "transform": {
+          "$ref": "#/definitions/transform"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Pick one element of the resolved array."
+        }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "equals"
+          ]
+        },
+        {
+          "required": [
+            "equals_cli"
+          ]
+        },
+        {
+          "required": [
+            "equals_state"
+          ]
+        }
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/definitions/state_path"
+        },
+        "equals": {
+          "description": "Literal; rejected on biological state paths."
+        },
+        "equals_cli": {
+          "$ref": "#/definitions/cli_expectation"
+        },
+        "equals_state": {
+          "$ref": "#/definitions/state_path"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "open"
+          ],
+          "properties": {
+            "open": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fixture": {
+                  "$ref": "#/definitions/fixture"
+                },
+                "delay_ms": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5000
+                },
+                "wait": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "expect_error": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "browse"
+          ],
+          "properties": {
+            "browse": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fixture": {
+                  "$ref": "#/definitions/fixture"
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_feature"
+          ],
+          "properties": {
+            "select_feature": {
+              "type": "object",
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "id"
+                  ]
+                },
+                {
+                  "required": [
+                    "label"
+                  ]
+                }
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Resolved to an id through CLI features; must match exactly one."
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_tab"
+          ],
+          "properties": {
+            "select_tab": {
+              "enum": [
+                "map",
+                "sequence"
+              ]
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "click_sequence_base"
+          ],
+          "properties": {
+            "click_sequence_base": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "click"
+          ],
+          "properties": {
+            "click": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "testid"
+              ],
+              "properties": {
+                "testid": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "wait_idle"
+          ],
+          "properties": {
+            "wait_idle": {
+              "const": true
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expect"
+          ],
+          "properties": {
+            "expect": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/assertion"
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

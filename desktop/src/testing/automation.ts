@@ -17,6 +17,7 @@ export type ReconstructedPart = Part | { error: string; positions: number[] };
 export interface AppState {
   idle: boolean;
   status: string;
+  path_input: string;
   active_tab: 'map' | 'sequence' | 'inconsistent';
   visible_panels: string[];
   document: null | { name: string; length: number; topology: 'circular' | 'linear'; title: string };
@@ -31,7 +32,8 @@ export interface AppState {
       complement_highlighted_positions: number[];
     };
   };
-  warnings: null | { count_shown: number | null; items: number; codes: string[]; open: boolean };
+  /** No panel is rendered for warning-free documents: counts are then 0 and `present` false. */
+  warnings: { present: boolean; count_shown: number; items: number; codes: string[]; open: boolean };
   primers: { count: number; summary: string };
 }
 
@@ -91,6 +93,7 @@ export function getState(model: ModelView): AppState {
   return {
     idle: pendingRequests() === 0,
     status: document.getElementById('status')!.textContent ?? '',
+    path_input: document.querySelector<HTMLInputElement>('[data-testid="path-input"]')!.value,
     active_tab: consistent ? model.activeTab : 'inconsistent',
     visible_panels: panels,
     document: current && {
@@ -111,15 +114,18 @@ export function getState(model: ModelView): AppState {
         parts: byTestId('map-selection-part').map(node => ({
           start: Number(node.dataset.partStart), length: Number(node.dataset.partLength),
         })),
-        active_labels: [...document.querySelectorAll('#map .map-label.active')].map(node => node.textContent ?? ''),
+        // Visible label text only; the hover <title> child is excluded.
+        active_labels: [...document.querySelectorAll('#map .map-label.active')]
+          .map(node => [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent).join('')),
       } : null,
       sequence,
     },
-    warnings: details && {
-      count_shown: Number.parseInt(byTestId('warnings-summary')[0]?.textContent ?? '', 10) || null,
+    warnings: {
+      present: details !== null,
+      count_shown: details ? Number.parseInt(byTestId('warnings-summary')[0]?.textContent ?? '', 10) : 0,
       items: byTestId('warning-item').length,
       codes: byTestId('warning-item').map(item => (item.textContent ?? '').trim().split(':')[0]),
-      open: details.open,
+      open: details?.open ?? false,
     },
     primers: { count: byTestId('primer-item').length, summary: document.getElementById('primer-summary')!.textContent ?? '' },
   };
@@ -163,4 +169,8 @@ export function install(model: () => ModelView) {
     getState: () => getState(model()),
   };
   Object.assign(window, { __DNAGENT_TEST__: api });
+}
+
+declare global {
+  interface Window { __DNAGENT_TEST__?: AutomationApi }
 }
