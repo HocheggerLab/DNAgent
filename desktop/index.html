@@ -4,26 +4,26 @@
 <body>
 <main>
   <header>
-    <form id="open"><input id="path" aria-label="Construct path" placeholder="Path to a .dna or single-record FASTA file" required><button>Open construct</button><button id="browse" type="button">Browse…</button></form>
-    <p id="status" role="status">Read-only DNAagent prototype.</p>
-    <div id="warnings"></div>
+    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button></form>
+    <p id="status" data-testid="status" role="status">Read-only DNAagent prototype.</p>
+    <div id="warnings" data-testid="warnings"></div>
   </header>
   <section class="workspace">
-    <aside><h2>Features</h2><div id="features"></div></aside>
+    <aside><h2>Features</h2><div id="features" data-testid="feature-list"></div></aside>
     <article>
-      <h2 id="title">No construct loaded</h2>
+      <h2 id="title" data-testid="title">No construct loaded</h2>
       <nav role="tablist" aria-label="Construct views">
-        <button id="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>
-        <button id="tab-sequence" role="tab" aria-controls="panel-sequence" aria-selected="false" tabindex="-1">Sequence</button>
+        <button id="tab-map" data-testid="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>
+        <button id="tab-sequence" data-testid="tab-sequence" role="tab" aria-controls="panel-sequence" aria-selected="false" tabindex="-1">Sequence</button>
       </nav>
-      <p id="selection">No feature selected</p>
+      <p id="selection" data-testid="selection-summary">No feature selected</p>
       <section id="panel-map" role="tabpanel" aria-labelledby="tab-map" tabindex="0">
-        <svg id="map" viewBox="0 0 900 440" aria-label="Construct map"></svg>
+        <svg id="map" data-testid="map" viewBox="0 0 900 440" aria-label="Construct map"></svg>
       </section>
       <section id="panel-sequence" role="tabpanel" aria-labelledby="tab-sequence" tabindex="0" hidden>
         <p class="view-help">Forward reference 5′→3′; aligned complement 3′→5′. Coordinates are zero-based. Feature arrows mark actual source-part ends, not line breaks. Translation is not shown.</p>
-        <details id="primers"><summary id="primer-summary">Imported primers</summary><p>Unplaced imported oligos (5′→3′). Binding locations are not retained by the importer; no annealing positions or validation are inferred.</p><div id="primer-list"></div></details>
-        <div id="sequence" aria-label="Duplex sequence and imported feature tracks"></div>
+        <details id="primers" data-testid="primers"><summary id="primer-summary">Imported primers</summary><p>Unplaced imported oligos (5′→3′). Binding locations are not retained by the importer; no annealing positions or validation are inferred.</p><div id="primer-list"></div></details>
+        <div id="sequence" data-testid="sequence" aria-label="Duplex sequence and imported feature tracks"></div>
       </section>
     </article>
   </section>

@@ -1,7 +1,6 @@
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import type { Document, Diagnostic, Feature } from './bindings';
 import { contains, displayEndpoints, featureColor, labelPositions } from './map-layout';
+import { openDocument, pickConstructPath } from './ipc';
 import { renderSequence } from './sequence-view';
 import './style.css';
 
@@ -80,14 +79,15 @@ function renderMap(doc: Document) {
     };
     const marker = shape('marker', {id:`arrow-${index}`,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'8',markerHeight:'8',orient:'auto',markerUnits:'userSpaceOnUse'}, defs);
     shape('path', {d:'M0 0 L10 5 L0 10 Z',fill:color}, marker);
-    for (const part of feature.parts) {
+    feature.parts.forEach((part, partIndex) => {
       const steps = Math.max(2, Math.ceil(part.length / length * 180));
       const [start, end] = displayEndpoints(part.start, part.length, feature.strand === 'reverse');
       const points = Array.from({length:steps + 1}, (_, i) => point(start + (end - start) * i / steps).join(',')).join(' ');
-      if (feature.id === selected) shape('polyline', {points,fill:'none',stroke:'#203344','stroke-width':'10',opacity:'0.3'});
-      const node = shape('polyline', {points,fill:'none',stroke:color,'stroke-width':'5',...(feature.strand === 'unknown' ? {} : {'marker-end':`url(#arrow-${index})`})});
+      if (feature.id === selected) shape('polyline', {points,fill:'none',stroke:'#203344','stroke-width':'10',opacity:'0.3',
+        'data-testid':'map-selection-part','data-part-index':String(partIndex),'data-part-start':String(part.start),'data-part-length':String(part.length)});
+      const node = shape('polyline', {points,fill:'none',stroke:color,'stroke-width':'5','data-testid':'map-feature','data-feature-id':feature.id,...(feature.strand === 'unknown' ? {} : {'marker-end':`url(#arrow-${index})`})});
       interactive(node, feature);
-    }
+    });
     // One leader per feature, anchored to its longest part, not an inferred joined CDS.
     const longest = feature.parts.reduce((a, b) => b.length > a.length ? b : a);
     const [x,y] = point(longest.start + longest.length / 2);
@@ -120,7 +120,10 @@ function render() {
   const list = element('features'); const listScroll = list.scrollTop; list.replaceChildren();
   for (const feature of doc.features) {
     const button = document.createElement('button');
-    button.textContent = `${feature.label || feature.kind} (${feature.strand})`;
+    const name = document.createElement('span'); name.dataset.testid = 'feature-name';
+    name.textContent = feature.label || feature.kind;
+    button.append(name, ` (${feature.strand})`);
+    button.dataset.testid = 'feature-item'; button.dataset.featureId = feature.id;
     button.style.borderLeft = `5px solid ${featureColor(feature)}`;
     button.classList.toggle('selected', feature.id === selected);
     button.setAttribute('aria-pressed', String(feature.id === selected));
@@ -143,13 +146,13 @@ async function load(path: string) {
   const request = ++revision;
   element('status').textContent = 'Loading…';
   try {
-    const result = await invoke<Document>('open_document', { path });
+    const result = await openDocument(path);
     if (request !== revision) return;
     current = result; selected = null;
     element('primer-summary').textContent = `Imported primers: ${result.unplaced_primers.length} (unplaced)`;
     element('primer-list').replaceChildren();
     for (const primer of result.unplaced_primers) {
-      const item = document.createElement('div'); item.className = 'primer-item';
+      const item = document.createElement('div'); item.className = 'primer-item'; item.dataset.testid = 'primer-item';
       const name = document.createElement('strong'); name.textContent = primer.name;
       const sequence = document.createElement('code'); sequence.textContent = primer.sequence_5to3;
       const description = document.createElement('p'); description.textContent = primer.description ?? '';
@@ -157,13 +160,16 @@ async function load(path: string) {
     }
     element('warnings').replaceChildren();
     if (result.warnings.length) {
-      const details = document.createElement('details');
-      const summary = document.createElement('summary');
+      const details = document.createElement('details'); details.dataset.testid = 'warnings-panel';
+      const summary = document.createElement('summary'); summary.dataset.testid = 'warnings-summary';
       summary.textContent = `${result.warnings.length} import-fidelity warnings — review details`;
       const explanation = document.createElement('p');
       explanation.textContent = 'Some source content is not interpreted by DNAagent. These warnings do not by themselves indicate a sequence error. Retained packets are not exposed in this viewer or guaranteed to survive derived exports.';
       const messages = document.createElement('pre');
-      messages.textContent = result.warnings.map(w => `${w.code}: ${w.message}`).join('\n');
+      result.warnings.forEach((w, index) => {
+        const line = document.createElement('span'); line.dataset.testid = 'warning-item';
+        line.textContent = `${index ? '\n' : ''}${w.code}: ${w.message}`; messages.append(line);
+      });
       details.append(summary,explanation,messages); element('warnings').append(details);
     }
     element('status').textContent = 'Read-only · Map and Sequence share feature selection · Unknown strands have no arrows · Click sequence bases to cycle overlapping features.';
@@ -178,7 +184,11 @@ async function load(path: string) {
 element('open').onsubmit = event => { event.preventDefault(); void load(element<HTMLInputElement>('path').value); };
 element('browse').onclick = async () => {
   try {
-    const path = await open({multiple:false,directory:false,filters:[{name:'DNA constructs',extensions:['dna','fa','fasta','fna']}]});
-    if (typeof path === 'string') { element<HTMLInputElement>('path').value = path; await load(path); }
+    const path = await pickConstructPath();
+    if (path !== null) { element<HTMLInputElement>('path').value = path; await load(path); }
   } catch (error) { element('status').textContent = `File picker failed: ${String(error)}`; }
 };
+
+if (import.meta.env.MODE === 'e2e') {
+  void import('./testing/automation').then(automation => automation.install(() => ({current, selected, activeTab})));
+}
