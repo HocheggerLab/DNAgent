@@ -4,6 +4,9 @@
 and returns a named object containing provenance and the design. Rust additionally
 checks cross-field bounds and complete positive/negative input partitioning.
 
+`translate` and `orfs` were added to 0.9.0 additively, following the `primer-design`
+precedent: no existing result shape changed. Their failures use `translation_failed`.
+
 **Current emitted version: 0.9.0.** Every current JSON command emits that version.
 The CLI does not negotiate older versions and does not accept JSON envelopes as
 input. Envelope schemas describe outputs, not an import API. General sequence

@@ -25,7 +25,10 @@ bases to select features (repeated clicks cycle overlapping annotations). **Map*
 5′→3′ strand, aligned 3′→5′ complement and imported feature tracks; row breaks are
 not treated as feature ends. Coordinates remain zero-based. Imported primers appear
 in an **unplaced** list because binding coordinates are not retained by the importer.
-Translation and restriction-site tracks are deferred. Map labels
+Amino acids appear under every CDS (1- or 3-letter). **ORFs** (with a minimum-length
+control) show as tracks and on the map, and **Six-frame translation** adds all frames.
+Drag across bases to select a range; its translation on either strand appears above the
+view. All of these come from the Rust engine. Restriction-site tracks are deferred. Map labels
 and arrows show feature identity and each part's strand direction. Imported colours
 are retained where available. Expand the import-warning panel to review fidelity limits.
 

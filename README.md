@@ -96,6 +96,21 @@ A pinned human GRCh38/RefSeq RNA profile can be installed outside Git with
 Use `plan` to inspect it without downloading. See [reference storage](docs/reference-store.md).
 This provisions databases only; BLAST specificity is not yet connected to primer design.
 
+### Translation and ORFs
+
+`dnagent translate` translates a feature (honouring joins, origin crossings, `codon_start`
+and `transl_table`), a range on either strand and frame, or every CDS, with pinned NCBI
+genetic codes. Each codon reports its reference coordinates, and embedded SnapGene/GenBank
+translations are compared, with mismatches warned. `dnagent orfs` finds complete six-frame
+ORFs, including origin-wrapping ones. Both are validated against Biopython 1.85.
+
+```bash
+dnagent translate construct.dna --all-cds --output json
+dnagent orfs construct.dna --min-codons 75 --output json
+```
+
+See [translation and ORFs](docs/translation.md). ORFs are computational, not genes.
+
 ### Offline amplification primers
 
 `dnagent primer-design fixtures/plans/synthetic-primer-design.json` designs bounded

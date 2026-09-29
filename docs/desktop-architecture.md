@@ -35,7 +35,9 @@ source feature parts as tracks on fixed 60-base lines. Display clipping preserve
 multipart gaps and origin crossings; strand arrowheads appear only at real source-part
 ends, not at artificial line breaks. Imported primer names, sequences and descriptions
 are available in an explicitly unplaced list: the current importer does not retain
-binding coordinates. No primer positions, translations or enzyme sites are inferred.
+binding coordinates. No primer positions or enzyme sites are inferred. CDS translations, six-frame
+translations and ORFs are computed by the Rust engine (`docs/translation.md`) and only placed by the
+frontend; a dragged range is translated by slicing an engine frame.
 Ordered multipart/circular intervals retain their original meaning; UI highlighting
 is a display projection, not a second biological calculation.
 

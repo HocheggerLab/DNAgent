@@ -90,6 +90,18 @@ Every command dispatches the same event a user would. None of them sets app stat
   in the notice, 0 when hidden); `accounted_ids` (features with exactly one label, or none
   plus a badge); `overlapping_labels`, `labels_outside_viewport`, `labels_under_notice`
   (bounding-box checks on the rendered labels).
+- `options`: toolbar state as displayed, `{amino_acids: one|three, show_frames, show_orfs, orf_min_codons}`.
+- `selection.kind` (`feature|orf|range|null`), `selection.orf_id`, `selection.range`
+  (`{start, end}`, half-open), `selection.range_translation` (`{strand, protein}` as displayed).
+- `selection.sequence` also carries:
+  - `translations`: one entry per CDS amino-acid row, in source order, with
+    `{feature_id, protein, codon_count, middles, warned}`. `protein` is the displayed
+    letters in codon order (3-letter names joined by spaces in 3-letter mode). `middles`
+    is each letter's reference column. `warned` is the ⚠ marker.
+  - `frames`: `{frame: "+1"…"-3", protein, middles}`.
+  - `orf_regions`: `{strand, start, length}` rebuilt from the ORF tracks.
+- `map.orf_regions` (from the drawn arcs) and `map.undrawn_orfs` (the count in the notice).
+- `layout.sequence_columns` and `layout.sequence_fits_width` (Sequence tab only).
 - `theme`: `{preference: system|light|dark, resolved}` — `resolved` is the theme actually
   applied to the page. `layout.feature_list_collapsed`.
 - `features[*].unlabelled`: the item carries the "not labelled on map" badge.
@@ -140,6 +152,8 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `set_color_scheme: "light" \| "dark"` | Emulate the OS appearance (`prefers-color-scheme`). |
 | `select_option: {testid, value}` | Choose an option in a real `<select>`, e.g. `theme-select`. |
 | `reload: true` | Reload the page: local preferences survive, the open document does not. |
+| `select_orf: {id}` | Click that ORF's track (Sequence) or arc (Map); ORFs must be shown. |
+| `drag_bases: {from, to}` | Real mouse drag across forward-strand bases; the range is half-open and includes both ends. |
 | `expect: [...]` | Assertions against one `getState()` snapshot; every failure in the step is reported. |
 
 Selection, tab and base-click steps don't wait for idle: they issue no request and
@@ -166,9 +180,13 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
 
 `{state: <path>, ...}` with exactly one of:
 
-- `equals_cli: {command, path | one, transform?, index?, fixture?}`: runs
-  `dnagent <command> <fixture> --output json`. `fixture` defaults to the most
-  recently opened one. `command` is `inspect`, `features` or `primers`.
+- `equals_cli: {command, args?, path | one, transform?, index?, fixture?}`: runs
+  `dnagent <command> <fixture> <args…> --output json`. `fixture` defaults to the most
+  recently opened one. `command` is `inspect`, `features`, `primers`, `translate` or
+  `orfs`. `args` are extra CLI arguments, e.g. `["--feature", "feature-0001"]` or
+  `["--min-codons", "30"]`.
+- `single: true` on an assertion makes a filtered state path match exactly one value
+  and compares it unwrapped, e.g. `selection.sequence.frames[?(@.frame=='+1')].protein`.
 - `equals_state: <path>`: another path in the same snapshot.
 - `equals: <literal>`: **rejected on biological paths** (`document.*`, `features*`,
   `selection.map*`, `selection.sequence*`, `warnings` counts and codes, `primers.count`).
@@ -189,6 +207,10 @@ Transforms (`e2e/lib/transforms.ts`) are format adapters in test code only:
 | `positions` | CLI `location` → sorted covered bases (circular parts wrap). Molecule length comes from `inspect`. Order-free; source order is checked by `parts`. |
 | `count` | array → length |
 | `codes` | warnings array → `[code…]` |
+| `codon_middles` | codon list (or list of lists) → middle reference base of each codon |
+| `orf_regions` | CLI ORFs → `[{strand, start, length}]` sorted like the GUI state |
+| `orf_parts` / `orf_positions` | one CLI ORF → `[{start, length}]` / sorted covered bases |
+| `lengths` | array of arrays or strings → their lengths |
 | `{name: "ids_covering", base}` | features array → ids covering `base`, in source order. Use `index` to pick the expected cycle position. |
 
 ## Adding a scenario
@@ -240,6 +262,30 @@ Second round, after the map redesign (2026-09-28):
 
 The notice-covering-a-label bug was found in a screenshot, not by a scenario; the
 `labels_under_notice` invariant was added and shown to fail before the fix.
+
+Third round, after translation and ORFs (2026-09-29). Engine bugs change the CLI and
+the recordings together, so the GUI suite (which only checks that the GUI agrees with the
+CLI) cannot see them. Engine correctness is the job of the domain unit tests and the
+Biopython oracle (`scripts/check_translation.py`).
+
+| Injected bug | Caught by |
+| --- | --- |
+| Reverse join: each part reversed but kept in source order | domain tests, CLI tests, Biopython oracle |
+| Ambiguous codon takes its first expansion instead of X | domain tests, CLI tests, oracle |
+| Shortest instead of longest ORF per stop | domain tests, oracle |
+| No initiator M for alternative starts | domain tests, CLI tests, oracle |
+| No origin-wrapping ORFs | domain tests, CLI tests, oracle |
+| Amino acid placed under the first codon base | cds-translation-rows |
+| Reverse frame letters shifted one base | six-frame-translation |
+| ORF minimum off by one | orfs-sequence-and-map |
+| Range translated in the wrong frame | range-drag-translation |
+| Reverse range read from forward frames | range-drag-translation |
+| Imported-translation mismatch marker dropped | cds-translation-rows |
+| Map ORFs silently skipped | orfs-sequence-and-map |
+
+Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
+The injection script had restored the engine source but not rebuilt the CLI, so the
+ground truth itself was stale. `npm run e2e` always rebuilds the CLI for this reason.
 
 ## Design review gallery
 
