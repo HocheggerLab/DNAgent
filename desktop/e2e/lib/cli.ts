@@ -5,7 +5,11 @@ import { resolve } from 'node:path';
 
 export const REPO_ROOT = resolve(import.meta.dirname, '../../..');
 export const BINARY = process.env.DNAGENT_BINARY ?? resolve(REPO_ROOT, 'target/debug/dnagent');
-export const CLI_COMMANDS = ['inspect', 'features', 'primers', 'translate', 'orfs', 'sites', 'digest', 'enzymes'] as const;
+export const CLI_COMMANDS = ['inspect', 'features', 'primers', 'translate', 'orfs', 'sites', 'digest', 'enzymes', 'detect-features'] as const;
+/** Built by global-setup from the public fixtures; the e2e server reads the same file. */
+export const FEATURE_LIBRARY = resolve(REPO_ROOT, 'desktop/e2e/artifacts/feature-library.sqlite');
+/** Environment for every dnagent run: built-in enzymes and the test feature library. */
+export const CLI_ENV = { ...process.env, DNAGENT_ENZYMES: 'builtin', DNAGENT_FEATURE_DB: FEATURE_LIBRARY };
 /** Commands that take no input file. */
 const NO_INPUT: readonly CliCommand[] = ['enzymes'];
 export type CliCommand = (typeof CLI_COMMANDS)[number];
@@ -29,7 +33,7 @@ export function cli(command: CliCommand, fixture: string, args: string[] = []): 
     try {
       const input = NO_INPUT.includes(command) ? [] : [fixture];
       // The built-in enzyme set, like the e2e server: a locally installed REBASE must not change results.
-      stdout = execFileSync(BINARY, [command, ...input, ...args, '--output', 'json'], { cwd: REPO_ROOT, encoding: 'utf8', env: { ...process.env, DNAGENT_ENZYMES: 'builtin' } });
+      stdout = execFileSync(BINARY, [command, ...input, ...args, '--output', 'json'], { cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV });
     } catch (error) {
       // Runtime failures still print a JSON envelope on stdout with a nonzero exit.
       stdout = String((error as { stdout?: string }).stdout ?? '');

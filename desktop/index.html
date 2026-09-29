@@ -15,7 +15,10 @@
     </section>
   </header>
   <section class="workspace">
-    <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div>
+    <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="detect-run" data-testid="detect-run" type="button" title="Find features from your feature library in this construct" disabled>Detect</button><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div>
+      <section id="detect-panel" data-testid="detect-panel" hidden><div class="aside-head"><h2>Detected</h2><button id="detect-close" data-testid="detect-close" type="button" title="Close">×</button></div>
+        <p id="detect-summary" data-testid="detect-summary"></p><div id="detect-list" data-testid="detect-list"></div>
+        <button id="detect-add" data-testid="detect-add" type="button" disabled>Add features</button></section>
       <section id="digest-panel" data-testid="digest-panel"><div class="aside-head"><h2>Digest</h2><button id="digest-run" data-testid="digest-run" type="button" disabled>Digest</button></div>
         <p id="digest-summary" data-testid="digest-summary"></p><div id="digest-fragments" data-testid="digest-fragments"></div></section></aside>
     <article>

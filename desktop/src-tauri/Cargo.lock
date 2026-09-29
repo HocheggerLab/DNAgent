@@ -684,6 +684,7 @@ dependencies = [
  "dnagent-app",
  "dnagent-domain",
  "dnagent-formats",
+ "dnagent-library",
  "serde",
  "serde_json",
  "ts-rs",

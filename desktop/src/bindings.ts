@@ -67,7 +67,11 @@ added_feature_ids: Array<string>, source_path: string,
 saved_path: string | null, };
 export type DocumentState = { document: Document, edit: EditState, };
 export type TranslateRequest = { table: number, codon_start: number, };
-export type FeatureRequest = { start: number, end: number, strand: Direction, kind: string, label: string, color: string | null, translate: TranslateRequest | null, };
+export type FeatureRequest = { start: number, end: number, strand: Direction, kind: string, label: string, color: string | null, translate: TranslateRequest | null,
+/**
+ * Optional `/note` qualifier.
+ */
+note?: string, };
 export type FeaturePreview = { length: number, parts: Array<Segment>,
 /**
  * One letter per codon (stops as `*`), when translated.
@@ -78,6 +82,28 @@ export type RangeRequest = { start: number, end: number, };
 export type HandoffItem = { document_id: number, active: boolean, selection: RangeRequest | null, selected_feature_id: string | null, };
 export type HandoffResult = { workspace: string, context_path: string, snapshots: Array<string>, prompt: string, };
 export type FileStamp = { path: string, modified_ms: number, size: number, };
+export type Proposal = {
+/**
+ * Stable within one detection: `<library id>@<start><strand letter>`.
+ */
+key: string, library_id: number, name: string, kind: string, color: string | null, strand: Direction, start: number, length: number,
+/**
+ * Existing features with exactly this span and a compatible strand.
+ */
+annotated_as: Array<string>,
+/**
+ * The first longer proposal whose span contains this one (e.g. "lac" in "lac promoter").
+ */
+contained_in: string | null,
+/**
+ * NCBI table and codon start from the library entry, for CDS proposals.
+ */
+translate: [number, number] | null, };
+export type DetectionResult = {
+/**
+ * False when there is no library yet (see `message`).
+ */
+available: boolean, message: string, library_features: number, min_length: number, proposals: Array<Proposal>, };
 export type EnzymeInfo = { name: string,
 /**
  * IUPAC recognition sequence (may be degenerate or interrupted).

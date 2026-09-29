@@ -4,12 +4,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { BINARY, cli, REPO_ROOT } from './cli.ts';
+import { BINARY, cli, CLI_ENV, REPO_ROOT } from './cli.ts';
 import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
 import {
-  codes, codonMiddles, count, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
+  codes, codonMiddles, count, defaultDetections, detectionRange, detectionRows, detectionSpansNew, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
   positions, recognitionRange, siteCuts, siteEnzymes, siteLabels, siteRegions, siteTicks,
 } from './transforms.ts';
 
@@ -47,6 +47,10 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string, 
   else if (transform === 'site_cuts') value = siteCuts(value, moleculeLength());
   else if (transform === 'recognition_range') value = recognitionRange(value, moleculeLength(), circular());
   else if (transform === 'fragment_parts') value = fragmentParts(value);
+  else if (transform === 'detection_rows') value = detectionRows(value, moleculeLength());
+  else if (transform === 'default_detections') value = defaultDetections(value, moleculeLength());
+  else if (transform === 'detection_spans_new') value = detectionSpansNew(value);
+  else if (transform?.name === 'detection_range') value = detectionRange(value, transform.label, moleculeLength(), circular());
   else if (transform?.name === 'enzyme_set') value = enzymeSet(value, transform.set);
   else if (transform?.name === 'fragment_range') value = fragmentRange(value, transform.rank, moleculeLength(), circular());
   else if (transform?.name === 'ids_covering') value = idsCovering(value, transform.base, moleculeLength());
@@ -178,10 +182,14 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       await waitIdle();
     } else if ('run_cli' in step) {
       try {
-        execFileSync(BINARY, step.run_cli.args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: 'pipe', env: { ...process.env, DNAGENT_ENZYMES: 'builtin' } });
+        execFileSync(BINARY, step.run_cli.args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: 'pipe', env: CLI_ENV });
       } catch (error) {
         throw new Error(`agent command failed: dnagent ${step.run_cli.args.join(' ')}\n${String((error as { stdout?: string }).stdout ?? error)}`);
       }
+    } else if ('toggle_detection' in step) {
+      await page.evaluate(name => window.__DNAGENT_TEST__!.toggleDetection(name), step.toggle_detection.name);
+    } else if ('select_detection' in step) {
+      await page.evaluate(name => window.__DNAGENT_TEST__!.selectDetection(name), step.select_detection.name);
     } else if ('click_site' in step) {
       await page.evaluate(enzyme => window.__DNAGENT_TEST__!.clickSite(enzyme), step.click_site.enzyme);
       await waitIdle();

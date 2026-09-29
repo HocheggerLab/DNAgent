@@ -201,3 +201,44 @@ export function fragmentRange(value: unknown, rank: number, moleculeLength: numb
 export function siteEnzymes(value: unknown): string[] {
   return [...new Set(sitesResult(value).sites.map(site => site.enzyme))].sort(byName);
 }
+
+interface CliMatch { library_id: number; name: string; strand: string; length: number; annotated_as: string[]; location: { parts: CliRegion[] } }
+
+function matchesOf(value: unknown): CliMatch[] {
+  if (!Array.isArray(value)) throw new TransformError('expected the detect-features matches array (path "result.matches")');
+  return value as CliMatch[];
+}
+
+const matchStart = (m: CliMatch) => m.location.parts[0].start;
+
+/** The documented grouping rule: inside the span of a longer match (circular-aware). */
+function containedIn(inner: CliMatch, all: CliMatch[], moleculeLength: number): boolean {
+  return all.some(outer => outer !== inner && outer.length > inner.length
+    && ((matchStart(inner) - matchStart(outer) + moleculeLength) % moleculeLength) + inner.length <= outer.length);
+}
+
+/** Matches → panel rows (engine order): id, name, span, strand, annotated, nested. */
+export function detectionRows(value: unknown, moleculeLength: number) {
+  const all = matchesOf(value);
+  return all.map(m => ({ library_id: m.library_id, name: m.name, start: matchStart(m), length: m.length, strand: m.strand,
+    annotated: m.annotated_as.length > 0, contained: containedIn(m, all, moleculeLength) }));
+}
+
+/** Ticked by default: not annotated and not nested in a longer match → [{library_id, start}]. */
+export function defaultDetections(value: unknown, moleculeLength: number) {
+  const all = matchesOf(value);
+  return all.filter(m => m.annotated_as.length === 0 && !containedIn(m, all, moleculeLength)).map(m => ({ library_id: m.library_id, start: matchStart(m) }));
+}
+
+/** Spans of matches not yet annotated, by start then longer first (the map's proposal arcs). */
+export function detectionSpansNew(value: unknown) {
+  return matchesOf(value).filter(m => m.annotated_as.length === 0).map(m => ({ start: matchStart(m), length: m.length }))
+    .sort((a, b) => a.start - b.start || b.length - a.length);
+}
+
+/** The first match named `label` → its selection range. */
+export function detectionRange(value: unknown, label: string, moleculeLength: number, circular: boolean) {
+  const match = matchesOf(value).find(m => m.name === label);
+  if (!match) throw new TransformError(`detection_range: no match named ${JSON.stringify(label)}`);
+  return spanRange(matchStart(match), match.length, moleculeLength, circular);
+}

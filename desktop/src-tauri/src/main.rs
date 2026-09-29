@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 use dnagent_desktop_api::Diagnostic;
+use dnagent_desktop_api::detection::DetectionResult;
 use dnagent_desktop_api::restriction::{EnzymeCatalogueInfo, EnzymeCount, Fragment, Site};
 use dnagent_desktop_api::session::{
     DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session,
@@ -87,6 +88,16 @@ fn default_workspace() -> String {
 }
 
 #[tauri::command]
+async fn detect_features(state: State<'_, AppSession>, document_id: u32) -> Result<DetectionResult, Diagnostic> {
+    with_session(state, move |s| s.detect_features(document_id)).await
+}
+
+#[tauri::command]
+async fn add_features(state: State<'_, AppSession>, document_id: u32, requests: Vec<FeatureRequest>) -> Result<DocumentState, Diagnostic> {
+    with_session(state, move |s| s.add_features(document_id, &requests)).await
+}
+
+#[tauri::command]
 fn enzyme_catalogue() -> EnzymeCatalogueInfo {
     dnagent_desktop_api::restriction::catalogue_info()
 }
@@ -115,7 +126,7 @@ fn main() {
         .manage(AppSession::default())
         .invoke_handler(tauri::generate_handler![
             open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
-            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest
+            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features
         ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

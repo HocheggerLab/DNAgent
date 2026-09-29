@@ -1,0 +1,193 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "detect-features-add-undo",
+  "description": "Detect features on an unannotated sequence: proposals, default ticks and map arcs match `dnagent detect-features`; ticked proposals are added as one undoable edit and then count as annotated",
+  "fixture": "fixtures/formats/fasta/pUC19_M77789.fasta",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "click": {
+        "testid": "detect-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.available",
+          "equals": true
+        },
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows"
+          },
+          "message": "one row per engine match, in engine order"
+        },
+        {
+          "state": "detect.checked",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "default_detections"
+          },
+          "message": "new, un-nested proposals start ticked"
+        },
+        {
+          "state": "detect.map",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_spans_new"
+          },
+          "message": "every new proposal is drawn on the map"
+        },
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "toggle_detection": {
+        "name": "Lac-operon"
+      },
+      "note": "also add a nested one"
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.add_label",
+          "equals": "Add 5 features"
+        }
+      ]
+    },
+    {
+      "select_detection": {
+        "name": "M13mp19"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "range"
+        },
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": {
+              "name": "detection_range",
+              "label": "M13mp19"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "detect.unticked_new_names",
+        "as": "unticked"
+      }
+    },
+    {
+      "click": {
+        "testid": "detect-add"
+      }
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/detect-features-add-undo/annotated.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.dirty",
+          "equals": false
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].label"
+          },
+          "message": "the list shows what was saved"
+        },
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows",
+            "saved": true
+          },
+          "message": "re-detection after adding agrees with the engine on the saved file"
+        },
+        {
+          "state": "detect.new_names",
+          "equals_cli": {
+            "command": "detect-features",
+            "saved": true,
+            "args": [
+              "--new-only"
+            ],
+            "path": "result.matches[*].name"
+          },
+          "message": "only unticked proposals remain new"
+        },
+        {
+          "state": "detect.map",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_spans_new",
+            "saved": true
+          }
+        },
+        {
+          "state": "detect.new_names",
+          "equals_memory": "unticked",
+          "message": "exactly the ticked proposals were added, with their exact spans"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "press": "Meta+z"
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.added_feature_ids",
+          "equals": [],
+          "message": "one undo removes every added feature"
+        },
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows"
+          }
+        }
+      ]
+    }
+  ]
+}

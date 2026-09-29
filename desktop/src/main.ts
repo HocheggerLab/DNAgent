@@ -1,12 +1,13 @@
 import type { Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Site } from './bindings';
 import { enzymesInSet, loadChoice, openChooser, renderDigest, saveChoice, type EnzymeSet } from './enzymes';
+import { defaultChecked, renderDetection, requestsFor, type Detection } from './detect';
 import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
 import {
-  closeDocument, defaultWorkspace, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
+  addFeatures, closeDocument, defaultWorkspace, detectFeatures, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
   pickWorkspace, pollFiles, redo, removeFeature, saveGenbank, undo, writeHandoff,
 } from './ipc';
-import { renderMap, type MapSite } from './map-view';
+import { renderMap, type MapProposal, type MapSite } from './map-view';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
 import { initTheme } from './theme';
 import './style.css';
@@ -249,6 +250,81 @@ element('digest-run').onclick = () => void runDigest();
 void enzymeCatalogue().then(value => { catalogue = value; render(); })
   .catch(error => { element('status').textContent = `Enzyme catalogue unavailable: ${errorMessage(error)}`; });
 
+// ------------------------------------------------------------------ detect features
+
+/** Open detection per document; the panel shows the active document's. */
+const detections = new Map<number, Detection>();
+
+async function runDetection(announce = true) {
+  if (!edit) return;
+  const documentId = edit.document_id;
+  const previous = detections.get(documentId);
+  try {
+    const result = await detectFeatures(documentId);
+    // Keep the user's ticks for proposals that are still offered; new ones get the default.
+    const defaults = defaultChecked(result);
+    const checked = previous
+      ? new Set(result.proposals.filter(p => previous.result.proposals.some(q => q.key === p.key) ? previous.checked.has(p.key) && p.annotated_as.length === 0 : defaults.has(p.key)).map(p => p.key))
+      : defaults;
+    detections.set(documentId, { documentId, result, checked });
+    if (announce) {
+      element('status').textContent = result.available
+        ? `${result.proposals.length} library feature${result.proposals.length === 1 ? '' : 's'} found (${result.proposals.filter(p => p.annotated_as.length).length} already annotated)`
+        : result.message;
+    }
+  } catch (error) {
+    element('status').textContent = `Detect features failed: ${errorMessage(error)}`;
+  }
+  render();
+}
+
+function renderDetectPanel() {
+  const detection = edit ? detections.get(edit.document_id) : undefined;
+  element<HTMLButtonElement>('detect-run').disabled = !edit;
+  element('detect-panel').hidden = !detection;
+  if (!detection) return;
+  const { result, checked } = detection;
+  const annotated = result.proposals.filter(p => p.annotated_as.length).length;
+  element('detect-summary').textContent = !result.available ? result.message
+    : result.proposals.length === 0 ? `No library features found (${result.message}, ≥ ${result.min_length} bp).`
+      : `${result.proposals.length} found · ${annotated} already annotated · ${checked.size} ticked`;
+  renderDetection(element('detect-list'), detection, {
+    toggle: key => { if (!checked.delete(key)) checked.add(key); render(); },
+    select: p => selectRange(p.start, p.length),
+  });
+  const add = element<HTMLButtonElement>('detect-add');
+  add.disabled = checked.size === 0;
+  add.textContent = `Add ${checked.size} feature${checked.size === 1 ? '' : 's'}`;
+}
+
+function mapProposals(): MapProposal[] {
+  const detection = edit ? detections.get(edit.document_id) : undefined;
+  if (!detection) return [];
+  return detection.result.proposals.filter(p => p.annotated_as.length === 0).map(p => ({
+    key: p.key, start: p.start, length: p.length, strand: p.strand, checked: detection.checked.has(p.key),
+    color: featureColor({ id: p.key, label: p.name, kind: p.kind, color: p.color, strand: p.strand, parts: [] }),
+    select: () => selectRange(p.start, p.length),
+  }));
+}
+
+async function addDetected() {
+  if (!edit || !current) return;
+  const detection = detections.get(edit.document_id);
+  if (!detection || detection.checked.size === 0) return;
+  const requests = requestsFor(detection, current.sequence.length);
+  const documentId = edit.document_id;
+  try {
+    applyState(await addFeatures(documentId, requests));
+    element('status').textContent = `Added ${requests.length} feature${requests.length === 1 ? '' : 's'} from the library (one undo step; Save writes GenBank)`;
+  } catch (error) {
+    element('status').textContent = `Add features failed: ${errorMessage(error)}`;
+  }
+}
+
+element('detect-run').onclick = () => void runDetection();
+element('detect-close').onclick = () => { if (edit) detections.delete(edit.document_id); render(); };
+element('detect-add').onclick = () => void addDetected();
+
 function render() {
   stash();
   renderDocTabs();
@@ -258,6 +334,7 @@ function render() {
   const length = doc.sequence.length;
   const shown = shownEnzymes();
   renderEnzymeControls(shown);
+  renderDetectPanel();
   const active = doc.features.find(f => f.id === selected);
   const activeOrf = selectedOrf === null ? undefined : doc.orfs.find(o => o.id === selectedOrf);
   document.body.dataset.tab = activeTab;
@@ -288,13 +365,13 @@ function render() {
   element<HTMLButtonElement>('save-as').disabled = !edit;
   if (activeTab === 'map') {
     const report = renderMap(element<HTMLElement>('map') as unknown as SVGSVGElement, doc, selected, select,
-      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf, range, sites: mapSites(shown?.sites ?? []) });
+      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf, range, sites: mapSites(shown?.sites ?? []), proposals: mapProposals() });
     unlabelled = { doc, ids: new Set(report.unlabelled) };
     const notice = element('map-notice');
     const count = unlabelled.ids.size;
     const orfCount = report.undrawnOrfs.length;
     const siteCount = report.unlabelledSites.length;
-    notice.hidden = count === 0 && orfCount === 0 && siteCount === 0;
+    notice.hidden = count === 0 && orfCount === 0 && siteCount === 0 && report.undrawnProposals.length === 0;
     notice.dataset.unlabelled = String(count);
     notice.dataset.undrawnOrfs = String(orfCount);
     notice.dataset.unlabelledSites = String(siteCount);
@@ -303,6 +380,7 @@ function render() {
       count ? `${count} ${count === 1 ? 'label' : 'labels'} not shown on the map · Show in list` : '',
       orfCount ? `${orfCount} ORF${orfCount === 1 ? '' : 's'} not drawn (no room; listed in Sequence)` : '',
       siteCount ? `${siteCount} enzyme label${siteCount === 1 ? '' : 's'} not shown (ticks drawn)` : '',
+      report.undrawnProposals.length ? `${report.undrawnProposals.length} detected feature${report.undrawnProposals.length === 1 ? '' : 's'} not drawn (listed in Detected)` : '',
     ].filter(Boolean).join(' · ');
     notice.onclick = showUnlabelled;
   }
@@ -422,6 +500,8 @@ function applyState(state: DocumentState, selectId?: string) {
   if (selected && !current.features.some(f => f.id === selected)) selected = null;
   if (selectedOrf && !current.orfs.some(o => o.id === selectedOrf)) selectedOrf = null;
   render();
+  // Edits change which proposals are already annotated.
+  if (detections.has(state.edit.document_id)) void runDetection(false);
 }
 
 async function runEdit(label: string, action: () => Promise<DocumentState>) {
@@ -550,7 +630,8 @@ function activateDoc(index: number) {
 function clearView() {
   current = null; edit = null; selected = null; selectedOrf = null; range = null; anchor = null;
   element('title').textContent = 'No construct loaded';
-  for (const id of ['features', 'sequence', 'warnings', 'primer-list', 'digest-fragments']) element(id).replaceChildren();
+  for (const id of ['features', 'sequence', 'warnings', 'primer-list', 'digest-fragments', 'detect-list']) element(id).replaceChildren();
+  element('detect-panel').hidden = true; element<HTMLButtonElement>('detect-run').disabled = true;
   element('enzyme-summary').textContent = ''; element('digest-summary').textContent = '';
   element<HTMLButtonElement>('digest-run').disabled = true;
   (element('map') as unknown as SVGSVGElement).replaceChildren();
@@ -748,6 +829,7 @@ if (import.meta.env.MODE === 'e2e') {
     () => ({ current, edit, selected, selectedOrf, range, options, activeTab, workspace, notices, lastHandoff,
       enzymes: { set: choice.set, catalogue, shown: current ? shownEnzymes()?.names ?? null : null,
         digest: digestResult && edit && digestResult.documentId === edit.document_id ? digestResult : null },
+      detection: edit ? detections.get(edit.document_id) ?? null : null,
       tabs: docTabs.map((tab, index) => ({ document_id: tab.edit.document_id, name: tab.current.name, path: tab.path, dirty: tab.edit.dirty, active: index === activeDoc })) }),
     { pollWorkspace }));
 }

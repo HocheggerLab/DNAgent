@@ -1,0 +1,62 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "detect-features-annotated",
+  "description": "On an annotated construct every proposal is marked as already annotated, nothing is ticked or drawn, and the panel closes",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "click": {
+        "testid": "detect-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows"
+          }
+        },
+        {
+          "state": "detect.checked",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "default_detections"
+          }
+        },
+        {
+          "state": "detect.map",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_spans_new"
+          }
+        },
+        {
+          "state": "detect.add_label",
+          "equals": "Add 0 features"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "detect-close"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect",
+          "equals": null
+        }
+      ]
+    }
+  ]
+}

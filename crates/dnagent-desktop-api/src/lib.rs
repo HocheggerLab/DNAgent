@@ -119,6 +119,7 @@ fn u32_of(value: usize) -> u32 {
 /// Prototype limit bounds frontend rendering; not a biological restriction.
 const MAX_BASES: usize = 100_000;
 
+pub mod detection;
 pub mod restriction;
 pub mod session;
 
@@ -314,6 +315,8 @@ pub fn typescript() -> String {
         session::HandoffItem::decl(),
         session::HandoffResult::decl(),
         session::FileStamp::decl(),
+        detection::Proposal::decl(),
+        detection::DetectionResult::decl(),
         restriction::EnzymeInfo::decl(),
         restriction::EnzymeCatalogueInfo::decl(),
         restriction::EnzymeCount::decl(),

@@ -68,6 +68,7 @@ Every command dispatches the same event a user would. None of them sets app stat
 | `clickSequenceBase(i)` | Clicks forward-strand base `i` (Sequence tab only). |
 | `clickSite(enzyme)` | Clicks the enzyme's map label or first sequence site box. |
 | `chooseEnzymes(names)` | Opens **Choose…**, ticks exactly `names`, confirms. |
+| `toggleDetection(name)` / `selectDetection(name)` | Clicks a **Detected** row's tick box / label. |
 | `getState()` | JSON snapshot (below). |
 
 `getState()` fields (see `AppState` in `src/testing/automation.ts`):
@@ -128,6 +129,10 @@ Every command dispatches the same event a user would. None of them sets app stat
   (`{top, bottom}` positions carrying a cut mark); `digest`: `{summary, fragments:
   [{start, length}] by start, enzymes}`. Site labels count in the map's overlap,
   viewport and notice checks, and `map.notice_count` counts features only.
+- `detect` (null while the Detected panel is closed): `available`, `summary`,
+  `add_label`, `rows` (from the rows' data and badges), `checked` (`{library_id,
+  start}` of ticked rows), `new_names`, `unticked_new_names`, and on the Map tab `map` /
+  `map_checked` (the drawn proposal arcs).
 
 All coordinates are zero-based and half-open, matching the JSON contract.
 
@@ -185,6 +190,8 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `run_cli: {args}` | Play the agent: run the real `dnagent` CLI from the repository root; it must succeed. |
 | `click_site: {enzyme}` | Click the enzyme's site label (Map) or first site box (Sequence). |
 | `choose_enzymes: {names}` | Open **Choose…**, tick exactly these enzymes and confirm. |
+| `toggle_detection: {name}` | Click the tick box of the first **Detected** row with this name. |
+| `select_detection: {name}` | Click the first **Detected** row with this name (selects its span). |
 
 `select_feature` also takes `extend: true` (shift-click), `click` takes
 `modifiers: ["Shift"]`, and `open` takes `saved: true` or `file: <path under
@@ -221,12 +228,14 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
 - `equals_cli: {command, args?, path | one, transform?, index?, fixture?}`: runs
   `dnagent <command> <fixture> <args…> --output json`. `fixture` defaults to the most
   recently opened one. `command` is `inspect`, `features`, `primers`, `translate`,
-  `orfs`, `sites`, `digest` or `enzymes` (no input file). `args` are extra CLI
+  `orfs`, `sites`, `digest`, `detect-features` or `enzymes` (no input file). `args` are extra CLI
   arguments, e.g. `["--feature", "feature-0001"]` or `["--min-codons", "30"]`; an
   argument `{"memory": name}` inserts a remembered value (arrays joined with commas),
   e.g. `["--enzymes", {"memory": "shown"}]` for the enzymes the GUI chose to show.
   The CLI, `run_cli` and the e2e server all run with `DNAGENT_ENZYMES=builtin`, so a
-  locally installed REBASE does not change results.
+  locally installed REBASE does not change results, and with
+  `DNAGENT_FEATURE_DB=desktop/e2e/artifacts/feature-library.sqlite`, a feature library
+  that global setup builds from the public fixtures (never your own library).
 - `equals_memory: <name>`: a value stored by an earlier `remember` step.
 - `equals_cli.saved: true` runs the CLI on the file written by the last `save_as`, and
   `equals_cli.file` on any file under `desktop/e2e/artifacts` (snapshots, agent products).
@@ -238,7 +247,7 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
 - `equals: <literal>`: **rejected on biological paths** (`document.*`, `features*`,
   `selection.map*`, `selection.sequence*`, `warnings` counts and codes, `primers.count`,
   `enzymes.shown`, `enzymes.catalogue.names|count`, `enzymes.map.ticks|labels`,
-  `enzymes.sequence*`, `enzymes.digest.fragments|enzymes`).
+  `enzymes.sequence*`, `enzymes.digest.fragments|enzymes`, `detect.rows|checked|new_names|unticked_new_names|map*`).
   `null` is allowed for `document`, `selection.feature_id`, `selection.map` and
   `selection.sequence`. Literals are otherwise for UI state: `idle`, `active_tab`,
   `warnings.open`, `warnings.present`, `path_input`.
@@ -269,6 +278,10 @@ Transforms (`e2e/lib/transforms.ts`) are format adapters in test code only:
 | `site_cuts` | `sites` result → `{top, bottom}` cut boundaries that have a base after them |
 | `recognition_range` | one site → the half-open selection range of its recognition sequence (wrapping on circles) |
 | `fragment_parts` | `digest` fragments → top-strand `[{start, length}]` by start |
+| `detection_rows` | `detect-features` matches → panel rows `{library_id, name, start, length, strand, annotated, contained}` (contained: inside a longer match, circular-aware) |
+| `default_detections` | matches → `[{library_id, start}]` of new, un-nested matches (the default ticks) |
+| `detection_spans_new` | matches → `[{start, length}]` of new matches, by start then longer first (the map arcs) |
+| `{name: "detection_range", label}` | matches → selection range of the first match with that name |
 | `{name: "fragment_range", rank}` | `digest` fragments → selection range of the fragment at `rank` in list order (longest first) |
 
 ## Adding a scenario
@@ -387,6 +400,15 @@ Sixth round, restriction enzymes (2026-09-29):
 The first run also caught a real layout problem: pUC19's crowded polylinker hid 12 of 25
 site labels at 1440×900. Site labels now use a tighter 17 px slot, which cuts that to 8.
 The scenario checks accounting at that size and the full label list at 1920×1200.
+
+Seventh round, detect features (2026-09-30):
+
+| Injected bug | Caught by |
+| --- | --- |
+| Nested proposals ticked by default | detect-features-add-undo |
+| The panel is not refreshed after an edit | detect-features-add-undo |
+| Annotated proposals not marked | detect-features-add-undo, detect-features-annotated |
+| Added features one base short | detect-features-add-undo, after adding a check: at first the GUI and the CLI on the saved file agreed with each other about the wrong features. The scenario now remembers the unticked proposals and requires exactly those to stay new. |
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the

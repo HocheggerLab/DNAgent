@@ -26,6 +26,22 @@ export interface MapOrfs {
   range?: { start: number; end: number } | null;
   /** Restriction sites to mark, one entry per cut position. */
   sites?: MapSite[];
+  /** Detected library features not yet added: dashed arcs in their own lanes. */
+  proposals?: MapProposal[];
+}
+
+export interface MapProposal { key: string; start: number; length: number; strand: 'forward' | 'reverse' | 'unknown'; color: string; checked: boolean; select: () => void }
+
+const proposalArrow = (p: MapProposal): Arrow => p.strand === 'forward' ? 'forward' : p.strand === 'reverse' ? 'reverse' : 'none';
+
+function proposalNode(node: Element, p: MapProposal, shape: Shape) {
+  node.setAttribute('tabindex', '0');
+  node.setAttribute('role', 'button');
+  node.addEventListener('click', () => p.select());
+  node.addEventListener('keydown', event => {
+    if (['Enter', ' '].includes((event as KeyboardEvent).key)) { event.preventDefault(); p.select(); }
+  });
+  shape('title', {}, node).textContent = `Detected · [${p.start}, ${p.start + p.length}) · ${p.checked ? 'will be added' : 'not ticked'}`;
 }
 
 /** Enzymes cutting (top strand) at one position; the label reads "EcoRI, ApoI (396)". */
@@ -45,6 +61,8 @@ export interface MapReport {
   undrawnOrfs: string[];
   /** Cut positions whose enzyme label could not be placed (the tick is still drawn). */
   unlabelledSites: number[];
+  /** Detected proposals not drawn for lack of room (still listed in the panel). */
+  undrawnProposals: string[];
 }
 
 let measure: CanvasRenderingContext2D | null = null;
@@ -233,12 +251,37 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
       priority: isSelected ? Number.POSITIVE_INFINITY : totalLength(feature) });
   });
 
-  // ORFs: thin arrows in their own lanes inside the features.
+  // Detected proposals: dashed arrows in lanes just inside the features.
+  const undrawnProposals: string[] = [];
+  const proposals = orfs.proposals ?? [];
+  let proposalDepth = 0;
+  if (proposals.length) {
+    const lanesOf = assignLanes(proposals.map(p => ({ id: p.key, parts: [{ start: p.start, length: p.length }] })), length, true, minPx * basesPerPx, 1.5 * basesPerPx);
+    const pThickness = Math.max(4, Math.min(9, thickness * 0.55));
+    const pOuter = outer - laneCount * (thickness + gap) - 6;
+    const layer = shape('g', { class: 'map-proposals' });
+    featureLayer.after(layer);
+    for (const p of proposals) {
+      const lane = lanesOf.get(p.key) ?? 0;
+      const mid = pOuter - pThickness / 2 - lane * (pThickness + 2);
+      if (mid < radius * 0.25) { undrawnProposals.push(p.key); continue; }
+      proposalDepth = Math.max(proposalDepth, (lane + 1) * (pThickness + 2) + 4);
+      const [a0, a1] = spanAngles({ start: p.start, length: p.length }, mid);
+      const node = shape('path', {
+        d: blockArrowPath(cx, cy, mid, pThickness, a0, a1, proposalArrow(p), pThickness * 1.4),
+        class: `map-proposal${p.checked ? ' checked' : ''}`, style: `--proposal-color:${p.color}`,
+        'data-testid': 'map-proposal', 'data-key': p.key, 'data-start': p.start, 'data-length': p.length,
+      }, layer);
+      proposalNode(node, p, shape);
+    }
+  }
+
+  // ORFs: thin arrows in their own lanes inside the features (and proposals).
   const undrawnOrfs: string[] = [];
   if (orfs.orfs.length) {
     const orfLanes = assignLanes(orfs.orfs.map(orf => ({ id: orf.id, parts: [{ start: orf.start, length: orf.length }] })), length, true, minPx * basesPerPx, 1.5 * basesPerPx);
     const orfThickness = Math.max(3, Math.min(7, thickness * 0.4));
-    const orfOuter = outer - laneCount * (thickness + gap) - 8;
+    const orfOuter = outer - laneCount * (thickness + gap) - 8 - proposalDepth;
     const orfLayer = shape('g', { class: 'map-orfs' });
     featureLayer.before(orfLayer);
     for (const orf of orfs.orfs) {
@@ -312,7 +355,7 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
   }
   const hiddenSet = new Set(hidden);
   return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs,
-    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut) };
+    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut), undrawnProposals };
 }
 
 function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string, extend?: boolean) => void, width: number, height: number, orfs: MapOrfs): MapReport {
@@ -387,6 +430,21 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
     for (const edge of [x0, x1]) shape('line', { x1: edge, y1: backbone + 6, x2: edge, y2: backbone + 26, class: 'map-band-edge' }, bands);
   }
   let orfBottom = top + laneCount * (thickness + gap);
+  const proposals = orfs.proposals ?? [];
+  if (proposals.length) {
+    const lanesOf = assignLanes(proposals.map(p => ({ id: p.key, parts: [{ start: p.start, length: p.length }] })), length, false, minPx * basesPerPx, 1.5 * basesPerPx);
+    const layer = shape('g', { class: 'map-proposals' });
+    const pTop = orfBottom + 6;
+    for (const p of proposals) {
+      const y = pTop + 5 + (lanesOf.get(p.key) ?? 0) * 12;
+      const [x0, x1] = spanX({ start: p.start, length: p.length });
+      const node = shape('path', { d: linearArrowPath(x0, x1, y, 9, proposalArrow(p), 8),
+        class: `map-proposal${p.checked ? ' checked' : ''}`, style: `--proposal-color:${p.color}`,
+        'data-testid': 'map-proposal', 'data-key': p.key, 'data-start': p.start, 'data-length': p.length }, layer);
+      proposalNode(node, p, shape);
+      orfBottom = Math.max(orfBottom, y + 6);
+    }
+  }
   if (orfs.orfs.length) {
     const orfLanes = assignLanes(orfs.orfs.map(orf => ({ id: orf.id, parts: [{ start: orf.start, length: orf.length }] })), length, false, minPx * basesPerPx, 1.5 * basesPerPx);
     const orfLayer = shape('g', { class: 'map-orfs' });
@@ -439,5 +497,5 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
   svg.append(group);
   const hiddenSet = new Set(hidden);
   return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs: [],
-    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut) };
+    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut), undrawnProposals: [] };
 }

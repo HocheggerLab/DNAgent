@@ -13,9 +13,10 @@ const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
 export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
   'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases', 'fill', 'press', 'save_as', 'remember',
-  'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes'] as const;
+  'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes', 'toggle_detection', 'select_detection'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
   | 'site_ticks' | 'site_enzymes' | 'site_labels' | 'site_regions' | 'site_cuts' | 'recognition_range' | 'fragment_parts'
+  | 'detection_rows' | 'default_detections' | 'detection_spans_new' | { name: 'detection_range'; label: string }
   | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' }
   | { name: 'enzyme_set'; set: 'unique6' | 'unique_dual6' | 'unique_any' } | { name: 'fragment_range'; rank: number };
 export type CliArg = string | { memory: string };
@@ -45,7 +46,9 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { poll_workspace: true }
   | { run_cli: { args: string[] } }
   | { click_site: { enzyme: string } }
-  | { choose_enzymes: { names: string[] } });
+  | { choose_enzymes: { names: string[] } }
+  | { toggle_detection: { name: string } }
+  | { select_detection: { name: string } });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**
@@ -61,6 +64,7 @@ const BIOLOGICAL = [
   /^map\.orf_regions/,
   /^selection\.range_translation\.protein/,
   /^dialog\.protein/,
+  /^detect\.(rows|checked|new_names|unticked_new_names|map)/,
   /^enzymes\.(shown|catalogue\.(names|count)|map\.(ticks|labels)|sequence|digest\.(fragments|enzymes))/,
 ];
 

@@ -51,6 +51,10 @@ pub struct FeatureRequest {
     pub label: String,
     pub color: Option<String>,
     pub translate: Option<TranslateRequest>,
+    /// Optional `/note` qualifier.
+    #[serde(default)]
+    #[ts(optional)]
+    pub note: Option<String>,
 }
 
 /// Engine preview of a feature before it is added.
@@ -113,6 +117,7 @@ fn spec_of(request: &FeatureRequest) -> FeatureSpec {
             table: t.table,
             codon_start: t.codon_start,
         }),
+        note: request.note.clone(),
     }
 }
 
@@ -222,6 +227,33 @@ impl Session {
         let mut added = current.added.clone();
         added.insert(feature_id);
         self.push(id, Entry { report, added })
+    }
+
+    /// Add several features as one edit (one undo step), in the given order.
+    pub fn add_features(
+        &mut self,
+        id: u32,
+        requests: &[FeatureRequest],
+    ) -> Result<DocumentState, Diagnostic> {
+        let open = self.open_mut(id)?;
+        let current = &open.history[open.index];
+        let mut report = current.report.clone();
+        let mut added = current.added.clone();
+        for request in requests {
+            let (next, feature_id, _) = editing::add_feature(&report, &spec_of(request))
+                .map_err(|e| diagnostic("edit_failed", format!("{}: {e}", request.label)))?;
+            report = next;
+            added.insert(feature_id);
+        }
+        self.push(id, Entry { report, added })
+    }
+
+    /// Library features found in the document (see `detection`).
+    pub fn detect_features(
+        &self,
+        id: u32,
+    ) -> Result<crate::detection::DetectionResult, Diagnostic> {
+        crate::detection::detect(self.record(id)?)
     }
 
     /// Delete a feature added in this session (imported features are read-only).
@@ -369,6 +401,16 @@ pub fn dispatch(
             let a: FeatureArg = arg(args)?;
             value(session.preview_feature(a.document_id, &a.request))
         }
+        "add_features" => {
+            #[derive(Deserialize)]
+            struct FeaturesArg {
+                document_id: u32,
+                requests: Vec<FeatureRequest>,
+            }
+            let a: FeaturesArg = arg(args)?;
+            value(session.add_features(a.document_id, &a.requests))
+        }
+        "detect_features" => value(session.detect_features(arg::<DocumentArg>(args)?.document_id)),
         "add_feature" => {
             let a: FeatureArg = arg(args)?;
             value(session.add_feature(a.document_id, &a.request))
@@ -450,7 +492,77 @@ mod tests {
                 table: 1,
                 codon_start: 1,
             }),
+            note: None,
         }
+    }
+
+    #[test]
+    fn detected_features_are_added_as_one_undo_step_with_a_note() {
+        let dir =
+            std::env::temp_dir().join(format!("dnagent-session-detect-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let db = dir.join("features.sqlite");
+        let mut library = dnagent_library::Library::open_or_create(&db).unwrap();
+        let genbank = fixture("pUC19_M77789.dna")
+            .parent()
+            .unwrap()
+            .join("../genbank/pUC19_M77789.gb");
+        dnagent_app::library::import_into_library(&mut library, &[genbank], 12).unwrap();
+        let mut session = Session::default();
+        let fasta = fixture("pUC19_M77789.dna")
+            .parent()
+            .unwrap()
+            .join("../fasta/pUC19_M77789.fasta");
+        let opened = session.open(&fasta).unwrap();
+        let id = opened.edit.document_id;
+        let found = crate::detection::detect_with(session.record(id).unwrap(), &db).unwrap();
+        assert!(found.available);
+        assert_eq!(
+            found.proposals.len(),
+            7,
+            "the seven pUC19 GenBank features, none annotated in FASTA"
+        );
+        assert!(found.proposals.iter().all(|p| p.annotated_as.is_empty()));
+        let requests: Vec<FeatureRequest> = found
+            .proposals
+            .iter()
+            .map(|p| FeatureRequest {
+                start: p.start,
+                end: p.start + p.length,
+                strand: p.strand,
+                kind: p.kind.clone(),
+                label: p.name.clone(),
+                color: p.color.clone(),
+                translate: None,
+                note: Some(format!("DNAgent feature library #{}", p.library_id)),
+            })
+            .collect();
+        let state = session.add_features(id, &requests).unwrap();
+        assert_eq!(state.document.features.len(), 7);
+        assert_eq!(state.edit.added_feature_ids.len(), 7);
+        let first = &session.record(id).unwrap().features()[0];
+        assert!(first.qualifiers().iter().any(|q| {
+            q.key == "note"
+                && q.value
+                    .as_deref()
+                    .is_some_and(|v| v.starts_with("DNAgent feature library #"))
+        }));
+        let again = crate::detection::detect_with(session.record(id).unwrap(), &db).unwrap();
+        assert!(
+            again.proposals.iter().all(|p| !p.annotated_as.is_empty()),
+            "now all annotated"
+        );
+        let undone = session.undo(id).unwrap();
+        assert!(
+            undone.document.features.is_empty(),
+            "one undo removes them all"
+        );
+        let missing =
+            crate::detection::detect_with(session.record(id).unwrap(), &dir.join("none.sqlite"))
+                .unwrap();
+        assert!(!missing.available && missing.message.contains("dnagent library import"));
+        assert!(!dir.join("none.sqlite").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -877,6 +989,7 @@ mod handoff_tests {
             label: "unsaved".into(),
             color: None,
             translate: None,
+            note: None,
         };
         session.add_feature(a, &request).unwrap();
         let result = session

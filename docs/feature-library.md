@@ -71,6 +71,23 @@ type, colour, qualifiers, a standard location (`linear` or `circular_arc`) and
 `--new-only` drops those. Nested and overlapping matches are all reported (e.g. "lac
 promoter" and "lac"). Sequences containing N can't match across the N.
 
+## In the desktop app
+
+**Detect** (next to the feature list heading) runs the same detection on the active tab
+and opens the **Detected** panel:
+
+- one row per match, with type, length, position, strand, and "already annotated" or
+  "inside <longer match>";
+- rows that are new and not inside a longer match start ticked. Tick or untick freely;
+- clicking a row selects its span. New matches are drawn on the map as dashed arrows
+  (solid when ticked);
+- **Add N features** adds the ticked ones as a single undoable edit. Each gets the
+  library name, type and colour, a translation for CDSs, and a `/note` naming the
+  library entry. The panel then refreshes, so added matches show as annotated.
+
+Without a library the panel says how to build one. The app reads the library at the
+default location (or `DNAGENT_FEATURE_DB`).
+
 ## Opening files: format by content
 
 Sequence files are read by what they contain, not only by their extension:
@@ -111,6 +128,5 @@ agreed, and 281 detection scans (13,099 matches) equalled the brute-force search
 
 ## Not yet
 
-- Detect features from the desktop app (next).
 - Fuzzy matching for near-identical variants, and grouping of variants.
 - Integration with the lab inventory database.

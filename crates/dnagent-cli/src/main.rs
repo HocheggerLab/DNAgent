@@ -1259,6 +1259,7 @@ fn run_annotate(
             table: args.table,
             codon_start: args.codon_start,
         }),
+        note: None,
     };
     let (next, id, preview) = dnagent_app::editing::add_feature(&report, &spec)?;
     warnings.extend(preview.warnings.iter().cloned());

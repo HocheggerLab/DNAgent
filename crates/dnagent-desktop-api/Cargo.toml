@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 dnagent-app = { path = "../dnagent-app" }
+dnagent-library = { path = "../dnagent-library" }
 dnagent-domain = { path = "../dnagent-domain" }
 serde.workspace = true
 serde_json.workspace = true

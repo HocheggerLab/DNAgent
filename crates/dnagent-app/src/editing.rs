@@ -50,6 +50,8 @@ pub struct FeatureSpec {
     /// When set, the feature becomes a CDS with codon_start, transl_table and a computed
     /// /translation (without the terminal stop, as GenBank does).
     pub translate: Option<TranslateSpec>,
+    /// A `/note` qualifier, e.g. where a detected feature came from.
+    pub note: Option<String>,
 }
 
 /// What a new feature would look like, before it is added.
@@ -200,6 +202,18 @@ fn build_feature(
         }
         None => (Vec::new(), Vec::new(), None),
     };
+    let mut qualifiers = qualifiers;
+    if let Some(note) = spec
+        .note
+        .as_deref()
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+    {
+        qualifiers.push(Qualifier {
+            key: "note".into(),
+            value: Some(note.to_owned()),
+        });
+    }
     let length = location.parts().iter().map(|p| p.length().get()).sum();
     let feature = Feature::new(
         id,
@@ -319,6 +333,7 @@ mod tests {
                 table: 1,
                 codon_start: 1,
             }),
+            note: None,
         }
     }
 

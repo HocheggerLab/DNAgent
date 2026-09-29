@@ -4,7 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type {
-  DocumentState, EnzymeCatalogueInfo, EnzymeCount, FeaturePreview, FeatureRequest, FileStamp, Fragment, HandoffItem, HandoffResult, SaveResult, Site,
+  DetectionResult, DocumentState, EnzymeCatalogueInfo, EnzymeCount, FeaturePreview, FeatureRequest, FileStamp, Fragment, HandoffItem, HandoffResult, SaveResult, Site,
 } from './bindings';
 
 const stub = import.meta.env.MODE === 'e2e' ? import('./testing/stub-backend') : null;
@@ -33,6 +33,8 @@ export const closeDocument = (documentId: number) => call<null>('close_document'
 export const writeHandoff = (workspace: string, items: HandoffItem[]) => call<HandoffResult>('write_handoff', { workspace, items });
 export const pollFiles = (workspace: string, openPaths: string[]) => call<FileStamp[]>('poll_files', { workspace, openPaths });
 export const defaultWorkspace = () => call<string>('default_workspace', {});
+export const detectFeatures = (documentId: number) => call<DetectionResult>('detect_features', { documentId });
+export const addFeatures = (documentId: number, requests: FeatureRequest[]) => call<DocumentState>('add_features', { documentId, requests });
 export const enzymeCatalogue = () => call<EnzymeCatalogueInfo>('enzyme_catalogue', {});
 export const enzymeCounts = (documentId: number) => call<EnzymeCount[]>('enzyme_counts', { documentId });
 export const findSites = (documentId: number, enzymes: string[]) => call<Site[]>('find_sites', { documentId, enzymes });

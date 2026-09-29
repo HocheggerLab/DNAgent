@@ -46,7 +46,9 @@ view. **Enzymes** chooses which restriction sites to show (unique 6+ cutters by 
 set of your own via **Choose…**). Sites appear as ticks and labels on the map and as a
 *sites* row with cut marks in the Sequence view; clicking one selects its recognition
 sequence. **Digest** lists the fragments; click one to select it
-([details](../docs/restriction.md#desktop-display)). All of these come from the Rust engine. Map labels
+([details](../docs/restriction.md#desktop-display)). **Detect** finds parts from your feature library
+(`dnagent library import <folder>`) in the open construct; tick the ones you want and
+**Add** them in one undoable step ([details](../docs/feature-library.md#in-the-desktop-app)). All of these come from the Rust engine. Map labels
 and arrows show feature identity and each part's strand direction. Imported colours
 are retained where available. Expand the import-warning panel to review fidelity limits.
 

@@ -21,6 +21,7 @@ export interface ModelView {
   lastHandoff: { prompt: string; context_path: string } | null;
   tabs: { document_id: number; name: string; path: string; dirty: boolean; active: boolean }[];
   enzymes: { set: string; catalogue: EnzymeCatalogueInfo | null; shown: string[] | null; digest: { enzymes: string[]; fragments: Fragment[] } | null };
+  detection: { result: { available: boolean } } | null;
 }
 
 export interface Hooks { pollWorkspace: () => Promise<void> }
@@ -116,6 +117,22 @@ export interface AppState {
     };
     digest: { summary: string; fragments: { start: number; length: number }[]; enzymes: string[] | null };
   };
+  /** Detect features panel, read from the DOM; null while it is closed. */
+  detect: null | {
+    available: boolean; summary: string; add_label: string;
+    /** Rows in panel order: library id, displayed name, span, strand and badges. */
+    rows: { library_id: number; name: string; start: number; length: number; strand: string; annotated: boolean; contained: boolean }[];
+    /** Ticked rows as {library_id, start}. */
+    checked: { library_id: number; start: number }[];
+    /** Names of rows not yet annotated. */
+    new_names: string[];
+    /** Names of rows not yet annotated and not ticked (what should stay new after adding). */
+    unticked_new_names: string[];
+    /** Proposal arcs drawn on the map (Map tab only), by start then longer first. */
+    map: { start: number; length: number }[] | null;
+    /** Map arcs drawn as ticked, as {start, length}. */
+    map_checked: { start: number; length: number }[] | null;
+  };
   warnings: { present: boolean; count_shown: number; items: number; codes: string[]; open: boolean };
   primers: { count: number; summary: string };
 }
@@ -168,6 +185,31 @@ const unique = (ids: string[]) => ids.filter((id, index) => ids.indexOf(id) === 
 
 function intersects(a: DOMRect, b: DOMRect): boolean {
   return a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+}
+
+function detectState(panels: string[]): AppState['detect'] {
+  if (document.getElementById('detect-panel')!.hidden) return null;
+  const rows = byTestId('detect-row').map(row => ({
+    library_id: Number(row.dataset.libraryId), name: row.querySelector('[data-testid="detect-name"]')!.textContent ?? '',
+    start: Number(row.dataset.start), length: Number(row.dataset.length), strand: row.dataset.strand ?? '',
+    annotated: row.classList.contains('annotated'),
+    contained: (row.querySelector('.detail')?.textContent ?? '').includes(' inside '),
+  }));
+  const ticked = byTestId('detect-row').map(row => (row.querySelector('input') as HTMLInputElement).checked);
+  const arcs = [...document.querySelectorAll<SVGElement>('#map [data-testid="map-proposal"]')]
+    .map(n => ({ start: Number(n.dataset.start), length: Number(n.dataset.length), checked: n.classList.contains('checked') }))
+    .sort((a, b) => a.start - b.start || b.length - a.length);
+  return {
+    available: !(document.getElementById('detect-summary')!.textContent ?? '').startsWith('No feature library'),
+    summary: document.getElementById('detect-summary')!.textContent ?? '',
+    add_label: document.getElementById('detect-add')!.textContent ?? '',
+    rows,
+    checked: rows.filter((_, i) => ticked[i]).map(r => ({ library_id: r.library_id, start: r.start })),
+    new_names: rows.filter(r => !r.annotated).map(r => r.name),
+    unticked_new_names: rows.filter((r, i) => !r.annotated && !ticked[i]).map(r => r.name),
+    map: panels.includes('map') ? arcs.map(({ start, length }) => ({ start, length })) : null,
+    map_checked: panels.includes('map') ? arcs.filter(a => a.checked).map(({ start, length }) => ({ start, length })) : null,
+  };
 }
 
 function enzymeState(model: ModelView, panels: string[]): AppState['enzymes'] {
@@ -419,6 +461,7 @@ export function getState(model: ModelView): AppState {
       open: details?.open ?? false,
     },
     enzymes: enzymeState(model, panels),
+    detect: detectState(panels),
     primers: { count: byTestId('primer-item').length, summary: document.getElementById('primer-summary')!.textContent ?? '' },
   };
 }
@@ -437,6 +480,10 @@ export interface AutomationApi {
   selectOrf(orfId: string): void;
   /** Click the map label (Map tab) or the first site track (Sequence tab) of `enzyme`. */
   clickSite(enzyme: string): void;
+  /** Click the tick box of the first Detected row named `name`. */
+  toggleDetection(name: string): void;
+  /** Click the first Detected row named `name` (selects it). */
+  selectDetection(name: string): void;
   /** Tick exactly these enzymes in the chooser and confirm (opens it via Choose…). */
   chooseEnzymes(names: string[]): void;
   getState(): AppState;
@@ -490,6 +537,14 @@ export function install(model: () => ModelView, hooks: Hooks) {
         .find(item => item.getClientRects().length > 0 && (item.dataset.enzymes ?? item.dataset.enzyme ?? '').split(',').includes(enzyme));
       if (!node) throw new Error(`e2e: no visible site label or track for ${enzyme}`);
       node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    },
+    toggleDetection(name: string) {
+      const row = byTestId('detect-row').find(r => r.querySelector('[data-testid="detect-name"]')?.textContent === name);
+      required(row, `Detected row ${name}`).querySelector<HTMLInputElement>('input')!.click();
+    },
+    selectDetection(name: string) {
+      const row = byTestId('detect-row').find(r => r.querySelector('[data-testid="detect-name"]')?.textContent === name);
+      required(row?.querySelector<HTMLElement>('[data-testid="detect-select"]'), `Detected row ${name}`).click();
     },
     chooseEnzymes(names: string[]) {
       required(byTestId('enzyme-choose')[0], 'Choose… button').click();

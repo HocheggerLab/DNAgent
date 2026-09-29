@@ -63,7 +63,10 @@
             "site_cuts",
             "recognition_range",
             "fragment_parts",
-            "site_enzymes"
+            "site_enzymes",
+            "detection_rows",
+            "default_detections",
+            "detection_spans_new"
           ]
         },
         {
@@ -148,6 +151,23 @@
             }
           },
           "description": "From a `digest` result: the half-open range of the fragment at this rank (longest first, then by start), as the digest list orders them."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "label"
+          ],
+          "properties": {
+            "name": {
+              "const": "detection_range"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "description": "From detect-features matches: the selection range of the first match with this name."
         }
       ]
     },
@@ -179,7 +199,8 @@
             "orfs",
             "sites",
             "digest",
-            "enzymes"
+            "enzymes",
+            "detect-features"
           ]
         },
         "fixture": {
@@ -980,6 +1001,64 @@
                 }
               },
               "description": "Open Choose…, tick exactly these enzymes and confirm."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "toggle_detection"
+          ],
+          "properties": {
+            "toggle_detection": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "description": "Click the tick box of the first Detected row with this name."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_detection"
+          ],
+          "properties": {
+            "select_detection": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "description": "Click the first Detected row with this name (selects its span)."
             },
             "screenshot": {
               "type": "boolean"
