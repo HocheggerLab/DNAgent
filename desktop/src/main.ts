@@ -356,7 +356,7 @@ function render() {
   }
   const added = new Set(edit?.added_feature_ids ?? []);
   element('new-feature').hidden = range === null;
-  element('delete-feature').hidden = !(selected && added.has(selected));
+  element('delete-feature').hidden = !selected;
   element('dirty').hidden = !edit?.dirty;
   document.title = `DNAgent — ${doc.name}${edit?.dirty ? ' •' : ''}`;
   element<HTMLButtonElement>('undo').disabled = !edit?.can_undo;
@@ -543,10 +543,33 @@ function newFeature() {
   });
 }
 
-function deleteSelected() {
-  if (!edit || !selected || !edit.added_feature_ids.includes(selected)) return;
-  const [documentId, featureId] = [edit.document_id, selected];
-  void runEdit(`Deleted ${featureId}`, () => removeFeature(documentId, featureId));
+/** In-app confirmation (native confirm() is unreliable in the desktop web view). Resolves true on OK. */
+function confirmAction(title: string, message: string, ok: string): Promise<boolean> {
+  const dialog = element<HTMLDialogElement>('confirm-dialog');
+  element('confirm-title').textContent = title;
+  element('confirm-message').textContent = message;
+  element('confirm-ok').textContent = ok;
+  return new Promise(resolve => {
+    const finish = (answer: boolean) => { dialog.onclose = null; if (dialog.open) dialog.close(); resolve(answer); };
+    element('confirm-cancel').onclick = () => finish(false);
+    dialog.querySelector('form')!.onsubmit = event => { event.preventDefault(); finish(true); };
+    dialog.onclose = () => finish(false); // Escape
+    dialog.showModal();
+    element('confirm-ok').focus();
+  });
+}
+
+async function deleteSelected() {
+  if (!edit || !selected || !current) return;
+  const feature = current.features.find(f => f.id === selected);
+  if (!feature) return;
+  const [documentId, featureId, name] = [edit.document_id, selected, feature.label || feature.kind];
+  const imported = !edit.added_feature_ids.includes(featureId);
+  const confirmed = await confirmAction(`Delete “${name}”?`,
+    `${imported ? 'This feature came with the file. ' : ''}The ${feature.kind} at ${feature.parts.map(p => `[${p.start}, ${p.start + p.length})`).join(', ')} is removed from this construct; the file changes only when you save. Undo (⌘Z) restores it.`,
+    'Delete feature');
+  if (!confirmed) { element('status').textContent = `Kept ${name}`; return; }
+  await runEdit(`Deleted ${name} (${featureId}) · ⌘Z to undo`, () => removeFeature(documentId, featureId));
 }
 
 element('undo').onclick = () => { if (edit?.can_undo) void runEdit('Undone', () => undo(edit!.document_id)); };
@@ -554,11 +577,11 @@ element('redo').onclick = () => { if (edit?.can_redo) void runEdit('Redone', () 
 element('save').onclick = () => void save(false);
 element('save-as').onclick = () => void save(true);
 element('new-feature').onclick = newFeature;
-element('delete-feature').onclick = deleteSelected;
+element('delete-feature').onclick = () => void deleteSelected();
 bindFeatureDialog(message => { element('status').textContent = `Add feature failed: ${message}`; });
 document.addEventListener('keydown', event => {
   const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement;
-  if ((element<HTMLDialogElement>('feature-dialog')).open || element<HTMLDialogElement>('enzyme-dialog').open) return;
+  if (['feature-dialog', 'enzyme-dialog', 'confirm-dialog'].some(id => element<HTMLDialogElement>(id).open)) return;
   const command = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
   if (command && event.shiftKey && key === 'c') { event.preventDefault(); void handoff(); return; }
@@ -566,7 +589,7 @@ document.addEventListener('keydown', event => {
   if (command && key === 'z') { event.preventDefault(); (event.shiftKey ? element('redo') : element('undo')).click(); }
   else if (command && key === 'y') { event.preventDefault(); element('redo').click(); }
   else if (command && key === 's') { event.preventDefault(); void save(event.shiftKey); }
-  else if (!typing && !command && (event.key === 'Delete' || event.key === 'Backspace')) deleteSelected();
+  else if (!typing && !command && (event.key === 'Delete' || event.key === 'Backspace')) { event.preventDefault(); void deleteSelected(); }
 });
 
 function renderDocumentChrome(doc: Document) {
@@ -646,7 +669,7 @@ async function closeDoc(index: number) {
   const tab = docTabs[index];
   if (!tab) return;
   if (index === activeDoc) stash();
-  if (tab.edit.dirty && !window.confirm(`Discard unsaved changes to ${tab.current.name}?`)) return;
+  if (tab.edit.dirty && !await confirmAction(`Close “${tab.current.name}”?`, 'It has unsaved changes, which will be lost.', 'Discard changes')) return;
   try { await closeDocument(tab.edit.document_id); } catch { /* already gone */ }
   docTabs.splice(index, 1);
   if (docTabs.length === 0) { activeDoc = -1; clearView(); return; }

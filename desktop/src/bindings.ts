@@ -58,7 +58,7 @@ revision: number, can_undo: boolean, can_redo: boolean,
  */
 dirty: boolean,
 /**
- * Features added in this session (the only ones that can be deleted).
+ * Features added in this session (marked "added" in the list).
  */
 added_feature_ids: Array<string>, source_path: string,
 /**

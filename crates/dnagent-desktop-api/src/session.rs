@@ -20,7 +20,7 @@ pub struct EditState {
     pub can_redo: bool,
     /// Changes since opening or the last save.
     pub dirty: bool,
-    /// Features added in this session (the only ones that can be deleted).
+    /// Features added in this session (marked "added" in the list).
     pub added_feature_ids: Vec<String>,
     pub source_path: String,
     /// Last GenBank save of this session, if any.
@@ -256,7 +256,7 @@ impl Session {
         crate::detection::detect(self.record(id)?)
     }
 
-    /// Delete a feature added in this session (imported features are read-only).
+    /// Delete a feature (imported or added); undo restores it.
     pub fn remove_feature(
         &mut self,
         id: u32,
@@ -264,14 +264,6 @@ impl Session {
     ) -> Result<DocumentState, Diagnostic> {
         let open = self.open_mut(id)?;
         let current = &open.history[open.index];
-        if !current.added.contains(feature_id) {
-            return Err(diagnostic(
-                "edit_failed",
-                format!(
-                    "{feature_id} was not added in this session; imported features are read-only"
-                ),
-            ));
-        }
         let report = editing::remove_feature(&current.report, feature_id)
             .map_err(|e| diagnostic("edit_failed", e))?;
         let mut added = current.added.clone();
@@ -603,15 +595,32 @@ mod tests {
     }
 
     #[test]
-    fn only_added_features_can_be_removed_and_saving_clears_dirty() {
+    fn any_feature_can_be_removed_and_undone_and_saving_clears_dirty() {
         let mut session = Session::default();
-        let id = session
-            .open(&fixture("synthetic_translation.dna"))
-            .unwrap()
-            .edit
-            .document_id;
+        let opened = session.open(&fixture("synthetic_translation.dna")).unwrap();
+        let id = opened.edit.document_id;
+        let imported = opened.document.features.len();
+        let removed = session.remove_feature(id, "feature-0001").unwrap();
         assert_eq!(
-            session.remove_feature(id, "feature-0001").unwrap_err().code,
+            removed.document.features.len(),
+            imported - 1,
+            "imported features can be deleted"
+        );
+        assert!(
+            removed
+                .document
+                .features
+                .iter()
+                .all(|f| f.id != "feature-0001")
+        );
+        let restored = session.undo(id).unwrap();
+        assert_eq!(restored.document.features.len(), imported);
+        assert_eq!(
+            restored.document.features[0].id, "feature-0001",
+            "undo restores it in place"
+        );
+        assert_eq!(
+            session.remove_feature(id, "missing").unwrap_err().code,
             "edit_failed"
         );
         let added = session.add_feature(id, &request(0, 9, false)).unwrap();

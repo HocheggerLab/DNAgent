@@ -170,3 +170,5 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:10px 0 0;paddin
 /* With Detected open, the feature list shrinks to its content and the panel takes the rest. */
 aside:has(#detect-panel:not([hidden])) #features{flex:0 1 auto;min-height:60px}
 aside:has(#detect-panel:not([hidden])) #detect-panel{flex:1 1 auto;max-height:none}
+#confirm-dialog{width:min(460px,92vw)}#confirm-message{font-size:13px;color:var(--muted);line-height:1.45}
+button.danger{background:#c9372c;border-color:#c9372c;color:#fff}button.danger:hover{background:#a92c23;border-color:#a92c23}

@@ -99,6 +99,13 @@
     <menu><button type="button" id="enzyme-clear" data-testid="enzyme-clear">Clear all</button><button type="button" id="enzyme-cancel" data-testid="enzyme-cancel">Cancel</button><button id="enzyme-done" data-testid="enzyme-done" value="done">Show these</button></menu>
   </form>
 </dialog>
+<dialog id="confirm-dialog" data-testid="confirm-dialog" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <h3 id="confirm-title" data-testid="confirm-title"></h3>
+    <p id="confirm-message" data-testid="confirm-message"></p>
+    <menu><button type="button" id="confirm-cancel" data-testid="confirm-cancel">Cancel</button><button id="confirm-ok" data-testid="confirm-ok" value="ok" class="danger"></button></menu>
+  </form>
+</dialog>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

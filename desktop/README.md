@@ -18,7 +18,8 @@ npm run tauri dev
 (forward from the first, through the origin on circular molecules), or drag across bases.
 **New feature…** adds an annotation with a live engine preview; tick **Translate** to make
 a CDS (with genetic code and codon start), which then shows its amino acids. Undo/Redo
-(⌘Z/⇧⌘Z) and **Delete feature** (for features added in this session) work as expected.
+(⌘Z/⇧⌘Z) and **Delete feature** work as expected. Delete or Backspace deletes the selected feature
+(imported or added) after a warning; ⌘Z restores it.
 **Save** / **Save as…** (⌘S) write GenBank, including everything DNAgent read from the
 original; `.dna` files are never modified. GenBank files open like `.dna` files.
 

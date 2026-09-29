@@ -216,7 +216,29 @@
         "testid": "doc-tab-close",
         "index": 0
       },
-      "note": "closing the edited tab asks first (accepted)"
+      "note": "closing the edited tab asks first"
+    },
+    {
+      "expect": [
+        {
+          "state": "confirm.open",
+          "equals": true
+        },
+        {
+          "state": "confirm.ok",
+          "equals": "Discard changes"
+        },
+        {
+          "state": "tab_count",
+          "equals": 2,
+          "message": "nothing closes before the answer"
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "confirm-ok"
+      }
     },
     {
       "expect": [

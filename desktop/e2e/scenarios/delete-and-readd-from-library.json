@@ -1,0 +1,199 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "delete-and-readd-from-library",
+  "description": "Delete an imported feature with the keyboard (after a warning; Escape and Cancel keep it), then find it again with Detect and re-add it from the library at exactly its original span",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "M13mp19"
+      }
+    },
+    {
+      "remember": {
+        "state": "selection.map.parts",
+        "as": "original_parts"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "one": "result[?(@.label=='M13mp19')].location",
+            "transform": "parts"
+          }
+        }
+      ]
+    },
+    {
+      "press": "Delete"
+    },
+    {
+      "expect": [
+        {
+          "state": "confirm.open",
+          "equals": true
+        },
+        {
+          "state": "confirm.title",
+          "equals": "Delete “M13mp19”?"
+        },
+        {
+          "state": "edit.revision",
+          "equals": 0
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "press": "Escape",
+      "note": "Escape is Cancel"
+    },
+    {
+      "expect": [
+        {
+          "state": "confirm.open",
+          "equals": false
+        },
+        {
+          "state": "edit.revision",
+          "equals": 0
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          }
+        }
+      ]
+    },
+    {
+      "press": "Backspace"
+    },
+    {
+      "click": {
+        "testid": "confirm-ok"
+      }
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/delete-and-readd-from-library/deleted.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].label"
+          },
+          "message": "M13mp19 is gone from the saved file"
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "detect-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows",
+            "saved": true
+          }
+        },
+        {
+          "state": "detect.checked",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "default_detections",
+            "saved": true
+          },
+          "message": "the deleted feature is offered, ticked"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "remember": {
+        "state": "detect.unticked_new_names",
+        "as": "unticked"
+      }
+    },
+    {
+      "click": {
+        "testid": "detect-add"
+      }
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/delete-and-readd-from-library/readded.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.new_names",
+          "equals_memory": "unticked"
+        },
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows",
+            "saved": true
+          }
+        }
+      ]
+    },
+    {
+      "select_detection": {
+        "name": "M13mp19"
+      },
+      "note": "its Detected row now reads 'already annotated'"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.map.parts",
+          "equals_memory": "original_parts",
+          "message": "re-added at exactly its original span"
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

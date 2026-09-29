@@ -117,6 +117,8 @@ export interface AppState {
     };
     digest: { summary: string; fragments: { start: number; length: number }[]; enzymes: string[] | null };
   };
+  /** The in-app confirmation dialog (delete feature, discard changes). */
+  confirm: { open: boolean; title: string; message: string; ok: string };
   /** Detect features panel, read from the DOM; null while it is closed. */
   detect: null | {
     available: boolean; summary: string; add_label: string;
@@ -462,6 +464,12 @@ export function getState(model: ModelView): AppState {
     },
     enzymes: enzymeState(model, panels),
     detect: detectState(panels),
+    confirm: {
+      open: (document.getElementById('confirm-dialog') as HTMLDialogElement).open,
+      title: document.getElementById('confirm-title')!.textContent ?? '',
+      message: document.getElementById('confirm-message')!.textContent ?? '',
+      ok: document.getElementById('confirm-ok')!.textContent ?? '',
+    },
     primers: { count: byTestId('primer-item').length, summary: document.getElementById('primer-summary')!.textContent ?? '' },
   };
 }

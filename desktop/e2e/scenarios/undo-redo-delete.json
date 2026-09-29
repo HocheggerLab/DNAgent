@@ -114,6 +114,24 @@
     {
       "click": {
         "testid": "delete-feature"
+      },
+      "note": "asks first"
+    },
+    {
+      "expect": [
+        {
+          "state": "confirm.open",
+          "equals": true
+        },
+        {
+          "state": "edit.revision",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "confirm-ok"
       }
     },
     {
@@ -164,20 +182,44 @@
       "expect": [
         {
           "state": "edit.shown.delete_feature",
-          "equals": false,
-          "message": "imported features cannot be deleted"
+          "equals": true,
+          "message": "imported features can be deleted too"
         }
       ]
     },
     {
-      "press": "Backspace"
+      "press": "Backspace",
+      "note": "the keyboard asks first"
     },
     {
       "expect": [
         {
+          "state": "confirm.open",
+          "equals": true
+        },
+        {
           "state": "edit.revision",
           "equals": 1,
-          "message": "Backspace on an imported feature does nothing"
+          "message": "nothing is deleted before the answer"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "confirm-cancel"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "confirm.open",
+          "equals": false
+        },
+        {
+          "state": "edit.revision",
+          "equals": 1,
+          "message": "Cancel keeps the feature"
         }
       ]
     }

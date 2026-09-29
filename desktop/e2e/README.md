@@ -129,6 +129,9 @@ Every command dispatches the same event a user would. None of them sets app stat
   (`{top, bottom}` positions carrying a cut mark); `digest`: `{summary, fragments:
   [{start, length}] by start, enzymes}`. Site labels count in the map's overlap,
   viewport and notice checks, and `map.notice_count` counts features only.
+- `confirm`: `{open, title, message, ok}` of the in-app confirmation dialog (delete a
+  feature, close a tab with unsaved changes). Answer it with `click` on `confirm-ok` /
+  `confirm-cancel`, or `press: Escape`.
 - `detect` (null while the Detected panel is closed): `available`, `summary`,
   `add_label`, `rows` (from the rows' data and badges), `checked` (`{library_id,
   start}` of ticked rows), `new_names`, `unticked_new_names`, and on the Map tab `map` /
@@ -369,7 +372,7 @@ and GenBank bugs are therefore visible to the scenarios as well as to the unit t
 | Shift-click ignores the anchor's own extent | shift-click-contained (added for this) |
 | Dialog ignores the chosen strand | wrap-span-feature |
 | Dialog ignores Translate | shift-click-translated-feature |
-| Delete offered for imported features | undo-redo-delete |
+| Delete offered for imported features (rule retired 2026-09-30: any feature can now be deleted, after a warning) | undo-redo-delete |
 | ⇧⌘Z undoes instead of redoing | undo-redo-delete |
 | Unsaved indicator never shown | shift-click-translated-feature |
 
@@ -409,6 +412,10 @@ Seventh round, detect features (2026-09-30):
 | The panel is not refreshed after an edit | detect-features-add-undo |
 | Annotated proposals not marked | detect-features-add-undo, detect-features-annotated |
 | Added features one base short | detect-features-add-undo, after adding a check: at first the GUI and the CLI on the saved file agreed with each other about the wrong features. The scenario now remembers the unticked proposals and requires exactly those to stay new. |
+
+Eighth round, delete with a warning (2026-09-30): Cancel still deletes; deletes
+without asking; Escape confirms. All caught by undo-redo-delete and
+delete-and-readd-from-library.
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the
