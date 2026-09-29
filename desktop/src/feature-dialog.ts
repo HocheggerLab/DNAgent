@@ -17,6 +17,9 @@ export interface DialogContext {
 
 let context: DialogContext | null = null;
 let previewTimer = 0;
+let previewScheduled = false;
+/** True while a preview is debounced but not yet requested (the harness treats it as busy). */
+export const previewPending = () => previewScheduled;
 let previewToken = 0;
 
 function request(): FeatureRequest {
@@ -77,7 +80,8 @@ async function refreshPreview() {
 function schedulePreview() {
   syncControls();
   clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => void refreshPreview(), 120);
+  previewScheduled = true;
+  previewTimer = window.setTimeout(() => { previewScheduled = false; void refreshPreview(); }, 120);
 }
 
 export function openFeatureDialog(next: DialogContext) {
@@ -105,6 +109,13 @@ export function dialogState() {
     protein: byId('preview-protein').textContent ?? '',
     warnings: [...byId('preview-warnings').querySelectorAll<HTMLElement>('li')].map(li => li.dataset.code ?? ''),
     error: byId('feature-error').textContent ?? '',
+    // The user's inputs, as currently entered (they persist after the dialog closes).
+    inputs: {
+      label: byId<HTMLInputElement>('feature-label').value,
+      kind: byId<HTMLSelectElement>('feature-kind').value,
+      strand: byId<HTMLSelectElement>('feature-strand').value,
+      translate: byId<HTMLInputElement>('feature-translate').checked,
+    },
   };
 }
 

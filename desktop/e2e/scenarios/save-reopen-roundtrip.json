@@ -1,0 +1,91 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "save-reopen-roundtrip",
+  "description": "Saving an unedited construct as GenBank and reopening it keeps sequence, features, primers and import warnings",
+  "fixture": "fixtures/formats/snapgene/synthetic_partial.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/save-reopen-roundtrip/partial.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.saved_path",
+          "equals": "desktop/e2e/artifacts/save-reopen-roundtrip/partial.gb"
+        },
+        {
+          "state": "edit.dirty",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "open": {
+        "saved": true
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          }
+        },
+        {
+          "state": "document.length",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.length",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          },
+          "message": "same features as the original .dna"
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].label",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          }
+        },
+        {
+          "state": "primers.count",
+          "equals_cli": {
+            "command": "primers",
+            "path": "result",
+            "transform": "count",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          },
+          "message": "unplaced primers survive"
+        },
+        {
+          "state": "warnings.codes",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "warnings",
+            "transform": "codes",
+            "fixture": "fixtures/formats/snapgene/synthetic_partial.dna"
+          },
+          "message": "the original import warnings are re-reported"
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

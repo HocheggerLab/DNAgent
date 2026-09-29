@@ -1,0 +1,117 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "wrap-span-feature",
+  "description": "On a circular molecule, shift-click extends forward through the origin, and the new feature keeps its origin-spanning location in GenBank",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "ambiguous CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS",
+        "extend": true
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "ambiguous CDS",
+              "to": "forward CDS",
+              "as": "range"
+            }
+          },
+          "message": "forward from the ambiguous CDS through the origin"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "wrap"
+      }
+    },
+    {
+      "select_option": {
+        "testid": "feature-strand",
+        "value": "reverse"
+      },
+      "note": "reverse strand, to check the dialog's strand reaches the engine"
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/wrap-span-feature/wrap.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "one": "result[?(@.label=='wrap')].location",
+            "transform": "parts"
+          },
+          "message": "saved as one origin-spanning part"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "ambiguous CDS",
+              "to": "forward CDS",
+              "as": "parts"
+            }
+          }
+        },
+        {
+          "state": "features[?(@.name=='wrap')].strand",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[?(@.label=='wrap')].strand"
+          },
+          "message": "saved strand equals the displayed strand"
+        },
+        {
+          "state": "features[?(@.name=='wrap')].strand",
+          "single": true,
+          "equals_state": "dialog.inputs.strand",
+          "message": "the strand chosen in the dialog reached the engine"
+        }
+      ]
+    }
+  ]
+}

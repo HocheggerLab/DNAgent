@@ -11,18 +11,18 @@ const schema = JSON.parse(readFileSync(resolve(E2E_DIR, 'scenario.schema.json'),
 const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
 export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
-  'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases'] as const;
+  'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases', 'fill', 'press', 'save_as', 'remember'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
-  | { name: 'ids_covering'; base: number };
-export interface CliExpectation { command: 'inspect' | 'features' | 'primers' | 'translate' | 'orfs'; fixture?: string; args?: string[]; path?: string; one?: string; transform?: Transform; index?: number }
-export interface Assertion { state: string; single?: boolean; equals?: unknown; equals_cli?: CliExpectation; equals_state?: string; message?: string }
+  | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' };
+export interface CliExpectation { command: 'inspect' | 'features' | 'primers' | 'translate' | 'orfs'; fixture?: string; saved?: boolean; args?: string[]; path?: string; one?: string; transform?: Transform; index?: number }
+export interface Assertion { state: string; single?: boolean; equals?: unknown; equals_cli?: CliExpectation; equals_state?: string; equals_memory?: string; message?: string }
 export type Step = { screenshot?: boolean; note?: string } & (
-  | { open: { fixture?: string; delay_ms?: number; wait?: boolean; expect_error?: boolean } }
+  | { open: { fixture?: string; saved?: boolean; delay_ms?: number; wait?: boolean; expect_error?: boolean } }
   | { browse: { fixture?: string } }
-  | { select_feature: { id: string } | { label: string } }
+  | { select_feature: ({ id: string } | { label: string }) & { extend?: boolean } }
   | { select_tab: 'map' | 'sequence' }
   | { click_sequence_base: number }
-  | { click: { testid: string; index?: number } }
+  | { click: { testid: string; index?: number; modifiers?: ('Shift' | 'Alt' | 'Control' | 'Meta')[] } }
   | { wait_idle: true }
   | { expect: Assertion[] }
   | { set_viewport: { width: number; height: number } }
@@ -30,7 +30,11 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { select_option: { testid: string; value: string } }
   | { reload: true }
   | { select_orf: { id: string } }
-  | { drag_bases: { from: number; to: number } });
+  | { drag_bases: { from: number; to: number } }
+  | { fill: { testid: string; value: string } }
+  | { press: string }
+  | { save_as: { path: string } }
+  | { remember: { state: string; as: string; single?: boolean } });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**
@@ -45,6 +49,7 @@ const BIOLOGICAL = [
   /^primers\.count/,
   /^map\.orf_regions/,
   /^selection\.range_translation\.protein/,
+  /^dialog\.protein/,
 ];
 
 export class ScenarioError extends Error {}

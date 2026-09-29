@@ -84,3 +84,30 @@ export function lengths(value: unknown): number[] {
   if (!Array.isArray(value)) throw new TransformError('lengths expects an array');
   return value.map(item => (item as { length: number }).length);
 }
+
+interface SpanFeature { label: string; location: { parts: ({ kind: 'linear'; start: number; end: number } | { kind: 'circular_arc'; start: number; length: number })[] } }
+
+/**
+ * The documented shift-click rule, from CLI features: start at `from`'s first part start;
+ * end at the furthest part end of `from` and `to`, measured forward (wrapping on circular
+ * molecules). Linear molecules take the covering span.
+ */
+export function forwardSpan(value: unknown, from: string, to: string, moleculeLength: number, circular: boolean, as: 'range' | 'parts' = 'range') {
+  if (!Array.isArray(value)) throw new TransformError('forward_span expects the CLI features array');
+  const find = (label: string) => {
+    const matches = (value as SpanFeature[]).filter(f => f.label === label);
+    if (matches.length !== 1) throw new TransformError(`forward_span: ${matches.length} features labelled ${JSON.stringify(label)}`);
+    return matches[0];
+  };
+  const spans = [...find(from).location.parts, ...find(to).location.parts].map(p => p.kind === 'linear' ? [p.start, p.end] : [p.start, (p.start + p.length) % moleculeLength]);
+  const start = find(from).location.parts[0].start;
+  let range: { start: number; end: number };
+  if (circular) {
+    const reach = Math.max(...spans.map(([, end]) => ((end - start - 1 + moleculeLength) % moleculeLength) + 1));
+    range = { start, end: (start + reach) % moleculeLength };
+  } else {
+    range = { start: Math.min(...spans.map(([s]) => s)), end: Math.max(...spans.map(([, e]) => e)) };
+  }
+  if (as === 'range') return range;
+  return [{ start: range.start, length: ((range.end - range.start + moleculeLength) % moleculeLength) || moleculeLength }];
+}

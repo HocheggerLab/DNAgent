@@ -1,0 +1,185 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "undo-redo-delete",
+  "description": "Added features can be undone, redone and deleted with buttons and shortcuts; imported features stay read-only",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "reverse split CDS",
+        "extend": true
+      }
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "temporary"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1
+        },
+        {
+          "state": "edit.shown.undo",
+          "equals": true
+        },
+        {
+          "state": "edit.shown.delete_feature",
+          "equals": true
+        },
+        {
+          "state": "features[?(@.added==true)].id",
+          "equals_state": "edit.added_feature_ids"
+        }
+      ]
+    },
+    {
+      "press": "Meta+z",
+      "note": "undo shortcut"
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 0
+        },
+        {
+          "state": "edit.dirty",
+          "equals": false
+        },
+        {
+          "state": "edit.shown.redo",
+          "equals": true
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "undo restores the imported feature list"
+        }
+      ]
+    },
+    {
+      "press": "Meta+Shift+z",
+      "note": "redo shortcut"
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1
+        },
+        {
+          "state": "edit.added_feature_ids",
+          "equals": [
+            "feature-0008"
+          ]
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "id": "feature-0008"
+      }
+    },
+    {
+      "click": {
+        "testid": "delete-feature"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 2
+        },
+        {
+          "state": "edit.can_redo",
+          "equals": false
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "deleting returns to the imported features"
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "undo"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1
+        },
+        {
+          "state": "edit.added_feature_ids",
+          "equals": [
+            "feature-0008"
+          ]
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.shown.delete_feature",
+          "equals": false,
+          "message": "imported features cannot be deleted"
+        }
+      ]
+    },
+    {
+      "press": "Backspace"
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1,
+          "message": "Backspace on an imported feature does nothing"
+        }
+      ]
+    }
+  ]
+}

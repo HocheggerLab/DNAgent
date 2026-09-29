@@ -1,0 +1,267 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "shift-click-translated-feature",
+  "description": "Click one feature, shift-click another, and add the span as a translated CDS that survives saving to GenBank",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "click": {
+        "testid": "feature-item",
+        "index": 0
+      },
+      "note": "plain click on the first feature (forward CDS)"
+    },
+    {
+      "click": {
+        "testid": "feature-item",
+        "index": 1,
+        "modifiers": [
+          "Shift"
+        ]
+      },
+      "note": "real shift-click extends forward"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "range"
+        },
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "forward CDS",
+              "to": "reverse split CDS",
+              "as": "range"
+            }
+          },
+          "message": "forward from the first feature's start to the furthest end"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "forward CDS",
+              "to": "reverse split CDS",
+              "as": "parts"
+            }
+          },
+          "message": "the map band covers the span"
+        },
+        {
+          "state": "edit.shown.new_feature",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "fusion"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-translate"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "dialog.open",
+          "equals": true
+        },
+        {
+          "state": "dialog.error",
+          "equals": ""
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "remember": {
+        "state": "dialog.protein",
+        "as": "preview_protein"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "dialog.open",
+          "equals": false
+        },
+        {
+          "state": "edit.added_feature_ids",
+          "equals": [
+            "feature-0008"
+          ]
+        },
+        {
+          "state": "edit.dirty",
+          "equals": true
+        },
+        {
+          "state": "edit.shown.dirty",
+          "equals": true
+        },
+        {
+          "state": "features[?(@.added==true)].id",
+          "equals_state": "edit.added_feature_ids",
+          "message": "the new feature is badged as added"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "forward CDS",
+              "to": "reverse split CDS",
+              "as": "parts"
+            }
+          },
+          "message": "the new feature is selected and spans exactly the selection"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.sequence.translations[?(@.feature_id=='feature-0008')].protein",
+          "single": true,
+          "equals_memory": "preview_protein",
+          "message": "the amino-acid row equals the dialog's engine preview"
+        }
+      ]
+    },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/shift-click-translated-feature/edited.gb"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.dirty",
+          "equals": false
+        },
+        {
+          "state": "edit.shown.dirty",
+          "equals": false
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].id"
+          },
+          "message": "the saved GenBank has exactly the displayed features"
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].label"
+          }
+        },
+        {
+          "state": "selection.sequence.translations[*].protein",
+          "equals_cli": {
+            "command": "translate",
+            "saved": true,
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[*].protein"
+          },
+          "message": "translations of the saved file, including the new CDS"
+        },
+        {
+          "state": "selection.sequence.parts",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "one": "result[?(@.label=='fusion')].location",
+            "transform": "parts"
+          },
+          "message": "saved location equals the drawn feature"
+        }
+      ]
+    },
+    {
+      "open": {
+        "saved": true
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 0
+        },
+        {
+          "state": "edit.added_feature_ids",
+          "equals": []
+        },
+        {
+          "state": "document.name",
+          "equals_cli": {
+            "command": "inspect",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "saved": true,
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "warnings.codes",
+          "equals_cli": {
+            "command": "inspect",
+            "saved": true,
+            "path": "warnings",
+            "transform": "codes"
+          }
+        }
+      ]
+    }
+  ]
+}

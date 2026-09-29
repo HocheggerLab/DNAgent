@@ -7,14 +7,15 @@ import { cli } from './cli.ts';
 import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
-import { codes, codonMiddles, count, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts, positions } from './transforms.ts';
+import { codes, codonMiddles, count, forwardSpan, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts, positions } from './transforms.ts';
 
 const IDLE_TIMEOUT_MS = 5_000;
 const show = (value: unknown) => JSON.stringify(value, null, 2)?.replace(/\n\s*/g, ' ') ?? String(value);
 
 /** Resolve a CLI-derived expectation. `fixture` defaults to the most recently opened one. */
-export function resolveCli(expectation: CliExpectation, defaultFixture: string): unknown {
-  const fixture = expectation.fixture ?? defaultFixture;
+export function resolveCli(expectation: CliExpectation, defaultFixture: string, savedFile: string | null = null): unknown {
+  if (expectation.saved && !savedFile) throw new Error('equals_cli.saved used before any save_as step');
+  const fixture = expectation.saved ? savedFile! : expectation.fixture ?? defaultFixture;
   const envelope = cli(expectation.command, fixture, expectation.args ?? []);
   let value = expectation.one !== undefined ? queryOne(envelope, expectation.one) : query(envelope, expectation.path!);
   const transform = expectation.transform;
@@ -29,6 +30,10 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string):
   else if (transform === 'orf_positions') value = orfPositions(value, moleculeLength());
   else if (transform === 'lengths') value = lengths(value);
   else if (transform?.name === 'ids_covering') value = idsCovering(value, transform.base, moleculeLength());
+  else if (transform?.name === 'forward_span') {
+    const circular = queryOne(cli('inspect', fixture), 'result.topology') === 'circular';
+    value = forwardSpan(value, transform.from, transform.to, moleculeLength(), circular, transform.as);
+  }
   if (expectation.index !== undefined) {
     if (!Array.isArray(value) || expectation.index >= value.length) {
       throw new Error(`index ${expectation.index} out of range for ${show(value)}`);
@@ -41,7 +46,7 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string):
 function describeExpected(assertion: Assertion, fixture: string): string {
   if (assertion.equals_cli) {
     const e = assertion.equals_cli;
-    return `dnagent ${e.command} ${e.fixture ?? fixture}${e.args?.length ? ` ${e.args.join(' ')}` : ''} → ${e.one ? `one(${e.one})` : e.path}${e.transform ? ` | ${typeof e.transform === 'string' ? e.transform : `${e.transform.name}(${e.transform.base})`}` : ''}${e.index !== undefined ? ` [${e.index}]` : ''}`;
+    return `dnagent ${e.command} ${e.saved ? '<saved file>' : e.fixture ?? fixture}${e.args?.length ? ` ${e.args.join(' ')}` : ''} → ${e.one ? `one(${e.one})` : e.path}${e.transform ? ` | ${typeof e.transform === 'string' ? e.transform : `${e.transform.name}(${'base' in e.transform ? e.transform.base : `${e.transform.from} → ${e.transform.to}`})`}` : ''}${e.index !== undefined ? ` [${e.index}]` : ''}`;
   }
   return assertion.equals_state !== undefined ? `state ${assertion.equals_state}` : 'literal';
 }
@@ -53,6 +58,9 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()); });
+  page.on('dialog', dialog => void dialog.accept()); // e.g. "discard unsaved changes?"
+  let savedFile: string | null = null;
+  const memory = new Map<string, unknown>();
 
   const waitIdle = () => page.waitForFunction(() => window.__DNAGENT_TEST__!.getState().idle, null, { timeout: IDLE_TIMEOUT_MS })
     .catch(() => { throw new Error(`app did not become idle within ${IDLE_TIMEOUT_MS} ms`); });
@@ -73,7 +81,8 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
 
   const run = async (step: Step): Promise<void> => {
     if ('open' in step) {
-      fixture = step.open.fixture ?? scenario.fixture;
+      if (step.open.saved && !savedFile) throw new Error('open.saved used before any save_as step');
+      fixture = step.open.saved ? savedFile! : step.open.fixture ?? scenario.fixture;
       await page.evaluate(([path, delayMs]) => window.__DNAGENT_TEST__!.open(path, { delayMs }), [fixture, step.open.delay_ms] as const);
       if (step.open.wait !== false) { await waitIdle(); await checkOpened(step.open.expect_error ?? false); }
     } else if ('browse' in step) {
@@ -91,14 +100,14 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
         .catch(() => { throw new Error(`feature ${id} never appeared in the feature list`); });
       // Selection, tab and base clicks issue no requests and render synchronously,
       // so they do not wait for idle (which would also mask stale-request races).
-      await page.evaluate(featureId => window.__DNAGENT_TEST__!.selectFeature(featureId), id);
+      await page.evaluate(([featureId, extend]) => window.__DNAGENT_TEST__!.selectFeature(featureId, extend), [id, target.extend ?? false] as const);
     } else if ('select_tab' in step) {
       await page.evaluate(tab => window.__DNAGENT_TEST__!.selectTab(tab), step.select_tab);
     } else if ('click_sequence_base' in step) {
       await page.evaluate(base => window.__DNAGENT_TEST__!.clickSequenceBase(base), step.click_sequence_base);
     } else if ('click' in step) {
       // A trusted Playwright pointer click, not a synthetic element.click().
-      await page.getByTestId(step.click.testid).nth(step.click.index ?? 0).click({ timeout: IDLE_TIMEOUT_MS });
+      await page.getByTestId(step.click.testid).nth(step.click.index ?? 0).click({ timeout: IDLE_TIMEOUT_MS, modifiers: step.click.modifiers });
       await waitIdle();
       await settle();
     } else if ('wait_idle' in step) {
@@ -127,6 +136,21 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       await base(step.drag_bases.to).hover();
       await page.mouse.up();
       await settle();
+    } else if ('remember' in step) {
+      const snapshot = await state();
+      memory.set(step.remember.as, step.remember.single ? queryOne(snapshot, step.remember.state) : query(snapshot, step.remember.state));
+    } else if ('fill' in step) {
+      await page.getByTestId(step.fill.testid).fill(step.fill.value, { timeout: IDLE_TIMEOUT_MS });
+      await settle();
+      await waitIdle();
+    } else if ('press' in step) {
+      await page.keyboard.press(step.press);
+      await settle();
+      await waitIdle();
+    } else if ('save_as' in step) {
+      await page.evaluate(path => window.__DNAGENT_TEST__!.saveAs(path), step.save_as.path);
+      await waitIdle();
+      savedFile = step.save_as.path;
     } else if ('expect' in step) {
       const snapshot = await state();
       const failures: string[] = [];
@@ -134,7 +158,9 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
         const label = `expect[${item}]${assertion.message ? ` (${assertion.message})` : ''} ${assertion.state}`;
         try {
           const actual = assertion.single ? queryOne(snapshot, assertion.state) : query(snapshot, assertion.state);
-          const expected = assertion.equals_cli ? resolveCli(assertion.equals_cli, fixture)
+          if (assertion.equals_memory !== undefined && !memory.has(assertion.equals_memory)) throw new Error(`nothing remembered as ${assertion.equals_memory}`);
+          const expected = assertion.equals_memory !== undefined ? memory.get(assertion.equals_memory)
+            : assertion.equals_cli ? resolveCli(assertion.equals_cli, fixture, savedFile)
             : assertion.equals_state !== undefined ? query(snapshot, assertion.equals_state) : assertion.equals;
           if (!isDeepStrictEqual(actual, expected)) {
             failures.push(`${label}\n      GUI state: ${show(actual)}\n      expected:  ${show(expected)}\n      from:      ${describeExpected(assertion, fixture)}`);

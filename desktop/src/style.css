@@ -14,7 +14,7 @@
 :root{font:14px -apple-system,system-ui,sans-serif;color:var(--text);background:var(--bg)}
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}
 main{height:100vh;display:flex;flex-direction:column;padding:16px;gap:12px}header{flex:none}
-form{display:flex;gap:8px;align-items:center}input,select{font:inherit;color:inherit;background:var(--button);border:1px solid var(--border);border-radius:5px}
+#open{display:flex;gap:8px;align-items:center}input,select{font:inherit;color:inherit;background:var(--button);border:1px solid var(--border);border-radius:5px}
 input{flex:1;min-width:0;padding:10px}select{padding:7px}
 button{font:inherit;padding:9px;border:1px solid var(--border);border-radius:5px;background:var(--button);color:inherit;cursor:pointer}
 button:hover,button.selected{background:var(--hover);border-color:var(--accent)}
@@ -117,3 +117,4 @@ dialog h3{margin:0 0 4px}#feature-range{margin:0 0 14px;font-size:12px;color:var
 #feature-error{color:var(--stop);font-size:12px;min-height:1em;margin:4px 0}
 dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:10px 0 0;padding:0}
 #feature-add{background:var(--selection-pill);border-color:var(--selection-pill);color:var(--selection-text)}
+.dialog-grid label.check input{flex:none}

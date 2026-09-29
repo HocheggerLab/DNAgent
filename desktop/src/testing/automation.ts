@@ -1,14 +1,16 @@
 // e2e-only automation API (`window.__DNAGENT_TEST__`). Commands dispatch the same
 // DOM events a user would; `getState` reports rendered DOM plus a read-only model view.
 // Never set application state directly here, or the scenarios prove nothing.
-import type { Document } from '../bindings';
+import type { Document, EditState } from '../bindings';
+import { dialogState, previewPending } from '../feature-dialog';
 import type { SequenceOptions } from '../sequence-view';
 import { pendingRequests } from '../ipc';
 import { themeState } from '../theme';
-import { queuePick, setDelay } from './stub-backend';
+import { queuePick, queueSave, setDelay } from './stub-backend';
 
 export interface ModelView {
   current: Document | null;
+  edit: EditState | null;
   selected: string | null;
   selectedOrf: string | null;
   range: { start: number; end: number } | null;
@@ -29,7 +31,13 @@ export interface AppState {
   visible_panels: string[];
   /** Parsed from the displayed title, so display bugs are caught; null before any load. */
   document: null | { name: string | null; length: number | null; topology: string | null; title: string };
-  features: { id: string; name: string; selected: boolean; unlabelled: boolean; text: string }[];
+  features: { id: string; name: string; strand: string; selected: boolean; unlabelled: boolean; added: boolean; text: string }[];
+  /** Edit session state, plus what the controls show. */
+  edit: null | {
+    revision: number; can_undo: boolean; can_redo: boolean; dirty: boolean; added_feature_ids: string[]; saved_path: string | null;
+    shown: { dirty: boolean; undo: boolean; redo: boolean; new_feature: boolean; delete_feature: boolean };
+  };
+  dialog: { open: boolean; summary: string; protein: string; warnings: string[]; error: string; inputs: { label: string; kind: string; strand: string; translate: boolean } };
   /** View options as shown in the toolbar controls. */
   options: { amino_acids: string; show_frames: boolean; show_orfs: boolean; orf_min_codons: number };
   selection: {
@@ -239,7 +247,7 @@ export function getState(model: ModelView): AppState {
     };
   }
   return {
-    idle: pendingRequests() === 0,
+    idle: pendingRequests() === 0 && !previewPending(),
     status: document.getElementById('status')!.textContent ?? '',
     path_input: document.querySelector<HTMLInputElement>('[data-testid="path-input"]')!.value,
     active_tab: consistent ? model.activeTab : 'inconsistent',
@@ -250,6 +258,9 @@ export function getState(model: ModelView): AppState {
       name: required(button.querySelector('[data-testid="feature-name"]'), 'feature name').textContent ?? '',
       selected: button.getAttribute('aria-pressed') === 'true',
       unlabelled: button.querySelector('[data-testid="feature-unlabelled"]') !== null,
+      added: button.querySelector('[data-testid="feature-added"]') !== null,
+      // As displayed: "name (strand)".
+      strand: /\((forward|reverse|unknown)\)/.exec(button.textContent ?? '')?.[1] ?? '',
       text: button.textContent ?? '',
     })),
     options: {
@@ -276,6 +287,18 @@ export function getState(model: ModelView): AppState {
       sequence,
     },
     // The theme actually applied to the page, not a recomputation of the preference.
+    edit: model.edit && {
+      revision: model.edit.revision, can_undo: model.edit.can_undo, can_redo: model.edit.can_redo, dirty: model.edit.dirty,
+      added_feature_ids: model.edit.added_feature_ids, saved_path: model.edit.saved_path,
+      shown: {
+        dirty: !document.getElementById('dirty')!.hidden,
+        undo: !(document.getElementById('undo') as HTMLButtonElement).disabled,
+        redo: !(document.getElementById('redo') as HTMLButtonElement).disabled,
+        new_feature: !document.getElementById('new-feature')!.hidden,
+        delete_feature: !document.getElementById('delete-feature')!.hidden,
+      },
+    },
+    dialog: dialogState(),
     theme: { preference: themeState().preference, resolved: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' },
     layout: {
       feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false',
@@ -297,7 +320,8 @@ export function getState(model: ModelView): AppState {
 export interface AutomationApi {
   open(path: string, options?: { delayMs?: number }): void;
   browse(path: string | null): void;
-  selectFeature(featureId: string): void;
+  selectFeature(featureId: string, extend?: boolean): void;
+  saveAs(path: string | null): void;
   selectTab(name: 'map' | 'sequence'): void;
   clickSequenceBase(index: number): void;
   selectOrf(orfId: string): void;
@@ -318,9 +342,14 @@ export function install(model: () => ModelView) {
       queuePick(path);
       required(byTestId('browse')[0], 'Browse button').click();
     },
-    selectFeature(featureId: string) {
+    selectFeature(featureId: string, extend = false) {
       const item = byTestId('feature-item').find(button => button.dataset.featureId === featureId);
-      required(item, `feature list item ${featureId}`).click();
+      required(item, `feature list item ${featureId}`).dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: extend }));
+    },
+    /** Queue the save dialog's answer, then click Save as…. */
+    saveAs(path: string | null) {
+      queueSave(path);
+      required(byTestId('save-as')[0], 'Save as button').click();
     },
     selectTab(name: 'map' | 'sequence') {
       required(byTestId(`tab-${name}`)[0], `tab ${name}`).click();

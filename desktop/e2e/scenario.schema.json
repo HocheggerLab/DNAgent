@@ -75,6 +75,33 @@
               "minimum": 0
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "name": {
+              "const": "forward_span"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "as": {
+              "enum": [
+                "range",
+                "parts"
+              ]
+            }
+          },
+          "description": "Shift-click rule over CLI features (labels): forward from `from`'s first part start to the furthest part end of both, wrapping on circular molecules."
         }
       ]
     },
@@ -135,6 +162,10 @@
             "minLength": 1
           },
           "description": "Extra CLI arguments after the fixture, e.g. [\"--feature\", \"feature-0001\"]."
+        },
+        "saved": {
+          "type": "boolean",
+          "description": "Run against the file most recently written by a save_as step."
         }
       }
     },
@@ -159,6 +190,11 @@
           "required": [
             "equals_state"
           ]
+        },
+        {
+          "required": [
+            "equals_memory"
+          ]
         }
       ],
       "properties": {
@@ -180,6 +216,10 @@
         "single": {
           "type": "boolean",
           "description": "The state path must match exactly one value, compared unwrapped."
+        },
+        "equals_memory": {
+          "type": "string",
+          "description": "A value stored by an earlier remember step."
         }
       }
     },
@@ -211,6 +251,10 @@
                 "expect_error": {
                   "type": "boolean",
                   "default": false
+                },
+                "saved": {
+                  "type": "boolean",
+                  "description": "Open the file written by the last save_as step."
                 }
               }
             },
@@ -275,6 +319,10 @@
                 "label": {
                   "type": "string",
                   "description": "Resolved to an id through CLI features; must match exactly one."
+                },
+                "extend": {
+                  "type": "boolean",
+                  "description": "Shift-click (extend the selection)."
                 }
               }
             },
@@ -348,6 +396,18 @@
                   "type": "integer",
                   "minimum": 0,
                   "default": 0
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "Shift",
+                      "Alt",
+                      "Control",
+                      "Meta"
+                    ]
+                  },
+                  "uniqueItems": true
                 }
               }
             },
@@ -560,6 +620,121 @@
                 }
               },
               "description": "Real mouse drag across forward-strand bases (Sequence tab)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fill"
+          ],
+          "properties": {
+            "fill": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "testid",
+                "value"
+              ],
+              "properties": {
+                "testid": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "press"
+          ],
+          "properties": {
+            "press": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Keyboard shortcut, e.g. Meta+z (Playwright key syntax)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "save_as"
+          ],
+          "properties": {
+            "save_as": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.(gb|gbk|genbank)$"
+                }
+              },
+              "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as\u2026."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "remember"
+          ],
+          "properties": {
+            "remember": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "state",
+                "as"
+              ],
+              "properties": {
+                "state": {
+                  "type": "string"
+                },
+                "as": {
+                  "type": "string",
+                  "pattern": "^[a-z_]+$"
+                },
+                "single": {
+                  "type": "boolean"
+                }
+              }
             },
             "screenshot": {
               "type": "boolean"
