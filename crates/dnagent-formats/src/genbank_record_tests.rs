@@ -359,9 +359,10 @@ fn data_block_survives_whitespace_trimming_at_chunk_boundaries() {
     )
     .unwrap();
     let (text, _) = write(&report, &options());
-    let trimmed: String = text
-        .lines()
-        .map(|l| format!("{}\n", l.trim_end()))
-        .collect();
+    let trimmed = text.lines().fold(String::new(), |mut all, line| {
+        all.push_str(line.trim_end());
+        all.push('\n');
+        all
+    });
     assert_eq!(read(trimmed.as_bytes(), "x").unwrap().record.name(), spaced);
 }
