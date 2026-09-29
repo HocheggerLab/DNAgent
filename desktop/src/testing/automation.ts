@@ -2,6 +2,7 @@
 // DOM events a user would; `getState` reports rendered DOM plus a read-only model view.
 // Never set application state directly here, or the scenarios prove nothing.
 import type { Document } from '../bindings';
+import type { SequenceOptions } from '../sequence-view';
 import { pendingRequests } from '../ipc';
 import { themeState } from '../theme';
 import { queuePick, setDelay } from './stub-backend';
@@ -9,8 +10,13 @@ import { queuePick, setDelay } from './stub-backend';
 export interface ModelView {
   current: Document | null;
   selected: string | null;
+  selectedOrf: string | null;
+  range: { start: number; end: number } | null;
+  options: SequenceOptions;
   activeTab: 'map' | 'sequence';
 }
+
+export interface Region { strand: string; start: number; length: number }
 
 export interface Part { start: number; length: number }
 export type ReconstructedPart = Part | { error: string; positions: number[] };
@@ -24,10 +30,21 @@ export interface AppState {
   /** Parsed from the displayed title, so display bugs are caught; null before any load. */
   document: null | { name: string | null; length: number | null; topology: string | null; title: string };
   features: { id: string; name: string; selected: boolean; unlabelled: boolean; text: string }[];
+  /** View options as shown in the toolbar controls. */
+  options: { amino_acids: string; show_frames: boolean; show_orfs: boolean; orf_min_codons: number };
   selection: {
+    kind: 'feature' | 'orf' | 'range' | null;
+    orf_id: string | null;
+    range: { start: number; end: number } | null;
+    /** Displayed translation of the selected range, and its strand control. */
+    range_translation: { strand: string; protein: string } | null;
     feature_id: string | null;
     map: null | { parts: Part[]; active_labels: string[] };
     sequence: null | {
+      /** Displayed CDS translations: letters (or 3-letter names) in codon order, with each codon's column. */
+      translations: { feature_id: string; protein: string; codon_count: number; middles: number[]; warned: boolean }[];
+      frames: { frame: string; protein: string; middles: number[] }[];
+      orf_regions: Region[];
       parts: ReconstructedPart[];
       part_indices: number[];
       highlighted_positions: number[];
@@ -36,10 +53,12 @@ export interface AppState {
   };
   /** No panel is rendered for warning-free documents: counts are then 0 and `present` false. */
   theme: { preference: string; resolved: 'light' | 'dark' };
-  layout: { feature_list_collapsed: boolean };
+  /** Sequence layout is null unless the Sequence tab is visible. */
+  layout: { feature_list_collapsed: boolean; sequence_columns: number | null; sequence_fits_width: boolean | null };
   /** Rendered map accounting and geometry checks; null unless the Map tab is visible. */
   map: null | {
     width: number; height: number; radius: number; fills_panel: boolean;
+    orf_regions: Region[]; undrawn_orfs: number;
     /** The drawn layout was computed for the canvas's current size (resize handled). */
     layout_current: boolean;
     drawn_ids: string[];
@@ -124,9 +143,12 @@ function mapState(current: Document): AppState['map'] {
   const names = new Map(current.features.map(f => [f.id, f.label || f.kind]));
   return {
     width: Number(svg.dataset.width), height: Number(svg.dataset.height), radius: Number(svg.dataset.radius),
+    orf_regions: sortRegions([...svg.querySelectorAll<SVGElement>('[data-testid="map-orf"]')].map(node => ({
+      strand: node.dataset.orfStrand!, start: Number(node.dataset.orfStart), length: Number(node.dataset.orfLength) }))),
+    undrawn_orfs: Number(notice.dataset.undrawnOrfs ?? 0),
     fills_panel: Math.abs(box.width - panelBox.width) <= 2 && Math.abs(box.bottom - panelBox.bottom) <= 2,
-    layout_current: Math.abs(Number(svg.dataset.width) - Math.max(320, svg.clientWidth)) <= 1
-      && Math.abs(Number(svg.dataset.height) - Math.max(320, svg.clientHeight)) <= 1,
+    layout_current: Math.abs(Number(svg.dataset.width) - Math.max(240, svg.clientWidth)) <= 1
+      && Math.abs(Number(svg.dataset.height) - Math.max(160, svg.clientHeight)) <= 1,
     drawn_ids: drawn, labels,
     unlabelled_ids: unlabelled, unlabelled_names: unlabelled.map(id => names.get(id) ?? id), unlabelled_count: unlabelled.length,
     badged_ids: badged, notice_count: notice.hidden ? 0 : Number.parseInt(notice.textContent ?? '', 10),
@@ -146,6 +168,49 @@ function displayedDocument(title: string): NonNullable<AppState['document']> {
   return { name: match[1], length: Number(match[2].replace(/\D/g, '')), topology: match[3], title };
 }
 
+function aminoRows(rows: HTMLElement[], three: boolean) {
+  const cells = rows.flatMap(row => [...row.querySelectorAll<HTMLElement>('[data-testid="amino-acid"]')]);
+  const byCodon = new Map<number, HTMLElement>();
+  for (const cell of cells) {
+    const codon = Number(cell.dataset.codonIndex);
+    if (byCodon.has(codon)) throw new Error(`codon ${codon} drawn twice`);
+    byCodon.set(codon, cell);
+  }
+  const ordered = [...byCodon.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
+  const block = (cell: HTMLElement) => Number(cell.closest<HTMLElement>('.sequence-block')!.dataset.rowStart);
+  return {
+    protein: ordered.map(cell => cell.textContent ?? '').join(three ? ' ' : ''),
+    codon_count: ordered.length,
+    // Column → reference position: the row start plus the (middle) grid column.
+    middles: ordered.map(cell => {
+      const [from, to] = cell.style.gridColumn.split('/').map(v => Number(v.trim()) - 1);
+      return block(cell) + (to === undefined ? from : Math.floor((from + to - 1) / 2));
+    }),
+  };
+}
+
+function regionsFromTracks(selector: string, length: number): Region[] {
+  const covered = new Map<string, { strand: string; set: Set<number> }>();
+  for (const blockNode of document.querySelectorAll<HTMLElement>('#sequence .sequence-block')) {
+    const rowStart = Number(blockNode.dataset.rowStart);
+    for (const track of blockNode.querySelectorAll<HTMLElement>(selector)) {
+      const id = track.dataset.orfId!;
+      const caption = track.closest('.sequence-line')!.querySelector('.line-caption')!.textContent ?? '';
+      const entry = covered.get(id) ?? { strand: caption.startsWith('←') ? 'reverse' : 'forward', set: new Set<number>() };
+      const [from, to] = track.style.gridColumn.split('/').map(v => Number(v.trim()) - 1);
+      for (let column = from; column < to; column++) entry.set.add(rowStart + column);
+      covered.set(id, entry);
+    }
+  }
+  return sortRegions([...covered.values()].map(({ strand, set }) => {
+    const start = [...set].find(p => !set.has((p - 1 + length) % length)) ?? 0;
+    return { strand, start, length: set.size };
+  }));
+}
+
+const sortRegions = (regions: Region[]) => regions.sort((a, b) =>
+  a.start - b.start || Number(a.strand === 'reverse') - Number(b.strand === 'reverse') || a.length - b.length);
+
 export function getState(model: ModelView): AppState {
   const { current, selected } = model;
   const tabs = (['map', 'sequence'] as const).filter(name => document.getElementById(`tab-${name}`)!.getAttribute('aria-selected') === 'true');
@@ -155,7 +220,19 @@ export function getState(model: ModelView): AppState {
   let sequence: AppState['selection']['sequence'] = null;
   if (current && panels.includes('sequence')) {
     const { parts, indices } = reconstructParts(current.sequence.length);
+    const three = (document.getElementById('opt-aa') as HTMLSelectElement).value === 'three';
+    const translationRows = [...document.querySelectorAll<HTMLElement>('#sequence [data-testid="translation-row"]')];
+    // Source order (the feature list), not on-screen order: an origin-spanning CDS appears in row 0.
+    const listOrder = [...document.querySelectorAll<HTMLElement>('[data-testid="feature-item"]')].map(item => item.dataset.featureId!);
+    const translationIds = unique(translationRows.map(row => row.dataset.featureId!)).sort((a, b) => listOrder.indexOf(a) - listOrder.indexOf(b));
+    const frameRows = [...document.querySelectorAll<HTMLElement>('#sequence [data-testid="frame-row"]')];
     sequence = {
+      translations: translationIds.map(id => {
+        const rows = translationRows.filter(row => row.dataset.featureId === id);
+        return { feature_id: id, ...aminoRows(rows, three), warned: rows.some(row => row.parentElement!.querySelector('.line-caption')!.textContent!.includes('⚠')) };
+      }),
+      frames: unique(frameRows.map(row => row.dataset.frame!)).map(frame => ({ frame, ...(({ protein, middles }) => ({ protein, middles }))(aminoRows(frameRows.filter(row => row.dataset.frame === frame), three)) })),
+      orf_regions: regionsFromTracks('[data-testid="orf-track"]', current.sequence.length),
       parts, part_indices: indices,
       highlighted_positions: [...document.querySelectorAll('#sequence [data-strand="forward"]')].flatMap(positionsOf),
       complement_highlighted_positions: [...document.querySelectorAll('#sequence [data-strand="complement"]')].flatMap(positionsOf),
@@ -175,7 +252,20 @@ export function getState(model: ModelView): AppState {
       unlabelled: button.querySelector('[data-testid="feature-unlabelled"]') !== null,
       text: button.textContent ?? '',
     })),
+    options: {
+      amino_acids: (document.getElementById('opt-aa') as HTMLSelectElement).value,
+      show_frames: (document.getElementById('opt-frames') as HTMLInputElement).checked,
+      show_orfs: (document.getElementById('opt-orfs') as HTMLInputElement).checked,
+      orf_min_codons: Number((document.getElementById('opt-orf-min') as HTMLSelectElement).value),
+    },
     selection: {
+      kind: selected ? 'feature' : model.selectedOrf ? 'orf' : model.range ? 'range' : null,
+      orf_id: model.selectedOrf,
+      range: model.range,
+      range_translation: document.getElementById('range-panel')!.hidden ? null : {
+        strand: (document.getElementById('range-strand') as HTMLSelectElement).value,
+        protein: document.getElementById('range-protein')!.textContent ?? '',
+      },
       feature_id: selected,
       map: current && panels.includes('map') ? {
         parts: byTestId('map-selection-part').map(node => ({
@@ -187,7 +277,11 @@ export function getState(model: ModelView): AppState {
     },
     // The theme actually applied to the page, not a recomputation of the preference.
     theme: { preference: themeState().preference, resolved: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' },
-    layout: { feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false' },
+    layout: {
+      feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false',
+      sequence_columns: sequence ? Number(document.getElementById('sequence')!.style.getPropertyValue('--columns')) : null,
+      sequence_fits_width: sequence ? (panel => panel.scrollWidth <= panel.clientWidth + 1)(document.getElementById('panel-sequence')!) : null,
+    },
     map: current && panels.includes('map') ? mapState(current) : null,
     warnings: {
       present: details !== null,
@@ -206,6 +300,7 @@ export interface AutomationApi {
   selectFeature(featureId: string): void;
   selectTab(name: 'map' | 'sequence'): void;
   clickSequenceBase(index: number): void;
+  selectOrf(orfId: string): void;
   getState(): AppState;
 }
 
@@ -234,6 +329,13 @@ export function install(model: () => ModelView) {
       if (!visible('panel-sequence')) throw new Error('e2e: clickSequenceBase requires the Sequence tab');
       const base = document.querySelector<HTMLElement>(`#sequence [data-strand="forward"] [data-position="${index}"]`);
       required(base, `sequence base ${index}`).click();
+    },
+    /** Click the ORF's track (Sequence tab) or arc (Map tab). */
+    selectOrf(orfId: string) {
+      const node = [...document.querySelectorAll<HTMLElement | SVGElement>('[data-testid="orf-track"], [data-testid="map-orf"]')]
+        .find(item => item.dataset.orfId === orfId && item.getClientRects().length > 0);
+      if (!node) throw new Error(`e2e: ORF ${orfId} is not drawn (are ORFs shown, and long enough?)`);
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     },
     getState: () => getState(model()),
   };

@@ -16,7 +16,17 @@
         <button id="tab-map" data-testid="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>
         <button id="tab-sequence" data-testid="tab-sequence" role="tab" aria-controls="panel-sequence" aria-selected="false" tabindex="-1">Sequence</button>
       </nav>
+      <div id="view-options" class="view-options">
+        <label><input type="checkbox" id="opt-orfs" data-testid="toggle-orfs"> ORFs</label>
+        <label>≥ <select id="opt-orf-min" data-testid="orf-min"><option>30</option><option>50</option><option selected>75</option><option>100</option><option>150</option><option>300</option></select> codons</label>
+        <label class="sequence-only"><input type="checkbox" id="opt-frames" data-testid="toggle-frames"> Six-frame translation</label>
+        <label class="sequence-only">Amino acids <select id="opt-aa" data-testid="amino-acid-mode"><option value="one">1-letter</option><option value="three">3-letter</option></select></label>
+      </div>
       <p id="selection" data-testid="selection-summary">No feature selected</p>
+      <div id="range-panel" data-testid="range-panel" hidden>
+        <label>Translate <select id="range-strand" data-testid="range-strand"><option value="forward">forward strand</option><option value="reverse">reverse strand</option></select></label>
+        <code id="range-protein" data-testid="range-translation"></code>
+      </div>
       <section id="panel-map" role="tabpanel" aria-labelledby="tab-map" tabindex="0">
         <button id="map-notice" type="button" data-testid="map-hidden-notice" hidden></button>
         <svg id="map" data-testid="map" viewBox="0 0 900 440" aria-label="Construct map"></svg>

@@ -1,0 +1,173 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "orfs-sequence-and-map",
+  "description": "ORF tracks and map arcs are exactly the engine's ORFs for the chosen minimum, and a selected ORF is highlighted in both views",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "click": {
+        "testid": "toggle-orfs"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "options.orf_min_codons",
+          "equals": 75
+        },
+        {
+          "state": "selection.sequence.orf_regions",
+          "equals_cli": {
+            "command": "orfs",
+            "args": [
+              "--min-codons",
+              "75"
+            ],
+            "path": "result.orfs",
+            "transform": "orf_regions"
+          },
+          "message": "default ≥75 codons"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_option": {
+        "testid": "orf-min",
+        "value": "30"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.sequence.orf_regions",
+          "equals_cli": {
+            "command": "orfs",
+            "args": [
+              "--min-codons",
+              "30"
+            ],
+            "path": "result.orfs",
+            "transform": "orf_regions"
+          }
+        }
+      ]
+    },
+    {
+      "select_orf": {
+        "id": "orf-0003"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "orf"
+        },
+        {
+          "state": "selection.orf_id",
+          "equals": "orf-0003"
+        },
+        {
+          "state": "selection.sequence.highlighted_positions",
+          "equals_cli": {
+            "command": "orfs",
+            "args": [
+              "--min-codons",
+              "30"
+            ],
+            "one": "result.orfs[?(@.id=='orf-0003')]",
+            "transform": "orf_positions"
+          }
+        }
+      ]
+    },
+    {
+      "select_tab": "map"
+    },
+    {
+      "expect": [
+        {
+          "state": "map.orf_regions",
+          "equals_cli": {
+            "command": "orfs",
+            "args": [
+              "--min-codons",
+              "30"
+            ],
+            "path": "result.orfs",
+            "transform": "orf_regions"
+          },
+          "message": "every ORF is drawn on the map"
+        },
+        {
+          "state": "map.undrawn_orfs",
+          "equals": 0
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "orfs",
+            "args": [
+              "--min-codons",
+              "30"
+            ],
+            "one": "result.orfs[?(@.id=='orf-0003')]",
+            "transform": "orf_parts"
+          },
+          "message": "selection band covers the ORF"
+        },
+        {
+          "state": "map.drawn_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "features still all drawn"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "toggle-orfs"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "options.show_orfs",
+          "equals": false
+        },
+        {
+          "state": "selection.kind",
+          "equals": null
+        }
+      ]
+    }
+  ]
+}

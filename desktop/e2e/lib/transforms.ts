@@ -47,3 +47,40 @@ export function codes(value: unknown): string[] {
   if (!Array.isArray(value)) throw new TransformError('codes expects a warnings array');
   return value.map(item => (item as { code: string }).code);
 }
+
+interface CliCodon { positions: number[] }
+interface CliOrf { strand: string; start: number; length: number }
+
+/** Middle reference base of each codon; accepts one codon list or a list of them. */
+export function codonMiddles(value: unknown): number[] | number[][] {
+  if (!Array.isArray(value)) throw new TransformError('codon_middles expects codons');
+  if (value.length && Array.isArray(value[0])) return (value as CliCodon[][]).map(list => list.map(c => c.positions[1]));
+  return (value as CliCodon[]).map(c => c.positions[1]);
+}
+
+const orfOrder = (a: CliOrf, b: CliOrf) => a.start - b.start || Number(a.strand === 'reverse') - Number(b.strand === 'reverse') || a.length - b.length;
+
+/** ORFs → [{strand, start, length}] in (start, forward-first, length) order. */
+export function orfRegions(value: unknown): CliOrf[] {
+  if (!Array.isArray(value)) throw new TransformError('orf_regions expects the CLI orfs array');
+  return (value as CliOrf[]).map(({ strand, start, length }) => ({ strand, start, length })).sort(orfOrder);
+}
+
+/** One ORF → its single {start, length} part (for selection-band comparison). */
+export function orfParts(value: unknown): Part[] {
+  const orf = value as CliOrf;
+  if (typeof orf?.start !== 'number') throw new TransformError('orf_parts expects one CLI ORF');
+  return [{ start: orf.start, length: orf.length }];
+}
+
+/** One ORF → sorted covered positions (wrapping). */
+export function orfPositions(value: unknown, moleculeLength: number): number[] {
+  const [part] = orfParts(value);
+  return Array.from({ length: part.length }, (_, i) => (part.start + i) % moleculeLength).sort((a, b) => a - b);
+}
+
+/** Array of arrays/strings → their lengths. */
+export function lengths(value: unknown): number[] {
+  if (!Array.isArray(value)) throw new TransformError('lengths expects an array');
+  return value.map(item => (item as { length: number }).length);
+}

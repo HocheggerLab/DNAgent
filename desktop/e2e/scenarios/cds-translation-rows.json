@@ -1,0 +1,133 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "cds-translation-rows",
+  "description": "Amino acids under every CDS equal the engine's translations, codon by codon, including joins and origin crossings",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.sequence.translations[*].feature_id",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[*].feature_id"
+          },
+          "message": "one amino-acid row per translatable CDS; the unknown-strand CDS is skipped"
+        },
+        {
+          "state": "selection.sequence.translations[*].protein",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[*].protein"
+          },
+          "message": "same residues, in codon order"
+        },
+        {
+          "state": "selection.sequence.translations[*].middles",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[*].codons",
+            "transform": "codon_middles"
+          },
+          "message": "each letter sits under its codon's middle base (split codons and origin wrap included)"
+        },
+        {
+          "state": "selection.sequence.translations[?(@.warned==true)].feature_id",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[?(@.label=='ambiguous CDS')].feature_id"
+          },
+          "message": "only the CDS whose imported translation disagrees is flagged"
+        },
+        {
+          "state": "layout.sequence_fits_width",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_option": {
+        "testid": "amino-acid-mode",
+        "value": "three"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "options.amino_acids",
+          "equals": "three"
+        },
+        {
+          "state": "selection.sequence.translations[*].codon_count",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--all-cds"
+            ],
+            "path": "result.translations[*].codons",
+            "transform": "lengths"
+          },
+          "message": "3-letter mode shows every codon once"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "reload": true
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "options.amino_acids",
+          "equals": "three",
+          "message": "view options persist across reloads"
+        }
+      ]
+    },
+    {
+      "select_option": {
+        "testid": "amino-acid-mode",
+        "value": "one"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "options.amino_acids",
+          "equals": "one"
+        }
+      ]
+    }
+  ]
+}

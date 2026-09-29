@@ -1,0 +1,222 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "six-frame-translation",
+  "description": "Six-frame rows equal whole-molecule engine translations in each frame, aligned to their codons",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "click": {
+        "testid": "toggle-frames"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "options.show_frames",
+          "equals": true
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+1')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame +1"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+1')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+2')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--frame",
+              "1"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame +2"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+2')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--frame",
+              "1"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+3')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--frame",
+              "2"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame +3"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='+3')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--frame",
+              "2"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-1')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame -1"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-1')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-2')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse",
+              "--frame",
+              "1"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame -2"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-2')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse",
+              "--frame",
+              "1"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-3')].protein",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse",
+              "--frame",
+              "2"
+            ],
+            "path": "result.protein"
+          },
+          "message": "frame -3"
+        },
+        {
+          "state": "selection.sequence.frames[?(@.frame=='-3')].middles",
+          "single": true,
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "0..564",
+              "--strand",
+              "reverse",
+              "--frame",
+              "2"
+            ],
+            "path": "result.codons",
+            "transform": "codon_middles"
+          }
+        },
+        {
+          "state": "layout.sequence_fits_width",
+          "equals": true
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

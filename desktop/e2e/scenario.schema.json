@@ -51,7 +51,12 @@
             "parts",
             "positions",
             "count",
-            "codes"
+            "codes",
+            "codon_middles",
+            "orf_regions",
+            "orf_parts",
+            "orf_positions",
+            "lengths"
           ]
         },
         {
@@ -96,7 +101,9 @@
           "enum": [
             "inspect",
             "features",
-            "primers"
+            "primers",
+            "translate",
+            "orfs"
           ]
         },
         "fixture": {
@@ -119,6 +126,15 @@
           "type": "integer",
           "minimum": 0,
           "description": "Pick one element of the resolved array."
+        },
+        "args": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Extra CLI arguments after the fixture, e.g. [\"--feature\", \"feature-0001\"]."
         }
       }
     },
@@ -160,6 +176,10 @@
         },
         "message": {
           "type": "string"
+        },
+        "single": {
+          "type": "boolean",
+          "description": "The state path must match exactly one value, compared unwrapped."
         }
       }
     },
@@ -478,6 +498,68 @@
             "reload": {
               "const": true,
               "description": "Reload the page (local preferences persist; the document does not)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_orf"
+          ],
+          "properties": {
+            "select_orf": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^orf-[0-9]{4,}$"
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drag_bases"
+          ],
+          "properties": {
+            "drag_bases": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to"
+              ],
+              "properties": {
+                "from": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "to": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "description": "Real mouse drag across forward-strand bases (Sequence tab)."
             },
             "screenshot": {
               "type": "boolean"

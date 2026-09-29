@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 export const REPO_ROOT = resolve(import.meta.dirname, '../../..');
 export const BINARY = process.env.DNAGENT_BINARY ?? resolve(REPO_ROOT, 'target/debug/dnagent');
-export const CLI_COMMANDS = ['inspect', 'features', 'primers'] as const;
+export const CLI_COMMANDS = ['inspect', 'features', 'primers', 'translate', 'orfs'] as const;
 export type CliCommand = (typeof CLI_COMMANDS)[number];
 
 const cache = new Map<string, unknown>();
@@ -17,13 +17,13 @@ export function assertBinary(): void {
 }
 
 /** The JSON envelope of `dnagent <command> <fixture> --output json` (failure envelopes included). */
-export function cli(command: CliCommand, fixture: string): Record<string, unknown> {
-  const key = `${command} ${fixture}`;
+export function cli(command: CliCommand, fixture: string, args: string[] = []): Record<string, unknown> {
+  const key = [command, fixture, ...args].join(' ');
   if (!cache.has(key)) {
     assertBinary();
     let stdout: string;
     try {
-      stdout = execFileSync(BINARY, [command, fixture, '--output', 'json'], { cwd: REPO_ROOT, encoding: 'utf8' });
+      stdout = execFileSync(BINARY, [command, fixture, ...args, '--output', 'json'], { cwd: REPO_ROOT, encoding: 'utf8' });
     } catch (error) {
       // Runtime failures still print a JSON envelope on stdout with a nonzero exit.
       stdout = String((error as { stdout?: string }).stdout ?? '');

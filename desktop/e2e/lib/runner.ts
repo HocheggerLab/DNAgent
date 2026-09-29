@@ -7,7 +7,7 @@ import { cli } from './cli.ts';
 import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
-import { codes, count, idsCovering, parts, positions } from './transforms.ts';
+import { codes, codonMiddles, count, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts, positions } from './transforms.ts';
 
 const IDLE_TIMEOUT_MS = 5_000;
 const show = (value: unknown) => JSON.stringify(value, null, 2)?.replace(/\n\s*/g, ' ') ?? String(value);
@@ -15,7 +15,7 @@ const show = (value: unknown) => JSON.stringify(value, null, 2)?.replace(/\n\s*/
 /** Resolve a CLI-derived expectation. `fixture` defaults to the most recently opened one. */
 export function resolveCli(expectation: CliExpectation, defaultFixture: string): unknown {
   const fixture = expectation.fixture ?? defaultFixture;
-  const envelope = cli(expectation.command, fixture);
+  const envelope = cli(expectation.command, fixture, expectation.args ?? []);
   let value = expectation.one !== undefined ? queryOne(envelope, expectation.one) : query(envelope, expectation.path!);
   const transform = expectation.transform;
   const moleculeLength = () => queryOne(cli('inspect', fixture), 'result.length') as number;
@@ -23,6 +23,11 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string):
   else if (transform === 'positions') value = positions(value, moleculeLength());
   else if (transform === 'count') value = count(value);
   else if (transform === 'codes') value = codes(value);
+  else if (transform === 'codon_middles') value = codonMiddles(value);
+  else if (transform === 'orf_regions') value = orfRegions(value);
+  else if (transform === 'orf_parts') value = orfParts(value);
+  else if (transform === 'orf_positions') value = orfPositions(value, moleculeLength());
+  else if (transform === 'lengths') value = lengths(value);
   else if (transform?.name === 'ids_covering') value = idsCovering(value, transform.base, moleculeLength());
   if (expectation.index !== undefined) {
     if (!Array.isArray(value) || expectation.index >= value.length) {
@@ -36,7 +41,7 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string):
 function describeExpected(assertion: Assertion, fixture: string): string {
   if (assertion.equals_cli) {
     const e = assertion.equals_cli;
-    return `dnagent ${e.command} ${e.fixture ?? fixture} → ${e.one ? `one(${e.one})` : e.path}${e.transform ? ` | ${typeof e.transform === 'string' ? e.transform : `${e.transform.name}(${e.transform.base})`}` : ''}${e.index !== undefined ? ` [${e.index}]` : ''}`;
+    return `dnagent ${e.command} ${e.fixture ?? fixture}${e.args?.length ? ` ${e.args.join(' ')}` : ''} → ${e.one ? `one(${e.one})` : e.path}${e.transform ? ` | ${typeof e.transform === 'string' ? e.transform : `${e.transform.name}(${e.transform.base})`}` : ''}${e.index !== undefined ? ` [${e.index}]` : ''}`;
   }
   return assertion.equals_state !== undefined ? `state ${assertion.equals_state}` : 'literal';
 }
@@ -110,13 +115,25 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     } else if ('reload' in step) {
       await page.reload();
       await ready();
+    } else if ('select_orf' in step) {
+      await page.evaluate(id => window.__DNAGENT_TEST__!.selectOrf(id), step.select_orf.id);
+      await settle();
+    } else if ('drag_bases' in step) {
+      // A real pointer drag across forward-strand bases.
+      const base = (position: number) => page.locator(`#sequence [data-strand="forward"] [data-position="${position}"]`);
+      await base(step.drag_bases.from).scrollIntoViewIfNeeded();
+      await base(step.drag_bases.from).hover();
+      await page.mouse.down();
+      await base(step.drag_bases.to).hover();
+      await page.mouse.up();
+      await settle();
     } else if ('expect' in step) {
       const snapshot = await state();
       const failures: string[] = [];
       for (const [item, assertion] of step.expect.entries()) {
         const label = `expect[${item}]${assertion.message ? ` (${assertion.message})` : ''} ${assertion.state}`;
         try {
-          const actual = query(snapshot, assertion.state);
+          const actual = assertion.single ? queryOne(snapshot, assertion.state) : query(snapshot, assertion.state);
           const expected = assertion.equals_cli ? resolveCli(assertion.equals_cli, fixture)
             : assertion.equals_state !== undefined ? query(snapshot, assertion.equals_state) : assertion.equals;
           if (!isDeepStrictEqual(actual, expected)) {

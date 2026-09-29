@@ -1,7 +1,7 @@
 // SVG construct map. Layout (angles, lanes, labels) comes from map-geometry.ts; this
 // module only builds DOM. Every feature part is drawn; labels that cannot be placed
 // are returned in `unlabelled` so the caller can report them — never dropped silently.
-import type { Document, Feature } from './bindings';
+import type { Document, Feature, Orf } from './bindings';
 import { featureColor } from './map-layout';
 import {
   angleOf, assignLanes, blockArrowPath, linearArrowPath, placeCircularLabels, placeRowLabels,
@@ -16,9 +16,18 @@ const PILL_PITCH = 24;
 /** Bottom strip kept free of labels for the overlaid "labels not shown" notice. */
 const NOTICE_RESERVE = 40;
 
+/** ORFs to draw (already filtered) and the ORF selection. */
+export interface MapOrfs {
+  orfs: Orf[];
+  selectedOrf: string | null;
+  selectOrf: (id: string) => void;
+}
+
 export interface MapReport {
   /** Features drawn without a map label, in source order. */
   unlabelled: string[];
+  /** ORFs requested but not drawn for lack of room (still listed in the sequence view). */
+  undrawnOrfs: string[];
 }
 
 let measure: CanvasRenderingContext2D | null = null;
@@ -66,17 +75,29 @@ function pill(shape: Shape, parent: Element, feature: Feature, x: number, y: num
   return group;
 }
 
-export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void): MapReport {
+export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void,
+  orfs: MapOrfs = { orfs: [], selectedOrf: null, selectOrf: () => undefined }): MapReport {
   svg.replaceChildren();
-  const width = Math.max(320, svg.clientWidth || 900);
-  const height = Math.max(320, svg.clientHeight || 600);
+  const width = Math.max(240, svg.clientWidth || 900);
+  const height = Math.max(160, svg.clientHeight || 600);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.dataset.width = String(width);
   svg.dataset.height = String(height);
-  return doc.circular ? circular(svg, doc, selected, select, width, height) : linear(svg, doc, selected, select, width, height);
+  return doc.circular ? circular(svg, doc, selected, select, width, height, orfs) : linear(svg, doc, selected, select, width, height, orfs);
 }
 
-function circular(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number): MapReport {
+function orfInteractive(node: Element, orf: Orf, select: (id: string) => void, shape: Shape) {
+  node.setAttribute('tabindex', '0');
+  node.setAttribute('role', 'button');
+  node.setAttribute('aria-label', `ORF ${orf.codons} amino acids, ${orf.strand} strand`);
+  node.addEventListener('click', () => select(orf.id));
+  node.addEventListener('keydown', event => {
+    if (['Enter', ' '].includes((event as KeyboardEvent).key)) { event.preventDefault(); select(orf.id); }
+  });
+  shape('title', {}, node).textContent = `ORF · ${orf.strand} · [${orf.start}, ${orf.start + orf.length}) · ${orf.codons} aa`;
+}
+
+function circular(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number, orfs: MapOrfs): MapReport {
   const shape = shapes(svg);
   const length = doc.sequence.length;
   const cx = width / 2;
@@ -181,6 +202,37 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
       priority: isSelected ? Number.POSITIVE_INFINITY : totalLength(feature) });
   });
 
+  // ORFs: thin arrows in their own lanes inside the features.
+  const undrawnOrfs: string[] = [];
+  if (orfs.orfs.length) {
+    const orfLanes = assignLanes(orfs.orfs.map(orf => ({ id: orf.id, parts: [{ start: orf.start, length: orf.length }] })), length, true, minPx * basesPerPx, 1.5 * basesPerPx);
+    const orfThickness = Math.max(3, Math.min(7, thickness * 0.4));
+    const orfOuter = outer - laneCount * (thickness + gap) - 8;
+    const orfLayer = shape('g', { class: 'map-orfs' });
+    featureLayer.before(orfLayer);
+    for (const orf of orfs.orfs) {
+      const mid = orfOuter - orfThickness / 2 - (orfLanes.get(orf.id) ?? 0) * (orfThickness + 2);
+      if (mid < radius * 0.25) { undrawnOrfs.push(orf.id); continue; }
+      const [a0, a1] = spanAngles({ start: orf.start, length: orf.length }, mid);
+      const isSelected = orf.id === orfs.selectedOrf;
+      const node = shape('path', {
+        d: blockArrowPath(cx, cy, mid, orfThickness, a0, a1, orf.strand === 'reverse' ? 'reverse' : 'forward', orfThickness * 1.6),
+        class: `map-orf${isSelected ? ' selected' : ''}`, 'data-testid': 'map-orf', 'data-orf-id': orf.id,
+        'data-orf-start': orf.start, 'data-orf-length': orf.length, 'data-orf-strand': orf.strand,
+      }, orfLayer);
+      orfInteractive(node, orf, orfs.selectOrf, shape);
+      if (isSelected) {
+        shape('path', { d: blockArrowPath(cx, cy, radius + 13, 14, a0, a1, 'none', 0), class: 'map-band',
+          'data-testid': 'map-selection-part', 'data-part-index': 0, 'data-part-start': orf.start, 'data-part-length': orf.length }, bands);
+        for (const edge of [a0, a1]) {
+          const [x0, y0] = polar(cx, cy, radius + 5, edge);
+          const [x1, y1] = polar(cx, cy, radius + 21, edge);
+          shape('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: 'map-band-edge' }, bands);
+        }
+      }
+    }
+  }
+
   const { placed, hidden } = placeCircularLabels(requests, cx, cy, radius + 44, 14 + PILL_HEIGHT / 2, height - NOTICE_RESERVE - PILL_HEIGHT / 2, PILL_PITCH, 8, width - 8);
   const byId = new Map(doc.features.map(feature => [feature.id, feature]));
   for (const label of placed) {
@@ -193,10 +245,10 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
     pill(shape, labelLayer, feature, label.x, label.y, label.width, feature.id === selected, select);
   }
   const hiddenSet = new Set(hidden);
-  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id) };
+  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs };
 }
 
-function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number): MapReport {
+function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number, orfs: MapOrfs): MapReport {
   const shape = shapes(svg);
   const length = doc.sequence.length;
   const margin = 40;
@@ -261,7 +313,27 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
     requests.push({ id: feature.id, centre: (x0 + x1) / 2, width: textWidth(name) + 18, priority: isSelected ? Number.POSITIVE_INFINITY : totalLength(feature) });
   });
 
-  const rowsTop = top + laneCount * (thickness + gap) + 24;
+  let orfBottom = top + laneCount * (thickness + gap);
+  if (orfs.orfs.length) {
+    const orfLanes = assignLanes(orfs.orfs.map(orf => ({ id: orf.id, parts: [{ start: orf.start, length: orf.length }] })), length, false, minPx * basesPerPx, 1.5 * basesPerPx);
+    const orfLayer = shape('g', { class: 'map-orfs' });
+    const orfTop = orfBottom + 8;
+    for (const orf of orfs.orfs) {
+      const y = orfTop + 3 + (orfLanes.get(orf.id) ?? 0) * 9;
+      const [x0, x1] = spanX({ start: orf.start, length: orf.length });
+      const isSelected = orf.id === orfs.selectedOrf;
+      const node = shape('path', { d: linearArrowPath(x0, x1, y, 6, orf.strand === 'reverse' ? 'reverse' : 'forward', 8),
+        class: `map-orf${isSelected ? ' selected' : ''}`, 'data-testid': 'map-orf', 'data-orf-id': orf.id,
+        'data-orf-start': orf.start, 'data-orf-length': orf.length, 'data-orf-strand': orf.strand }, orfLayer);
+      orfInteractive(node, orf, orfs.selectOrf, shape);
+      if (isSelected) {
+        shape('rect', { x: x0, y: backbone + 10, width: x1 - x0, height: 12, class: 'map-band',
+          'data-testid': 'map-selection-part', 'data-part-index': 0, 'data-part-start': orf.start, 'data-part-length': orf.length }, bands);
+      }
+      orfBottom = Math.max(orfBottom, y + 6);
+    }
+  }
+  const rowsTop = orfBottom + 24;
   const maxRows = Math.max(0, Math.floor((height - rowsTop - NOTICE_RESERVE) / PILL_PITCH));
   const { placed, hidden } = placeRowLabels(requests, 8, width - 8, maxRows, 8);
   const byId = new Map(doc.features.map(feature => [feature.id, feature]));
@@ -281,5 +353,5 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
   group.append(...svg.childNodes);
   svg.append(group);
   const hiddenSet = new Set(hidden);
-  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id) };
+  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs: [] };
 }

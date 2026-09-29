@@ -1,0 +1,134 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "range-drag-translation",
+  "description": "Dragging across bases selects a half-open range whose displayed translation equals the engine's range translation on either strand",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "drag_bases": {
+        "from": 40,
+        "to": 99
+      },
+      "note": "crosses a row boundary at this width"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "range"
+        },
+        {
+          "state": "selection.range",
+          "equals": {
+            "start": 40,
+            "end": 100
+          }
+        },
+        {
+          "state": "selection.feature_id",
+          "equals": null
+        },
+        {
+          "state": "selection.range_translation.protein",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "40..100"
+            ],
+            "path": "result.protein"
+          },
+          "message": "forward translation from the first selected base"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_option": {
+        "testid": "range-strand",
+        "value": "reverse"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range_translation.strand",
+          "equals": "reverse"
+        },
+        {
+          "state": "selection.range_translation.protein",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "40..100",
+              "--strand",
+              "reverse"
+            ],
+            "path": "result.protein"
+          },
+          "message": "reverse strand, 5′ end at the last selected base"
+        }
+      ]
+    },
+    {
+      "drag_bases": {
+        "from": 120,
+        "to": 110
+      },
+      "note": "dragging right-to-left gives the same half-open range"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals": {
+            "start": 110,
+            "end": 121
+          }
+        },
+        {
+          "state": "selection.range_translation.protein",
+          "equals_cli": {
+            "command": "translate",
+            "args": [
+              "--range",
+              "110..121",
+              "--strand",
+              "reverse"
+            ],
+            "path": "result.protein"
+          }
+        }
+      ]
+    },
+    {
+      "click_sequence_base": 150,
+      "note": "a plain click still selects features"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "feature"
+        },
+        {
+          "state": "selection.range",
+          "equals": null
+        }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ const DEFAULT_FIXTURES = [
   'fixtures/formats/snapgene/synthetic_circular.dna',
   'fixtures/formats/snapgene/synthetic_multipart_origin.dna',
   'fixtures/formats/snapgene/synthetic_linear.dna',
+  'fixtures/formats/snapgene/synthetic_translation.dna',
 ];
 const SIZES = [{ width: 1440, height: 900 }, { width: 1100, height: 720 }, { width: 1920, height: 1200 }];
 const THEMES = ['light', 'dark'] as const;
@@ -119,6 +120,20 @@ async function main() {
           await page.evaluate(id => window.__DNAGENT_TEST__!.selectFeature(id), pick.id);
           await capture(page, `${slug(label)}-${theme}-select-${what}`, `${theme} · selected ${what}: ${pick.name}`, shots);
         }
+        // Sequence view: largest (translated) feature, then ORFs + six frames, then 3-letter.
+        if (largest) await page.evaluate(id => window.__DNAGENT_TEST__!.selectFeature(id), largest.id);
+        await page.getByTestId('tab-sequence').click();
+        await capture(page, `${slug(label)}-${theme}-sequence`, `${theme} · sequence · ${largest?.name ?? 'no feature'}`, shots);
+        await page.getByTestId('toggle-orfs').check();
+        await page.getByTestId('toggle-frames').check();
+        await capture(page, `${slug(label)}-${theme}-sequence-orfs-frames`, `${theme} · sequence · ORFs ≥ 75 codons + six frames`, shots);
+        await page.getByTestId('toggle-frames').uncheck();
+        await page.getByTestId('amino-acid-mode').selectOption('three');
+        await capture(page, `${slug(label)}-${theme}-sequence-3letter`, `${theme} · sequence · 3-letter amino acids`, shots);
+        await page.getByTestId('amino-acid-mode').selectOption('one');
+        await page.getByTestId('tab-map').click();
+        await capture(page, `${slug(label)}-${theme}-map-orfs`, `${theme} · map with ORFs ≥ 75 codons`, shots);
+        await page.getByTestId('toggle-orfs').uncheck();
         await page.close();
       }
       sections.push({ label, shots });
