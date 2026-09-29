@@ -155,7 +155,8 @@ between sessions):
 
 Counts, sites and fragments come from the engine (`enzyme_counts`, `find_sites` and
 `digest` desktop commands over the active catalogue). The frontend only picks names.
-An enzyme whose site cannot be scanned on a very short circle counts zero sites.
+An enzyme whose span is longer than a very short circle counts zero sites; any other
+scan failure (e.g. an N in the sequence) is shown in the status line instead of sites.
 
 - **Map:** a tick at each top-strand cut, labelled "EcoRI, ApoI (396)" with every enzyme
   cutting there (cut positions are zero-based boundaries, as in `dnagent sites`). Site

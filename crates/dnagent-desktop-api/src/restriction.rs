@@ -111,29 +111,34 @@ pub fn catalogue_info() -> EnzymeCatalogueInfo {
     }
 }
 
-/// Site counts for every catalogue enzyme (enzymes that cannot be scanned count zero).
-#[must_use]
-pub fn counts(record: &SequenceRecord) -> Vec<EnzymeCount> {
+/// Site counts for every catalogue enzyme. Only a circle too short for an enzyme's span
+/// counts as zero sites; any other failure (e.g. an ambiguous base in the sequence) fails
+/// the whole request so the GUI reports it instead of showing no sites.
+pub fn counts(record: &SequenceRecord) -> Result<Vec<EnzymeCount>, Diagnostic> {
     restriction::active_catalogue()
         .enzymes
         .iter()
         .map(|enzyme| {
-            let scan = restriction::find_sites(
+            match restriction::find_sites(
                 record.sequence(),
                 record.topology(),
                 &[enzyme.name.to_owned()],
-            );
-            let (sites, cuts) = scan.map_or((0, 0), |s| {
-                (
-                    s.sites.len(),
-                    s.sites.iter().filter(|x| x.cleavage_available).count(),
-                )
-            });
-            EnzymeCount {
+            ) {
+                Ok(scan) => Ok((
+                    scan.sites.len(),
+                    scan.sites.iter().filter(|x| x.cleavage_available).count(),
+                )),
+                Err(restriction::RestrictionError::ShortCircle { .. }) => Ok((0, 0)),
+                Err(error) => Err(Diagnostic {
+                    code: "restriction_scan_failed".into(),
+                    message: error.to_string(),
+                }),
+            }
+            .map(|(sites, cuts)| EnzymeCount {
                 name: enzyme.name.into(),
                 sites: u32_of(sites),
                 cuts: u32_of(cuts),
-            }
+            })
         })
         .collect()
 }

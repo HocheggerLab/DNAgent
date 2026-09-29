@@ -634,6 +634,7 @@ struct RawFeature {
 fn parse_features(lines: &[&str]) -> Result<Vec<RawFeature>, ImportError> {
     let mut features: Vec<RawFeature> = Vec::new();
     let mut in_location = false;
+    let mut unquoted_value = false;
     let mut open_value: Option<(String, String)> = None; // key, accumulated raw (with opening quote)
     let finish = |feature: &mut RawFeature, key: String, raw: String| {
         let value = raw.trim();
@@ -663,6 +664,7 @@ fn parse_features(lines: &[&str]) -> Result<Vec<RawFeature>, ImportError> {
                 qualifiers: Vec::new(),
             });
             in_location = true;
+            unquoted_value = false;
             continue;
         }
         let Some(feature) = features.last_mut() else {
@@ -681,6 +683,7 @@ fn parse_features(lines: &[&str]) -> Result<Vec<RawFeature>, ImportError> {
         }
         if let Some(qualifier) = content.strip_prefix('/') {
             in_location = false;
+            unquoted_value = false;
             match qualifier.split_once('=') {
                 None => feature
                     .qualifiers
@@ -689,12 +692,20 @@ fn parse_features(lines: &[&str]) -> Result<Vec<RawFeature>, ImportError> {
                     if raw.starts_with('"') && !quotes_closed(raw) {
                         open_value = Some((key.to_owned(), raw.to_owned()));
                     } else {
+                        unquoted_value = !raw.starts_with('"');
                         finish(feature, key.to_owned(), raw.to_owned());
                     }
                 }
             }
         } else if in_location {
             feature.location.push_str(content.trim());
+        } else if let (true, Some((_, Some(value)))) =
+            (unquoted_value, feature.qualifiers.last_mut())
+        {
+            // An unquoted value continued on the next line (e.g. ApE's
+            // `/ApEinfo_graphicformat=arrow_data …` / `width 5 offset 0`), joined with a space.
+            value.push(' ');
+            value.push_str(content.trim_end());
         } else {
             return Err(invalid(format!(
                 "unexpected feature-table line {content:?}"
@@ -705,6 +716,49 @@ fn parse_features(lines: &[&str]) -> Result<Vec<RawFeature>, ImportError> {
         return Err(invalid("unterminated qualifier value"));
     }
     Ok(features)
+}
+
+/// Sequence letters after ORIGIN. Other marks (e.g. `*` placeholders some editors
+/// write) occupy a position: they become N so that feature coordinates after them stay
+/// right, with a warning.
+fn origin_sequence(lines: &[&str], warnings: &mut Vec<ImportWarning>) -> String {
+    let mut sequence = String::new();
+    let mut placeholders: Vec<(usize, char)> = Vec::new();
+    for line in lines {
+        if line.starts_with("//") {
+            break;
+        }
+        // Leading base numbers, then sequence characters; spaces separate blocks.
+        for c in line
+            .trim_start()
+            .trim_start_matches(|c: char| c.is_ascii_digit())
+            .chars()
+        {
+            if c.is_ascii_alphabetic() {
+                sequence.push(c);
+            } else if !c.is_whitespace() {
+                placeholders.push((sequence.len(), c));
+                sequence.push('N');
+            }
+        }
+    }
+    if !placeholders.is_empty() {
+        let shown: Vec<String> = placeholders
+            .iter()
+            .take(10)
+            .map(|(at, c)| format!("{c:?} at {at}"))
+            .collect();
+        warnings.push(ImportWarning::new(
+            "genbank_sequence_placeholder",
+            format!(
+                "{} non-letter character(s) in ORIGIN were read as N to keep coordinates: {}{}",
+                placeholders.len(),
+                shown.join(", "),
+                if placeholders.len() > 10 { ", …" } else { "" }
+            ),
+        ));
+    }
+    sequence
 }
 
 /// A value starting with `"` is closed when its quotes (with `""` escapes) balance.
@@ -909,15 +963,20 @@ pub fn read(bytes: &[u8], fallback_name: &str) -> Result<ImportReport, ImportErr
     let header_end = features_at.unwrap_or(origin_at);
 
     let (header, data) = parse_header(&lines[locus + 1..header_end])?;
-    let mut sequence = String::new();
-    for line in &lines[origin_at + 1..] {
-        if line.starts_with("//") {
-            break;
-        }
-        sequence.extend(line.chars().filter(char::is_ascii_alphabetic));
-    }
+    let sequence = origin_sequence(&lines[origin_at + 1..], &mut warnings);
     let sequence = DnaSeq::new(&sequence)?;
     let length = sequence.len();
+    if let Some(declared) = tokens
+        .windows(2)
+        .find(|pair| pair[1].eq_ignore_ascii_case("bp") || pair[1].eq_ignore_ascii_case("aa"))
+        .and_then(|pair| pair[0].parse::<usize>().ok())
+        .filter(|declared| *declared != length)
+    {
+        warnings.push(ImportWarning::new(
+            "genbank_length_mismatch",
+            format!("LOCUS declares {declared} bp but ORIGIN holds {length}; the ORIGIN sequence was used"),
+        ));
+    }
 
     let raw_features = match features_at {
         Some(start) => parse_features(&lines[start + 1..origin_at])?,

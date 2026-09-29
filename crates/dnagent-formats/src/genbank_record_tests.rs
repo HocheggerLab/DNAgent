@@ -379,3 +379,71 @@ fn files_written_before_the_rename_still_open() {
         rich_report().record
     );
 }
+
+#[test]
+fn unquoted_values_continue_on_the_next_line() {
+    // As written by ApE: an unquoted qualifier value wrapped onto a continuation line.
+    let text = "LOCUS       ape_style                 12 bp ds-DNA     circular     09-FEB-2015\n\
+FEATURES             Location/Qualifiers\n\
+\x20    primer_bind     complement(2..7)\n\
+\x20                    /label=M13-fwd\n\
+\x20                    /ApEinfo_graphicformat=arrow_data {{0 1 2 0 0 -1} {} 0}\n\
+\x20                    width 5 offset 0\n\
+\x20    misc_feature    9..10\n\
+\x20                    /label=second\n\
+ORIGIN\n\
+\x20       1 acgtacgtac gt\n\
+//\n";
+    let report = read(text.as_bytes(), "fallback").unwrap();
+    let features = report.record.features();
+    assert_eq!(features.len(), 2);
+    let graphic = features[0]
+        .qualifiers()
+        .iter()
+        .find(|q| q.key == "ApEinfo_graphicformat")
+        .unwrap();
+    assert_eq!(
+        graphic.value.as_deref(),
+        Some("arrow_data {{0 1 2 0 0 -1} {} 0} width 5 offset 0")
+    );
+    assert_eq!(features[1].label(), "second");
+    // A stray line after a quoted value is still an error.
+    let bad = text.replace(
+        "/ApEinfo_graphicformat=arrow_data {{0 1 2 0 0 -1} {} 0}",
+        "/note=\"quoted\"",
+    );
+    assert!(read(bad.as_bytes(), "fallback").is_err());
+}
+
+#[test]
+fn origin_placeholders_keep_coordinates() {
+    let text = "LOCUS       placeholder               10 bp    DNA     linear   SYN 01-JAN-2026\n\
+FEATURES             Location/Qualifiers\n\
+\x20    misc_feature    8..10\n\
+\x20                    /label=after\n\
+ORIGIN\n\
+\x20       1 acg*tac gta\n\
+//\n";
+    let report = read(text.as_bytes(), "fallback").unwrap();
+    assert_eq!(report.record.sequence().as_str(), "ACGNTACGTA");
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|w| w.code == "genbank_sequence_placeholder" && w.message.contains("'*' at 3"))
+    );
+    assert!(
+        report
+            .warnings
+            .iter()
+            .all(|w| w.code != "genbank_length_mismatch")
+    );
+    let short = text.replace("10 bp", "12 bp");
+    let report = read(short.as_bytes(), "fallback").unwrap();
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|w| w.code == "genbank_length_mismatch")
+    );
+}

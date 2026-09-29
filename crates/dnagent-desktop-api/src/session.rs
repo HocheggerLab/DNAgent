@@ -300,7 +300,7 @@ impl Session {
         &self,
         id: u32,
     ) -> Result<Vec<crate::restriction::EnzymeCount>, Diagnostic> {
-        Ok(crate::restriction::counts(self.record(id)?))
+        crate::restriction::counts(self.record(id)?)
     }
 
     pub fn find_sites(

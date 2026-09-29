@@ -5,6 +5,7 @@ pub mod editing;
 pub mod enzymes;
 pub mod gibson;
 pub mod gibson_extensions;
+pub mod library;
 pub mod ligation;
 pub mod translation;
 
@@ -34,12 +35,20 @@ pub enum AppError {
         "unsupported input extension for {0}; accepted sequence files are .dna, .gb, .gbk, .genbank, .fa, .fasta and .fna"
     )]
     UnsupportedExtension(String),
+    #[error("{path} is not a sequence file: it contains {content}")]
+    NotSequenceFile { path: String, content: &'static str },
+    #[error(
+        "{0} has a .dna extension but no SnapGene header; it may be an older or different binary format"
+    )]
+    NotSnapGene(String),
     #[error("invalid FASTA input: {0}")]
     Fasta(&'static str),
     #[error(transparent)]
     Import(#[from] ImportError),
     #[error(transparent)]
     Domain(#[from] DomainError),
+    #[error(transparent)]
+    Library(#[from] dnagent_library::LibraryError),
     #[error(
         "strict mode rejected {count} warning(s); inspect the warnings or retry without --strict"
     )]
@@ -111,30 +120,142 @@ pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
     import_path_bytes(path, &bytes)
 }
 
+/// Extensions DNAgent opens as sequence files.
+pub const SEQUENCE_EXTENSIONS: [&str; 7] = ["dna", "gb", "gbk", "genbank", "fa", "fasta", "fna"];
+
+/// A sequence format recognised from file content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SequenceFormat {
+    SnapGene,
+    GenBank,
+    Fasta,
+}
+
+impl SequenceFormat {
+    fn describe(self) -> &'static str {
+        match self {
+            Self::SnapGene => "SnapGene",
+            Self::GenBank => "GenBank",
+            Self::Fasta => "FASTA",
+        }
+    }
+
+    fn from_extension(extension: &str) -> Option<Self> {
+        match extension {
+            "dna" => Some(Self::SnapGene),
+            "fa" | "fasta" | "fna" => Some(Self::Fasta),
+            "gb" | "gbk" | "genbank" => Some(Self::GenBank),
+            _ => None,
+        }
+    }
+}
+
+/// What the first bytes of a file say it is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sniffed {
+    Sequence(SequenceFormat),
+    /// Recognisably not sequence data (office document, PDF, image…).
+    Other(&'static str),
+    Unknown,
+}
+
+/// Magic numbers of common non-sequence uploads.
+const MAGIC: [(&[u8], &str); 6] = [
+    (
+        b"PK\x03\x04",
+        "a ZIP archive or Office document (e.g. Word .docx)",
+    ),
+    (b"%PDF", "a PDF document"),
+    (b"\x89PNG", "a PNG image"),
+    (b"\xFF\xD8\xFF", "a JPEG image"),
+    (
+        b"\xD0\xCF\x11\xE0",
+        "a legacy Office document (e.g. Word .doc)",
+    ),
+    (b"{\\rtf", "an RTF document"),
+];
+
+/// Recognise SnapGene, GenBank and FASTA by content, and common non-sequence uploads
+/// by their magic numbers. Content that fits none of these is `Unknown`.
+#[must_use]
+pub fn sniff(bytes: &[u8]) -> Sniffed {
+    if bytes.first() == Some(&0x09) && bytes.get(5..13) == Some(b"SnapGene".as_slice()) {
+        return Sniffed::Sequence(SequenceFormat::SnapGene);
+    }
+    let text = bytes
+        .strip_prefix(b"\xEF\xBB\xBF".as_slice())
+        .unwrap_or(bytes);
+    let start = text
+        .iter()
+        .position(|b| !b.is_ascii_whitespace())
+        .unwrap_or(text.len());
+    let text = &text[start..];
+    if text.starts_with(b"LOCUS") {
+        return Sniffed::Sequence(SequenceFormat::GenBank);
+    }
+    if text.starts_with(b">") {
+        return Sniffed::Sequence(SequenceFormat::Fasta);
+    }
+    MAGIC
+        .iter()
+        .find(|(magic, _)| bytes.starts_with(magic))
+        .map_or(Sniffed::Unknown, |(_, what)| Sniffed::Other(what))
+}
+
 /// Import the exact byte snapshot supplied by the caller (e.g. for hashed provenance).
+///
+/// The format comes from the content when it is recognisable; otherwise from the
+/// extension. A file whose content and extension disagree (e.g. GenBank text saved as
+/// `.dna`) is read by content, with a `content_format_mismatch` warning.
 pub fn import_path_bytes(path: &Path, bytes: &[u8]) -> Result<ImportReport, AppError> {
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
         .map(str::to_ascii_lowercase);
-    if !matches!(
-        extension.as_deref(),
-        Some("dna" | "fa" | "fasta" | "fna" | "gb" | "gbk" | "genbank")
-    ) {
+    let Some(named) = extension
+        .as_deref()
+        .and_then(SequenceFormat::from_extension)
+    else {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
-    }
+    };
     let fallback_name = path
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("untitled");
-    match extension.as_deref() {
-        Some("dna") => Ok(dnagent_format_snapgene::import_bytes(bytes, fallback_name)?),
-        Some("fa" | "fasta" | "fna") => import_single_fasta(bytes, fallback_name),
-        Some("gb" | "gbk" | "genbank") => {
-            Ok(dnagent_formats::genbank_record::read(bytes, fallback_name)?)
+    let format = match sniff(bytes) {
+        Sniffed::Sequence(format) => format,
+        Sniffed::Other(content) => {
+            return Err(AppError::NotSequenceFile {
+                path: path.display().to_string(),
+                content,
+            });
         }
-        _ => Err(AppError::UnsupportedExtension(path.display().to_string())),
+        // Every SnapGene file starts with its cookie packet (type 9).
+        Sniffed::Unknown if named == SequenceFormat::SnapGene && bytes.first() != Some(&0x09) => {
+            return Err(AppError::NotSnapGene(path.display().to_string()));
+        }
+        Sniffed::Unknown => named,
+    };
+    let mut report = match format {
+        SequenceFormat::SnapGene => dnagent_format_snapgene::import_bytes(bytes, fallback_name)?,
+        SequenceFormat::Fasta => import_single_fasta(bytes, fallback_name)?,
+        SequenceFormat::GenBank => dnagent_formats::genbank_record::read(bytes, fallback_name)?,
+    };
+    if format != named {
+        report.warnings.insert(
+            0,
+            ImportWarning::new(
+                "content_format_mismatch",
+                format!(
+                    "file has a .{} extension but contains {}; it was read as {}",
+                    extension.unwrap_or_default(),
+                    format.describe(),
+                    format.describe()
+                ),
+            ),
+        );
     }
+    Ok(report)
 }
 
 fn import_single_fasta(bytes: &[u8], fallback_name: &str) -> Result<ImportReport, AppError> {
@@ -529,6 +650,39 @@ pub fn sequence_range(
 mod tests {
     use super::*;
     use dnagent_domain::DnaSeq;
+
+    const GENBANK: &[u8] = b"LOCUS       misnamed                   8 bp    DNA     linear   SYN 01-JAN-2026\nFEATURES             Location/Qualifiers\nORIGIN\n        1 acgtacgt\n//\n";
+
+    #[test]
+    fn content_decides_the_format_and_a_mismatch_is_reported() {
+        let report = import_path_bytes(Path::new("plasmid.dna"), GENBANK).unwrap();
+        assert_eq!(report.record.sequence().as_str(), "ACGTACGT");
+        assert_eq!(report.warnings[0].code, "content_format_mismatch");
+        let named = import_path_bytes(Path::new("plasmid.gb"), GENBANK).unwrap();
+        assert!(
+            named
+                .warnings
+                .iter()
+                .all(|w| w.code != "content_format_mismatch")
+        );
+        let fasta = import_path_bytes(Path::new("seq.gb"), b">seq\nACGT\n").unwrap();
+        assert_eq!(fasta.warnings[0].code, "content_format_mismatch");
+    }
+
+    #[test]
+    fn uploads_that_are_not_sequences_are_named() {
+        for (bytes, what) in [
+            (&b"PK\x03\x04rest"[..], "Office"),
+            (b"%PDF-1.3", "PDF"),
+            (b"\x89PNG\r\n", "PNG"),
+        ] {
+            let error = import_path_bytes(Path::new("upload.dna"), bytes).unwrap_err();
+            assert!(matches!(error, AppError::NotSequenceFile { .. }), "{error}");
+            assert!(error.to_string().contains(what), "{error}");
+        }
+        let old = import_path_bytes(Path::new("old.dna"), b"\x00\x01\x00\x01binary").unwrap_err();
+        assert!(matches!(old, AppError::NotSnapGene(_)), "{old}");
+    }
 
     #[test]
     fn warning_free_policy_rejects_even_preserved_metadata() {
