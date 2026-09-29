@@ -1,4 +1,4 @@
-# DNAagent
+# DNAgent
 
 ## Desktop direction
 
@@ -10,7 +10,7 @@ available. See the [architecture decision](docs/desktop-architecture.md) and
 
 **An agent-friendly DNA design and cloning workbench.**
 
-DNAagent is a Rust, library-first replacement for the plasmid viewing and cloning workflows commonly performed in SnapGene. Biological operations live in reusable crates. Development is currently CLI-first for agent use; the desktop GUI remains a basic viewer, with further interaction work deferred.
+DNAgent is a Rust, library-first replacement for the plasmid viewing and cloning workflows commonly performed in SnapGene. Biological operations live in reusable crates. Development is currently CLI-first for agent use; the desktop GUI remains a basic viewer, with further interaction work deferred.
 
 ## Milestone 1
 
@@ -98,9 +98,9 @@ This provisions databases only; BLAST specificity is not yet connected to primer
 
 ### Editing and GenBank
 
-DNAagent opens and saves GenBank (`.gb`, `.gbk`, `.genbank`); SnapGene `.dna` files are
-read-only. `dnagent convert` saves a record as GenBank without losing anything DNAagent
-read. SnapGene-only data and the original import warnings travel along in a DNAagent
+DNAgent opens and saves GenBank (`.gb`, `.gbk`, `.genbank`); SnapGene `.dna` files are
+read-only. `dnagent convert` saves a record as GenBank without losing anything DNAgent
+read. SnapGene-only data and the original import warnings travel along in a DNAgent
 comment block. `dnagent annotate` adds a feature (optionally a translated CDS with a
 computed `/translation`) or removes one. The desktop app does the same through
 shift-click selection, a New-feature dialog, undo/redo and Save.
@@ -219,7 +219,7 @@ retain `command_failed`.
 `features --output json` includes ordered `qualifiers` arrays of `{key, value}`
 objects. Repeated keys/values and valueless qualifiers (`null`) are retained;
 these are not flattened into a dictionary. They are imported metadata, not
-DNAagent-computed translations. `features` also accepts `--label` (case-insensitive
+DNAgent-computed translations. `features` also accepts `--label` (case-insensitive
 substring) and `--kind` (case-insensitive exact match) filters.
 
 `primers --output json` returns retained `name`, canonical uppercase IUPAC

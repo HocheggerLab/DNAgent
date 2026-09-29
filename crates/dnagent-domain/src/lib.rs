@@ -1,4 +1,4 @@
-//! Biological domain types shared by every DNAagent adapter.
+//! Biological domain types shared by every DNAgent adapter.
 
 pub mod amplification;
 pub mod compatibility;
@@ -113,7 +113,7 @@ impl DnaSeq {
         self.0.len()
     }
 
-    /// DNAagent sequences are never empty after construction.
+    /// DNAgent sequences are never empty after construction.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         false

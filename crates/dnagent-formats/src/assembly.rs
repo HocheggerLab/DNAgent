@@ -45,7 +45,7 @@ pub fn genbank(assembly: &ExistingAssembly, name: &str) -> Result<String, Assemb
         "LOCUS       {safe_name:<16} {length:>11} bp    DNA     {topology:<8} UNK 01-JAN-1980"
     )
     .expect("String write");
-    out.push_str("DEFINITION  DNAagent derived exact-overlap assembly.\nACCESSION   .\nVERSION     .\nKEYWORDS    .\nSOURCE      .\n  ORGANISM  .\n            .\n");
+    out.push_str("DEFINITION  DNAgent derived exact-overlap assembly.\nACCESSION   .\nVERSION     .\nKEYWORDS    .\nSOURCE      .\n  ORGANISM  .\n            .\n");
     out.push_str("COMMENT     Computationally derived product, not experimental validation.\n            Components are provenance misc_features; genes, CDSs, translations\n            and biological function are not reconstructed. JSON is authoritative\n            for source records, selections, mappings and overlap junctions.\n            LOCUS date is a fixed export placeholder.\n");
     out.push_str("FEATURES             Location/Qualifiers\n");
     for (index, component) in assembly.components.iter().enumerate() {

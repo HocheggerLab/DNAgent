@@ -301,7 +301,7 @@ def main():
                             "circular",
                         )
                     )
-                    # Biopython source sequence, not DNAagent product/digest sequence.
+                    # Biopython source sequence, not DNAgent product/digest sequence.
                     expected = str(SeqIO.read(source, "snapgene").seq).upper()
                     if reverse:
                         expected = rc(expected)

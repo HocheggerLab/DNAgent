@@ -1,4 +1,4 @@
-# DNAagent architecture review — decisions and alternatives
+# DNAgent architecture review — decisions and alternatives
 
 **Review baseline:** commit `243c0e4`, branch `feat/mixed-gibson-products`.
 **Purpose:** discussion document, not an approved redesign or implementation plan.
@@ -11,7 +11,7 @@ for the agreed direction and prototype.
 
 ## Executive assessment
 
-DNAagent is currently best understood as a **local, deterministic cloning engine with a command-line interface**, rather than a small imitation of the SnapGene desktop application.
+DNAgent is currently best understood as a **local, deterministic cloning engine with a command-line interface**, rather than a small imitation of the SnapGene desktop application.
 
 That is a good foundation for its stated purpose: an agent should be able to request a calculation, inspect the exact inputs and assumptions, and receive a reproducible result. The strongest decisions are the separation of biological calculations from interfaces, explicit circular/strand coordinates, conservative handling of unsupported biology, and substantial invariant/reference testing.
 
@@ -110,7 +110,7 @@ Seven crates are not inherently excessive: they enforce useful boundaries at com
 
 **Current choice.** The caller supplies source selections, order, orientation, topology and overlaps. Optimisation searches a bounded primer space; it does not discover an entire cloning strategy.
 
-**Benefits:** deterministic, auditable and testable. Particularly appropriate when an agent proposes a plan and DNAagent checks it.
+**Benefits:** deterministic, auditable and testable. Particularly appropriate when an agent proposes a plan and DNAgent checks it.
 
 **Costs:** the user/agent must solve the higher-level design problem. Strict overlap-uniqueness and length policies reject some designs that may still be experimentally usable.
 
@@ -252,7 +252,7 @@ Do this incrementally, retaining current commands and using the mixed KNIT workf
 1. **Primary product:** a trustworthy agent-facing cloning engine, or a full interactive SnapGene replacement? My recommendation is engine first, with a deliberately bounded viewer/workbench.
 2. **Meaning of a product:** just a predicted sequence, or an auditable prepared artifact with its full derivation? I recommend the latter, while modelling only supported physical properties.
 3. **Default strictness:** should expected format limitations block automation, or should callers select a diagnostic policy?
-4. **Design scope:** should DNAagent validate supplied plans, automatically propose plans, or both through separate layers?
+4. **Design scope:** should DNAgent validate supplied plans, automatically propose plans, or both through separate layers?
 5. **Annotation ambition:** component provenance only, faithful coordinate transfer, or biological reconstruction? These are three different milestones.
 6. **Scientific dependencies:** which calculations should remain ours, and which should use established external tools?
 7. **GUI gate:** what finite set of engine capabilities is enough to begin useful interaction?

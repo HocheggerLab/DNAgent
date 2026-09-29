@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DNAagent</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DNAgent</title></head>
 <body>
 <main>
   <header>
     <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
-    <p id="status" data-testid="status" role="status">DNAagent: open a construct. Saving writes GenBank; .dna files are never modified.</p>
+    <p id="status" data-testid="status" role="status">DNAgent: open a construct. Saving writes GenBank; .dna files are never modified.</p>
     <div id="warnings" data-testid="warnings"></div>
   </header>
   <section class="workspace">

@@ -70,12 +70,12 @@ function gallery(sections: { label: string; shots: Shot[] }[]): string {
     return `<figure><div class="pair"><a href="${shot.file}"><img src="${shot.file}" alt=""></a>${before}</div>
       <figcaption><b>${shot.caption}</b>${shot.notes.map(n => `<br>${n}`).join('')}</figcaption></figure>`;
   };
-  return `<!doctype html><meta charset="utf-8"><title>DNAagent map review</title>
+  return `<!doctype html><meta charset="utf-8"><title>DNAgent map review</title>
 <style>body{font:13px system-ui;margin:20px;background:#f4f5f7;color:#222}@media(prefers-color-scheme:dark){body{background:#161719;color:#ddd}}
 section{margin-bottom:40px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px}
 figure{margin:0}img{width:100%;border:1px solid #8886;border-radius:4px}.pair{display:grid;gap:4px}.before{opacity:.75}
 figcaption{margin-top:4px;line-height:1.4}</style>
-<h1>DNAagent map review — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}</h1>
+<h1>DNAgent map review — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}</h1>
 <p>Each tile shows this run on top and the previous run (dimmed) below when one exists. Click to open full size.
 Coordinates are checked by <code>npm run e2e</code>; this page is for look and feel.</p>
 ${sections.map(s => `<section><h2>${s.label}</h2><div class="grid">${s.shots.map(cell).join('')}</div></section>`).join('')}`;

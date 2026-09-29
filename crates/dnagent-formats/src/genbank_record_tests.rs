@@ -326,7 +326,7 @@ fn third_party_genbank_is_read_with_structured_warnings() {
             .iter()
             .any(|l| l.contains("Kept verbatim."))
     );
-    // Header survives a DNAagent rewrite verbatim.
+    // Header survives a DNAgent rewrite verbatim.
     let (text, _) = write(&report, &options());
     assert!(text.contains("DEFINITION  Hand-written demo record.\nACCESSION   DEMO1\n"));
 }
@@ -365,4 +365,17 @@ fn data_block_survives_whitespace_trimming_at_chunk_boundaries() {
         all
     });
     assert_eq!(read(trimmed.as_bytes(), "x").unwrap().record.name(), spaced);
+}
+
+#[test]
+fn files_written_before_the_rename_still_open() {
+    let (text, _) = write(&rich_report(), &options());
+    let legacy = text
+        .replace("BEGIN-DNAGENT-DATA", "BEGIN-DNAAGENT-DATA")
+        .replace("END-DNAGENT-DATA", "END-DNAAGENT-DATA");
+    assert_ne!(legacy, text);
+    assert_eq!(
+        read(legacy.as_bytes(), "x").unwrap().record,
+        rich_report().record
+    );
 }

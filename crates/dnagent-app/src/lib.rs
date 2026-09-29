@@ -79,7 +79,7 @@ pub enum AppError {
         #[source]
         source: std::io::Error,
     },
-    #[error("unsupported output {0}; DNAagent saves GenBank (.gb, .gbk or .genbank)")]
+    #[error("unsupported output {0}; DNAgent saves GenBank (.gb, .gbk or .genbank)")]
     UnsupportedOutput(String),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
@@ -419,7 +419,7 @@ pub fn genbank_date_today() -> String {
     )
 }
 
-/// Serialise a report as DNAagent GenBank. Returned warnings describe limitations of
+/// Serialise a report as DNAgent GenBank. Returned warnings describe limitations of
 /// this write; they are never silent.
 #[must_use]
 pub fn genbank_text(report: &ImportReport, date: &str) -> (String, Vec<ImportWarning>) {

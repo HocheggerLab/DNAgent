@@ -2,14 +2,14 @@
 # requires-python = ">=3.11"
 # dependencies = ["biopython==1.85"]
 # ///
-"""Check DNAagent GenBank reading and writing against Biopython 1.85; public fixtures only.
+"""Check DNAgent GenBank reading and writing against Biopython 1.85; public fixtures only.
 
 1. Every public SnapGene fixture is converted with `dnagent convert`; Biopython must parse
    the result, and its sequence, topology, feature keys, labels, strands, locations (part
-   by part, in DNAagent source order) and qualifiers must equal the CLI's view of the
-   original. The file must also reopen in DNAagent with identical JSON projections.
+   by part, in DNAgent source order) and qualifiers must equal the CLI's view of the
+   original. The file must also reopen in DNAgent with identical JSON projections.
 2. Third-party GenBank (NCBI M77789.2, and the same record re-written by Biopython) is
-   read by DNAagent and compared with Biopython's parse of the same file.
+   read by DNAgent and compared with Biopython's parse of the same file.
 """
 
 import argparse

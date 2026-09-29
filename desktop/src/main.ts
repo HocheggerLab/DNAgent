@@ -146,7 +146,7 @@ function render() {
   element('new-feature').hidden = range === null;
   element('delete-feature').hidden = !(selected && added.has(selected));
   element('dirty').hidden = !edit?.dirty;
-  document.title = `DNAagent — ${doc.name}${edit?.dirty ? ' •' : ''}`;
+  document.title = `DNAgent — ${doc.name}${edit?.dirty ? ' •' : ''}`;
   element<HTMLButtonElement>('undo').disabled = !edit?.can_undo;
   element<HTMLButtonElement>('redo').disabled = !edit?.can_redo;
   element<HTMLButtonElement>('save').disabled = !edit;
@@ -370,7 +370,7 @@ async function load(path: string) {
       const summary = document.createElement('summary'); summary.dataset.testid = 'warnings-summary';
       summary.textContent = `${result.warnings.length} import-fidelity warnings — review details`;
       const explanation = document.createElement('p');
-      explanation.textContent = 'Some source content is not interpreted by DNAagent. These warnings do not by themselves indicate a sequence error. Retained packets are not exposed in this viewer or guaranteed to survive derived exports.';
+      explanation.textContent = 'Some source content is not interpreted by DNAgent. These warnings do not by themselves indicate a sequence error. Retained packets are not exposed in this viewer or guaranteed to survive derived exports.';
       const messages = document.createElement('pre');
       result.warnings.forEach((w, index) => {
         const line = document.createElement('span'); line.dataset.testid = 'warning-item';

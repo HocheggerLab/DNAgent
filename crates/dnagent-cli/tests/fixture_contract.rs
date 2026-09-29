@@ -10,7 +10,7 @@ fn run_json(arguments: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_dnagent"))
         .args(arguments)
         .output()
-        .expect("DNAagent CLI should launch");
+        .expect("DNAgent CLI should launch");
     assert!(
         output.status.success(),
         "CLI failed: {}",

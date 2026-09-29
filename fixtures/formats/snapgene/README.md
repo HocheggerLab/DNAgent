@@ -1,6 +1,6 @@
 # Synthetic SnapGene fixtures
 
-`synthetic_circular.dna` was generated specifically for DNAagent and contains no private or third-party biological construct data. It exercises:
+`synthetic_circular.dna` was generated specifically for DNAgent and contains no private or third-party biological construct data. It exercises:
 
 - circular topology;
 - a forward linear feature;
@@ -83,7 +83,7 @@ uv run scripts/check_private_corpus.py "$PRIVATE_CORPUS/manifest.json" \
 ```
 
 The command exits nonzero on a mismatch and records the binary hash. It does
-not create expected values from DNAagent output. It is optional and is not part
+not create expected values from DNAgent output. It is optional and is not part
 of `cargo test`; public tests need neither private data nor Biopython.
 
 Limitations: source XML is an annotation-level oracle, not an independent

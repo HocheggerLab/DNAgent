@@ -1,4 +1,4 @@
-# DNAagent contributor guidance
+# DNAgent contributor guidance
 
 ## Architecture
 
@@ -11,8 +11,8 @@
 - Keep GUI-only selection, hover, zoom and viewport state in the frontend (`desktop/` for Tauri; `dnagent-gui` for the retained egui viewer). Generate TypeScript DTOs from the Rust desktop API; never duplicate biological calculations in TypeScript.
 - Use zero-based, half-open coordinates internally and in JSON.
 - Preserve multipart and origin-spanning features; never silently flatten or discard them.
-- SnapGene `.dna` is read-only; DNAagent saves GenBank (`docs/genbank-records.md`). Saving must be
-  lossless for everything DNAagent models, or report the limitation; never drop metadata silently.
+- SnapGene `.dna` is read-only; DNAgent saves GenBank (`docs/genbank-records.md`). Saving must be
+  lossless for everything DNAgent models, or report the limitation; never drop metadata silently.
 - Unsupported format content must be preserved or reported with structured warnings.
 
 ## Provenance and licensing

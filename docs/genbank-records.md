@@ -1,6 +1,6 @@
 # GenBank records (read and write)
 
-DNAagent opens `.gb`, `.gbk` and `.genbank` files and saves records as GenBank. SnapGene
+DNAgent opens `.gb`, `.gbk` and `.genbank` files and saves records as GenBank. SnapGene
 `.dna` files are read-only: saving never modifies them. A `.dna` writer is not
 implemented. GenBank is the working format, and it keeps everything a later `.dna`
 writer would need.
@@ -25,12 +25,12 @@ The body is ordinary GenBank that Biopython, NCBI tools and other editors read n
 - **Features:** in source order.
   - **Key:** the feature kind.
   - **Location:** standard notation. A reverse join is `complement(join(a,b))`, in
-    DNAagent source order. An origin-spanning part is split into `join(x..end,1..y)`.
+    DNAgent source order. An origin-spanning part is split into `join(x..end,1..y)`.
   - **Qualifiers:** every original qualifier, in order. Repeated and valueless ones are
     kept.
 - **Sequence:** lowercase, 60 bases per line.
 
-GenBank has no standard form for some things DNAagent models. These additions carry them:
+GenBank has no standard form for some things DNAgent models. These additions carry them:
 
 | Addition | Holds |
 | --- | --- |
@@ -38,7 +38,7 @@ GenBank has no standard form for some things DNAagent models. These additions ca
 | `/dnagent_color` | the display colour |
 | `/dnagent_location="v1;<operator>;<strand>;<parts>"` | the exact location when the standard one cannot express it: origin-spanning single parts (`A<start>+<length>`) or unknown strand |
 | `/dnagent_id` | a feature id that differs from its position-based default |
-| COMMENT block `BEGIN-DNAAGENT-DATA` … `END-DNAAGENT-DATA` | JSON: the original record name, unplaced primers, uninterpreted SnapGene packets (base64, marked opaque or original interpreted source) and the source's import warnings |
+| COMMENT block `BEGIN-DNAGENT-DATA` … `END-DNAGENT-DATA` (files with the pre-rename `…DNAAGENT…` markers still open) | JSON: the original record name, unplaced primers, uninterpreted SnapGene packets (base64, marked opaque or original interpreted source) and the source's import warnings |
 
 The comment block is chunked JSON, with spaces escaped as ` `, so line trimming by
 editors cannot change it. It deliberately avoids NCBI structured-comment syntax
@@ -46,7 +46,7 @@ editors cannot change it. It deliberately avoids NCBI structured-comment syntax
 primers and packets. The original import warnings are re-reported, so a record that lost
 something at its first import still says so.
 
-Translated features added in DNAagent are CDSs with `/codon_start`, `/transl_table` and a
+Translated features added in DNAgent are CDSs with `/codon_start`, `/transl_table` and a
 computed `/translation` (without the terminal stop, following GenBank convention).
 
 ## What is reported, not silently lost
@@ -82,7 +82,7 @@ computed `/translation` (without the terminal stop, following GenBank convention
   translations. A second save is byte-identical.
 - `uv run scripts/check_genbank.py --binary target/debug/dnagent`: Biopython 1.85 parses
   every written file. Its sequence, topology, keys, labels, strands, part-by-part
-  locations and qualifiers must equal the CLI's view of the original. DNAagent must also
+  locations and qualifiers must equal the CLI's view of the original. DNAgent must also
   read NCBI's own `pUC19_M77789.gb`, and a Biopython-written copy of it, exactly as
   Biopython does.
 - The private construct used during development round-trips identically (warnings

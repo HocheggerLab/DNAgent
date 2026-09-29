@@ -126,7 +126,7 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
-    /// Save a record as DNAagent GenBank, preserving retained metadata (JSON report).
+    /// Save a record as DNAgent GenBank, preserving retained metadata (JSON report).
     Convert {
         input: PathBuf,
         /// Output .gb/.gbk/.genbank path (written atomically).

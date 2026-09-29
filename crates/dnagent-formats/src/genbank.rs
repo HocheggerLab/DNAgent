@@ -61,7 +61,7 @@ pub fn export(report: &AnnotatedDigest, selection: ExportStrand) -> Result<Strin
         .expect("String write");
         writeln!(
             out,
-            "DEFINITION  DNAagent selected {side} strand, fragment {}.",
+            "DEFINITION  DNAgent selected {side} strand, fragment {}.",
             index + 1
         )
         .expect("String write");

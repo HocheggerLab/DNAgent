@@ -449,7 +449,7 @@ pub fn design(records: &[SequenceRecord], request: &Request) -> Result<Design, D
         feasible_pairs: feasible,
         model: "dnagent-nn-v1: Allawi/SantaLucia 1997; SantaLucia 1998 entropy salt correction; von Ahsen 2001 sodium-equivalent Mg/dNTP; primer in excess",
         limitations: vec![
-            "Not Primer3: deterministic bounded search using DNAagent's existing NN model and contiguous-complement structure screens, not folding energies or experimental validation",
+            "Not Primer3: deterministic bounded search using DNAgent's existing NN model and contiguous-complement structure screens, not folding energies or experimental validation",
             "Specificity covers only supplied templates, full-oligo Hamming mismatches with an exact 3-prime anchor; no indels, seed-only matches, BLAST or genome/transcriptome search",
             "Predicted products require nonoverlapping inward-facing sites, at most one template traversal and length <= screen_max_product_length; no products is conditional on these bounds",
             "Positive templates require exactly one exact heteroprimer product in the requested size range; any additional screened product rejects a pair. Negative templates require zero screened products",

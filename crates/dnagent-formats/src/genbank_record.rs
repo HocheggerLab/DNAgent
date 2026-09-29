@@ -1,7 +1,7 @@
-//! Lossless GenBank records for DNAagent (read and write).
+//! Lossless GenBank records for DNAgent (read and write).
 //!
 //! The body is ordinary GenBank that other tools read normally. Where GenBank has no
-//! standard form for something DNAagent models, namespaced additions carry it:
+//! standard form for something DNAgent models, namespaced additions carry it:
 //!
 //! - `/label` holds the feature label (written first, so an imported `label`
 //!   qualifier survives as the second one);
@@ -9,7 +9,7 @@
 //! - `/dnagent_location` holds the exact location when the standard location cannot
 //!   (origin-spanning single parts, unknown strand);
 //! - `/dnagent_id` holds a feature id that differs from its default position-based id;
-//! - a `BEGIN-DNAAGENT-DATA` … `END-DNAAGENT-DATA` COMMENT block (deliberately not NCBI structured-comment syntax) holds JSON with
+//! - a `BEGIN-DNAGENT-DATA` … `END-DNAGENT-DATA` (earlier `…DNAAGENT…` markers are still read) COMMENT block (deliberately not NCBI structured-comment syntax) holds JSON with
 //!   the original record name, unplaced primers, retained SnapGene packets (base64) and
 //!   the source's import warnings, so they are re-reported on reopening.
 //!
@@ -24,8 +24,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 
 const FORMAT: &str = "genbank";
-const DATA_START: &str = "BEGIN-DNAAGENT-DATA (JSON; do not edit)";
-const DATA_END: &str = "END-DNAAGENT-DATA";
+const DATA_START: &str = "BEGIN-DNAGENT-DATA (JSON; do not edit)";
+const DATA_END: &str = "END-DNAGENT-DATA";
+/// Markers written before the product was renamed DNAgent; still read.
+const LEGACY_DATA_START: &str = "BEGIN-DNAAGENT-DATA";
+const LEGACY_DATA_END: &str = "END-DNAAGENT-DATA";
 const QUALIFIER_INDENT: &str = "                     ";
 const WRAP: usize = 58;
 
@@ -148,7 +151,7 @@ fn standard_location(location: &Location, length: usize) -> String {
     }
 }
 
-/// Exact location in DNAagent notation, e.g. `v1;join;reverse;A10+4,L4-6`.
+/// Exact location in DNAgent notation, e.g. `v1;join;reverse;A10+4,L4-6`.
 fn exact_location(location: &Location) -> String {
     let operator = match location.operator() {
         LocationOperator::Contiguous => "contiguous",
@@ -710,28 +713,34 @@ fn quotes_closed(raw: &str) -> bool {
     body.len() >= 2 && body.ends_with('"') && body.matches('"').count().is_multiple_of(2)
 }
 
-/// Header lines after LOCUS, verbatim, and the DNAagent data block if present.
+/// Header lines after LOCUS, verbatim, and the DNAgent data block if present.
 fn parse_header(lines: &[&str]) -> Result<(Vec<String>, Option<DataBlock>), ImportError> {
     let header_end = lines.len();
-    // Header: keep sections verbatim, except the DNAagent data block.
+    // Header: keep sections verbatim, except the DNAgent data block.
     let mut header: Vec<String> = Vec::new();
     let mut data: Option<DataBlock> = None;
     let mut index = 0;
     while index < header_end {
         let line = lines[index];
-        if line.starts_with("COMMENT") && line[7..].trim_start().starts_with(DATA_START) {
+        let marker = line.get(7..).map(str::trim_start).unwrap_or_default();
+        if line.starts_with("COMMENT")
+            && (marker.starts_with(DATA_START) || marker.starts_with(LEGACY_DATA_START))
+        {
             let mut json = String::new();
             index += 1;
-            while index < header_end && !lines[index].trim().starts_with(DATA_END) {
+            while index < header_end
+                && !lines[index].trim().starts_with(DATA_END)
+                && !lines[index].trim().starts_with(LEGACY_DATA_END)
+            {
                 json.push_str(lines[index].trim());
                 index += 1;
             }
             index += 1;
             let block: DataBlock = serde_json::from_str(&json)
-                .map_err(|e| invalid(format!("invalid DNAagent data block: {e}")))?;
+                .map_err(|e| invalid(format!("invalid DNAgent data block: {e}")))?;
             if block.version != 1 {
                 return Err(invalid(format!(
-                    "unsupported DNAagent data block version {}",
+                    "unsupported DNAgent data block version {}",
                     block.version
                 )));
             }
@@ -761,7 +770,7 @@ fn convert_feature(
                 format!("{context}: partial-end markers < > are not modelled and were dropped"),
             ));
         }
-        // `join(complement(B),complement(A))` lists parts in transcript order; DNAagent
+        // `join(complement(B),complement(A))` lists parts in transcript order; DNAgent
         // keeps `complement(join(A,B))` source order, so individually complemented parts reverse.
         let mut ranges = ranges;
         let individually = ranges.len() > 1
@@ -835,7 +844,7 @@ fn apply_data_block(
 ) -> Result<(String, Vec<ImportedPrimer>), ImportError> {
     for packet in block.snapgene_packets {
         let payload = base64_decode(&packet.base64)
-            .ok_or_else(|| invalid("invalid base64 in DNAagent data block"))?;
+            .ok_or_else(|| invalid("invalid base64 in DNAgent data block"))?;
         let restored = OpaquePacket::new(packet.packet_type, payload);
         match packet.role.as_str() {
             "opaque" => preserved.opaque_packets.push(restored),
@@ -867,7 +876,7 @@ fn apply_data_block(
     Ok((block.name, primers))
 }
 
-/// Read a GenBank record (DNAagent-written or third-party).
+/// Read a GenBank record (DNAgent-written or third-party).
 pub fn read(bytes: &[u8], fallback_name: &str) -> Result<ImportReport, ImportError> {
     let text = std::str::from_utf8(bytes).map_err(|_| invalid("file is not UTF-8"))?;
     let lines: Vec<&str> = text.lines().collect();

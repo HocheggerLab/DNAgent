@@ -30,7 +30,7 @@ def default_root():
     if override:
         return Path(override).expanduser()
     if sys.platform == "darwin":
-        return Path.home() / "Library/Application Support/DNAagent/references"
+        return Path.home() / "Library/Application Support/DNAgent/references"
     return (
         Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share")))
         / "dnagent/references"
@@ -59,7 +59,7 @@ def download(url, path, maximum):
     if not url.startswith("https://ftp.ncbi.nlm.nih.gov/"):
         raise ValueError("only HTTPS public NCBI source downloads are supported")
     request = urllib.request.Request(
-        url, headers={"User-Agent": "DNAagent-reference-installer/1"}
+        url, headers={"User-Agent": "DNAgent-reference-installer/1"}
     )
     with urllib.request.urlopen(request, timeout=120) as source, path.open(
         "xb"

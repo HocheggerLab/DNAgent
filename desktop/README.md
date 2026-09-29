@@ -1,4 +1,4 @@
-# DNAagent desktop prototype
+# DNAgent desktop prototype
 
 Read-only Tauri 2 + TypeScript/Vite viewer backed by the native Rust engine.
 See `../docs/desktop-architecture.md` for the decision and limitations.
@@ -19,7 +19,7 @@ npm run tauri dev
 **New feature…** adds an annotation with a live engine preview; tick **Translate** to make
 a CDS (with genetic code and codon start), which then shows its amino acids. Undo/Redo
 (⌘Z/⇧⌘Z) and **Delete feature** (for features added in this session) work as expected.
-**Save** / **Save as…** (⌘S) write GenBank, including everything DNAagent read from the
+**Save** / **Save as…** (⌘S) write GenBank, including everything DNAgent read from the
 original; `.dna` files are never modified. GenBank files open like `.dna` files.
 
 Appearance follows macOS light/dark mode; override it with the **Appearance** menu.

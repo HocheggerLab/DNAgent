@@ -78,7 +78,7 @@ def main():
             )
             if actual != expected:
                 raise ValueError(
-                    f"top-cut mismatch for {name} in {path.name}: DNAagent {actual}, Biopython {expected}"
+                    f"top-cut mismatch for {name} in {path.name}: DNAgent {actual}, Biopython {expected}"
                 )
 
     def packet(kind, data):

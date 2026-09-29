@@ -15,7 +15,7 @@ Independent references:
 - ORFs are compared with a separate, straightforward Python implementation of the
   documented definition (complete start-to-stop, longest per stop, circular wrap).
 
-Biopython reports some ambiguous codons as B/Z/J; DNAagent reports X. Those letters
+Biopython reports some ambiguous codons as B/Z/J; DNAgent reports X. Those letters
 are mapped to X before comparison. Context-dependent stops (tables 27, 28, 31) are
 sense codons in both.
 """

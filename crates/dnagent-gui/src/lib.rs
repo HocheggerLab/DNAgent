@@ -1,4 +1,4 @@
-//! Thin eframe/egui desktop adapter for DNAagent.
+//! Thin eframe/egui desktop adapter for DNAgent.
 
 use dnagent_domain::Topology;
 use dnagent_formats::ImportReport;
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 pub fn run(initial_path: Option<&Path>) -> Result<(), eframe::Error> {
     let app = DnaAgentApp::new(initial_path);
     eframe::run_native(
-        "DNAagent",
+        "DNAgent",
         eframe::NativeOptions::default(),
         Box::new(move |_context| Ok(Box::new(app))),
     )
@@ -60,7 +60,7 @@ impl DnaAgentApp {
 
     fn header(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("DNAagent");
+            ui.heading("DNAgent");
             if let Some(report) = &self.report {
                 ui.separator();
                 ui.label(format!(

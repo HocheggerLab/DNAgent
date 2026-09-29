@@ -36,7 +36,7 @@ translated as amino acids (the `gc.prt` amino-acid row), never as stops.
   complement from `END − 1`. `--frame` skips 0–2 bases at the 5′ end of the coding strand.
 - **Ambiguity:** a codon translates to an amino acid only when every IUPAC expansion
   agrees (`CTN` → L, `AAN` → X). A stop requires every expansion to be a stop. Starts
-  must be exact. Biopython prints B/Z/J for some ambiguous pairs; DNAagent prints X.
+  must be exact. Biopython prints B/Z/J for some ambiguous pairs; DNAgent prints X.
 - **Initiator:** a complete feature CDS (codon_start 1, a table start codon, a terminal
   stop) whose first codon is an alternative start (e.g. GTG in table 11) is translated with
   M, and `initiator_as_methionine` is true. This is the NCBI and Biopython `cds=True`

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DNAagent CLI envelope 0.9.0",
+  "title": "DNAgent CLI envelope 0.9.0",
   "description": "Runtime JSON responses only. CLI argument errors and GUI output are not covered. Coordinates are zero-based and half-open; relational bounds require domain validation.",
   "type": "object",
   "additionalProperties": false,

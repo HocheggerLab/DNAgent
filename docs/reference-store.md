@@ -43,7 +43,7 @@ python3 scripts/manage_references.py verify
 python3 scripts/manage_references.py list
 ```
 
-On macOS the default store is `~/Library/Application Support/DNAagent/references`.
+On macOS the default store is `~/Library/Application Support/DNAgent/references`.
 Elsewhere it is `$XDG_DATA_HOME/dnagent/references`, falling back to
 `~/.local/share/dnagent/references`. Set `DNAGENT_REFERENCE_DIR` or use `--root PATH`
 for another volume. Installing within the source repository is refused.

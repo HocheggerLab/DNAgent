@@ -2,7 +2,7 @@
 
 Status: agreed direction; initial read-only prototype, not a finished workbench.
 
-The GUI will be a central part of DNAagent. CLI-first validated the engine; it must
+The GUI will be a central part of DNAgent. CLI-first validated the engine; it must
 not become an indefinite prerequisite that prevents desktop development.
 
 ## Decision

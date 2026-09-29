@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DNAagent Prototype",
+  "productName": "DNAgent Prototype",
   "version": "0.1.0",
   "identifier": "org.dnagent.prototype",
   "build": {
@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "DNAagent Prototype", "width": 1200, "height": 850 }],
+    "windows": [{ "title": "DNAgent Prototype", "width": 1200, "height": 850 }],
     "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:" }
   },
   "bundle": { "active": false }

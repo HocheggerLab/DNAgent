@@ -1,4 +1,4 @@
-DNAagent third-party notices
+DNAgent third-party notices
 ============================
 
 SnapGene migration adapter
@@ -13,5 +13,5 @@ PlasCAD, commit 717459dcd780ec4266e9a2aa15297eae31956da5:
 PlasCAD is Copyright (c) 2025 David O'Connor and licensed under the MIT
 License. The complete notice is retained in `licenses/PlasCAD-MIT.txt`.
 
-DNAagent does not reuse PlasCAD's domain model, global application state,
+DNAgent does not reuse PlasCAD's domain model, global application state,
 GenBank conversion, digest/ligation implementation, or GUI rendering code.

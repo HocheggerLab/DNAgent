@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DNAagent PCR-tail Gibson plan 1",
+  "title": "DNAgent PCR-tail Gibson plan 1",
   "type": "object",
   "additionalProperties": false,
   "required": [

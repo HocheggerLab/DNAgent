@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DNAagent ligation plan 1",
+  "title": "DNAgent ligation plan 1",
   "type": "object",
   "additionalProperties": false,
   "required": [
