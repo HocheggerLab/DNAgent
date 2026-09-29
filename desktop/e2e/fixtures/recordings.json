@@ -12,7 +12,146 @@
           "code": "fasta_sequence_only_linear",
           "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "APNTQTASPRALADSLMQLARQVSRLESGQ*AQRN*CELAHSLGTPGFTLYASGSYVVWNCERITISHRKQL*P*LRQACMPAGRL*RIPGYRARIHWPSFYNVVTGKTLALPNLIALQHIPLSPAGVIAKRPAPIALPNSCAA*MANGA*CGIFSLRICAVFHTAYGALSVQSALMPHS*ASPDTRQHPLTRPDGLVCSRHPLTDKL*PSPGAACVRGFHRHHRNARDERAS*YAYFYRLMS***WFLRRQVALFGEMCAEPLFVYFSKYIQICIRS*DNNPDKCFNNIEKGRV*VFNISVSPLFPFLRHFAFLFLLTQKRW*K*KMLKISWVHEWVTSNWISTAVRSLRVFAPKNVFQ**ALLKFCYVARYYPVLTPGKSNSVAAYTILRMTWLSTHQSQKSILRMA*Q*ENYAVLP*P*VITLRPTYF*QRSEDRRS*PLFCTTWGIM*LALIVGNRS*MKPYQTTSVTPRCL*QWQQRCANY*LANYLL*LPGNN**TGWRRIKLQDHFCARPFRLAGLLLINLEPVSVGLAVSLQHWGQMVSPPVS*LSTRRGVRQLWMNEIDRSLR*VPH*LSIGNCQTKFTHIYFRLI*NFIFNLKGSR*RSFLIIS*PKSLNVSFRSTERQTP*KRSKDLLEILFFCA*SAACKQKNHRYQRWFVCRIKSYQLFFRR*LASAERRYQILFF*CSRS*ATTSRTL*HRLHTSLC*SCYQWLLPVAISRVLPGWTQDDSYRIRRSGRAERGVRAHSPAWSERPTPN*DTYSVSYEKAPRFPKGERRTGIR*AAGSEQESARGSFQGETPGIFIVLSGFATSDLSVDFCDARQGGGAYGKTPATRPFYGSWPFAGLLLTCSFLRYPLILWITVLPPLSELIPLAAAERPSAASQ*ARKRK"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RPIRKPPLPARWPIH*CSWHDRFPDWKAGSERNAINVS*LTH*APQALHFMLPARMLCGIVSG*QFHTGNSYDHDYAKLACLQVDSRGSPGTELEFTGRRFTTS*LGKPWRYPT*SPCSTSPFRQLA**RRGPHRSPFPTVAQPEWRMAPDAVFSPYASVRYFTPHMVHSQYNLL*CRIVKPAPTPANTR*RALTGLSAPGIRLQTSCDRLRELHVSEVFTVITETRETKGPRDTPIFIG*CHDNNGFLDVRWHFSGKCARNPYLFIFLNTFKYVSAHETITLINASIILKKEEYEYSTFPCRPYSLFCGILPSCFCSPRNAGESKRC*RSVGCTSGLHRTGSQQR*DP*EFSPRRTFSNDEHF*SSAMWRGIIPY*RRARATRSPHTLFSE*LG*VLTSHRKASYGWHDSKRIMQCCHNHE**HCGQLTSDNDRRTEGANRFFAQHGGSCNSP*SLGTGAE*SHTKRRA*HHDACSNGNNVAQTINWRTTYSSFPATINRLDGGG*SCRTTSALGPSGWLVYC**IWSR*AWVSRYHCSTGARW*ALPYRSYLHDGESGNYG*TK*TDR*DRCLTD*ALVTVRPSLLIYTLD*FKTSFLI*KDLGEDPF**SHDQNPLT*VFVPLSVRPRRKDQRIFLRSFFSARNLLLANKKTTATSGGLFAGSRATNSFSEGNWLQQSADTKYCSSSVAVVRPPLQELCSTAYIPRSANPVTSGCCQWR*VVSYRVGLKTIVTG*GAAVGLNGGFVHTAQLGANDLHRTEIPTA*AMRKRHASRREKGGQVSGKRQGRNRRAHEGASRGKRLVSL*SCRVSPPLT*ASIFVMLVRGAEPMEKRQQRGLFTVPGLLLAFCSHVLSCVIP*FCG*PYYRL*VS*YRSPQPNDRAQRVSERGSGR"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "AQYANRLSPRVGRFINAAGTTGFPTGKRAVSATQLM*VSSLIRHPRLYTLCFRLVCCVEL*ADNNFTQETAMTMITPSLHACRSTLEDPRVPSSNSLAVVLQRRDWENPGVTQLNRLAAHPPFASWRNSEEARTDRPSQQLRSLNGEWRLMRYFLLTHLCGISHRIWCTLSTICSDAA*LSQPRHPPTPADAP*RACLLPASAYRQAVTVSGSCMCQRFSPSSPKRARRKGLVIRLFL*VNVMIIMVS*TSGGTFRGNVRGTPICLFF*IHSNMYPLMRQ*P**MLQ*Y*KRKSMSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYIELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYSPVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRWEPELNEAIPNDERDTTMPVAMATTLRKLLTGELLTLASRQQLIDWMEADKVAGPLLRSALPAGWFIADKSGAGERGSRGIIAALGPDGKPSRIVVIYTTGSQATMDERNRQIAEIGASLIKHW*LSDQVYSYIL*IDLKLHF*FKRI*VKILFDNLMTKIP*REFSFH*ASDPVEKIKGSS*DPFFLRVICCLQTKKPPLPAVVCLPDQELPTLFPKVTGFSRAQIPNTVLLV*P*LGHHFKNSVAPPTYLALLILLPVAAASGDKSCLTGLDSRR*LPDKAQRSG*TGGSCTQPSLERTTYTELRYLQREL*ESATLPEGRKADRYPVSGRVGTGERTRELPGGNAWYLYSPVGFRHL*LERRFL*CSSGGRSLWKNASNAAFLRFLAFCWPFAHMFFPALSPDSVDNRITAFE*ADTARRSRTTERSESVSEEAE"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 2685,
+          "protein": "SSASSLTDSLRSVVRLRRAVSAHSKAVIRLSTESGDNAGKNM*AKGQQKARNRKKAALLAFFHRLRPPDEHHKNRRSSQRWRNPTGL*RYQAFPPGSSLVRSPVPTLPLTGYLSAFLPSGSVALSHSSRCRYLSSV*VVRSKLGCVHEPPVQPDRCALSGNYRLESNPVRHDLSPLAAATGNRISRARYVGGATEFLKWWPNYGYTRRTVFGICALLKPVTFGKRVGSS*SGKQTTAGSGGFFVCKQQITRRKKGSQEDPLIFSTGSDAQWNENSR*GILVMRLSKRIFT*ILLN*K*SFKSI*SIYE*TWSDSYQCLISEAPISAICLFRSSIVA*LPVV*ITTIREGLPSGPSAAMIPRDPRSPAPDLSAINQPAGRAERRSGPATLSASIQSINCCREARVSSSPVNSLRNVVAIATGIVVSRSSFGMASFSSGSQRSRRVT*SPMLCKKAVSSFGPPIVVRSKLAAVLSLMVMAALHNSLTVMPSVRCFSVTGEYSTKSF*E*CMRRPSCSCPASIRDNTAPHSRTLKVLIIGKRSSGRKLSRILPLLRSSSM*PTRAPN*SSASFTFTSVSG*AKTGRQNAAKKGIRATRKC*ILILFLFQYY*SIYQGYCLMSGYIFECI*KNKQIGVPRTFPRKVPPDV*ETIIIMTLTYKNRRITRPFRLARFGDDGENL*HMQLPETVTACL*ADAGSRQARQGASAGVGGCRGWLNYAASEQIVLRVHHMRCEIPHRCVRRKYRIRRHSPFRLRNCWEGRSVRASSLLRQLAKGGCAARRLSWVTPGFSQSRRCKTTASEFELGTRGSSRVDLQACKLGVIMVIAVSCVKLLSAHNSTQHTSRKHKV*SLGCLMSELTHINCVALTARFPVGKPVVPAALMNRPTRGERRFAYWA"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 2684,
+          "protein": "LPLPRSLTRCARSFGCGERYQLTQRR*YGYPQNQGITQERTCEQKASKRPGTVKRPRCWRFSIGSAPLTSITKIDAQVRGGETRQDYKDTRRFPLEAPSCALLFRPCRLPDTCPPFSLREAWRFLIAHAVGISVRCRSFAPSWAVCTNPPFSPTAAPYPVTIVLSPTR*DTTYRHWQQPLVTGLAERGM*AVLQSS*SGGLTTATLEEQYLVSALC*SQLPSEKELVALDPANKPPLVAVVFLFASSRLRAEKKDLKKIL*SFLRGLTLSGTKTHVKGFWS*DYQKGSSPRSF*IKNEVLNQSKVYMSKLGLTVTNA*SVRHLSQRSVYFVHP*LPDSPSCR*LRYGRAYHLAPVLQ*YRETHAHRLQIYQQ*TSQPEGPSAEVVLQLYPPPSSLLIVAGKLE*VVRQLIVCATLLPLLQASWCHARRLVWLHSAPVPNDQGELHDPPCCAKKRLAPSVLRSLSEVSWPQCYHSWLWQHCIILLLSCHP*DAFL*LVSTQPSHSENSVCGDRVALARRQYGIIPRHIAEL*KCSSLENVLRGENSQGSYRC*DPVRCNPLVHPTDLQHLLLSPAFLGEQKQEGKMPQKRE*GRHGNVEYSYSSFFNIIEAFIRVIVS*ADTYLNVFRKINK*GFRAHFPEKCHLTSKKPLLS*H*PIKIGVSRGPFVSRVSVMTVKTSDTCSSRRRSQLVCKRMPGADKPVRARQRVLAGVGAGLTMRHQSRLY*ECTICGVKYRTDA*GENTASGAIRHSGCATVGKGDRCGPLRYYASWRKGDVLQGD*VG*RQGFPSHDVVKRRPVNSSSVPGDPLESTCRHASLA*SWS*LFPV*NCYPLTIPHNIRAGSIKCKAWGA**VS*LTLIALRSLPAFQSGNLSCQLH**IGQRAGRGGLRIGR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 2683,
+          "protein": "FRFLAH*LAALGRSAAASGISSLKGGNTVIHRIRG*RRKEHVSKRPAKGQEP*KGRVAGVFP*APPP*RASQKSTLKSEVAKPDRTIKIPGVSPWKLPRALSCSDPAAYRIPVRLSPFGKRGAFS*LTL*VSQFGVGRSLQAGLCARTPRSARPLRLIR*LSS*VQPGKTRLIATGSSHW*QD*QSEVCRRCYRVLEVVA*LRLH*KNSIWYLRSAEASYLRKKSW*LLIRQTNHRW*RWFFCLQAADYAQKKRISRRSFDLFYGV*RSVERKLTLRDFGHEIIKKDLHLDPFKLKMKF*INLKYI*VNLV*QLPMLNQ*GTYLSDLSISFIHSCLTPRRVDNYDTGGLTIWPQCCNDTARPTLTGSRFISNKPASRKGRAQKWSCNFIRLHPVY*LLPGS*SK*FAS**FAQRCCHCYRHRGVTLVVWYGFIQLRFPTIKASYMIPHVVQKSG*LLRSSDRCQK*VGRSVITHGYGSTA*FSYCHAIRKMLFCDW*VLNQVILRIVYAATELLLPGVNTG*YRAT*QNFKSAHHWKTFFGAKTLKDLTAVEIQFDVTHSCTQLIFSIFYFHQRFWVSKNRKAKCRKKGNKGDTEMLNTHTLPFSILLKHLSGLLSHERIHI*MYLEK*TNRGSAHISPKSAT*RLRNHYYHDINL*K*AYHEALSSRAFR**R*KPLTHAAPGDGHSLSVSGCREQTSPSGRVSGCWRVSGLA*LCGIRADCTESAPYAV*NTAQMRKEKIPHQAPFAIQAAQLLGRAIGAGLFAITPAGERGMCCKAIKLGNARVFPVTTL*NDGQ*IRARYPGIL*SRPAGMQAWRNHGHSCFLCEIVIRSQFHTTYEPEA*SVKPGVPNE*ANSH*LRCAHCPLSSRETCRASCINESANARGEAVCVLG"
+        }
+      ],
+      "orfs": [
+        {
+          "id": "orf-0001",
+          "strand": "reverse",
+          "start": 142,
+          "length": 357,
+          "codons": 118,
+          "protein": "MRCEIPHRCVRRKYRIRRHSPFRLRNCWEGRSVRASSLLRQLAKGGCAARRLSWVTPGFSQSRRCKTTASEFELGTRGSSRVDLQACKLGVIMVIAVSCVKLLSAHNSTQHTSRKHKV"
+        },
+        {
+          "id": "orf-0002",
+          "strand": "reverse",
+          "start": 149,
+          "length": 93,
+          "codons": 30,
+          "protein": "MQAWRNHGHSCFLCEIVIRSQFHTTYEPEA"
+        },
+        {
+          "id": "orf-0003",
+          "strand": "forward",
+          "start": 215,
+          "length": 324,
+          "codons": 107,
+          "protein": "MTMITPSLHACRSTLEDPRVPSSNSLAVVLQRRDWENPGVTQLNRLAAHPPFASWRNSEEARTDRPSQQLRSLNGEWRLMRYFLLTHLCGISHRIWCTLSTICSDAA"
+        },
+        {
+          "id": "orf-0004",
+          "strand": "reverse",
+          "start": 302,
+          "length": 174,
+          "codons": 57,
+          "protein": "MRKEKIPHQAPFAIQAAQLLGRAIGAGLFAITPAGERGMCCKAIKLGNARVFPVTTL"
+        },
+        {
+          "id": "orf-0005",
+          "strand": "reverse",
+          "start": 510,
+          "length": 159,
+          "codons": 52,
+          "protein": "MTVKTSDTCSSRRRSQLVCKRMPGADKPVRARQRVLAGVGAGLTMRHQSRLY"
+        },
+        {
+          "id": "orf-0006",
+          "strand": "forward",
+          "start": 884,
+          "length": 861,
+          "codons": 286,
+          "protein": "MSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYIELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYSPVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRWEPELNEAIPNDERDTTMPVAMATTLRKLLTGELLTLASRQQLIDWMEADKVAGPLLRSALPAGWFIADKSGAGERGSRGIIAALGPDGKPSRIVVIYTTGSQATMDERNRQIAEIGASLIKHW"
+        },
+        {
+          "id": "orf-0007",
+          "strand": "forward",
+          "start": 981,
+          "length": 102,
+          "codons": 33,
+          "protein": "MLKISWVHEWVTSNWISTAVRSLRVFAPKNVFQ"
+        },
+        {
+          "id": "orf-0008",
+          "strand": "reverse",
+          "start": 1012,
+          "length": 150,
+          "codons": 49,
+          "protein": "MRRPSCSCPASIRDNTAPHSRTLKVLIIGKRSSGRKLSRILPLLRSSSM"
+        },
+        {
+          "id": "orf-0009",
+          "strand": "reverse",
+          "start": 1171,
+          "length": 171,
+          "codons": 56,
+          "protein": "MLCKKAVSSFGPPIVVRSKLAAVLSLMVMAALHNSLTVMPSVRCFSVTGEYSTKSF"
+        },
+        {
+          "id": "orf-0010",
+          "strand": "reverse",
+          "start": 1348,
+          "length": 267,
+          "codons": 88,
+          "protein": "MIPRDPRSPAPDLSAINQPAGRAERRSGPATLSASIQSINCCREARVSSSPVNSLRNVVAIATGIVVSRSSFGMASFSSGSQRSRRVT"
+        },
+        {
+          "id": "orf-0011",
+          "strand": "forward",
+          "start": 2308,
+          "length": 120,
+          "codons": 39,
+          "protein": "MRKRHASRREKGGQVSGKRQGRNRRAHEGASRGKRLVSL"
+        },
+        {
+          "id": "orf-0012",
+          "strand": "forward",
+          "start": 2473,
+          "length": 114,
+          "codons": 37,
+          "protein": "MLVRGAEPMEKRQQRGLFTVPGLLLAFCSHVLSCVIP"
+        }
+      ],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/fasta/primer_negative.fasta": {
@@ -28,7 +167,49 @@
           "code": "fasta_sequence_only_linear",
           "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "HVRVVKRQSRNLYYVIRCSSGGSS*GEVSSPSYTLRALGEVALHAPAWRCAGRVDIDCTT"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "MYVL*NDNPVICIT*FDVHQEALAKVRCLHRLTHCGPWGR*LFMLRHGGVPVELILIAQ"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "CTCCKTTIP*FVLRDSMFIRRL*LR*GVFTVLHTAGPGGGSSSCSGMAVCRSS*Y*LHN"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 179,
+          "protein": "CCAININSTGTPPCRSMKSYLPQGPQCVRR*RHLTLARAS**TSNHVIQITGLSFYNTYM"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 178,
+          "protein": "VVQSISTRPAHRHAGA*RATSPRARSV*DGEDTSP*LEPPDEHRIT*YKLRDCRFTTRT"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 177,
+          "protein": "LCNQYQLDRHTAMPEHEELPPPGPAVCKTVKTPHLS*SLLMNIESRNTNYGIVVLQHVH"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/fasta/primer_positive.fasta": {
@@ -44,7 +225,49 @@
           "code": "fasta_sequence_only_linear",
           "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "DHQRNPKFGATACHTLCGSHLSGLEIMARKRIDRSCIHAPNHIYRPSKGWTAHIGEQLDR"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "ITKETQNSAPLPVIPCAVATCPA*RLWPGNV*TEVASMHPTISTDHPRDGPHISANN*I"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "SPKKPKIRRHCLSYPVR*PPVRLRDYGPETYRQKLHPCTQPYLQTIQGMDRTYRRTIRS"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 179,
+          "protein": "PI*LFADMCGPSLGWSVDMVGCMDATSVYTFPGHNL*AGQVATAQGMTGSGAEFWVSLVI"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 178,
+          "protein": "RSNCSPICAVHPLDGL*IWLGAWMQLLSIRFRAIISKPDRWLPHRV*QAVAPNFGFLW*"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 177,
+          "protein": "DLIVRRYVRSIPWMVCRYGWVHGCNFCLYVSGP*SLSRTGGYRTGYDRQWRRILGFFGD"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/fasta/primer_reverse_positive.fasta": {
@@ -60,7 +283,49 @@
           "code": "fasta_sequence_only_linear",
           "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "PI*LFADMCGPSLGWSVDMVGCMDATSVYTFPGHNL*AGQVATAQGMTGSGAEFWVSLVI"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RSNCSPICAVHPLDGL*IWLGAWMQLLSIRFRAIISKPDRWLPHRV*QAVAPNFGFLW*"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "DLIVRRYVRSIPWMVCRYGWVHGCNFCLYVSGP*SLSRTGGYRTGYDRQWRRILGFFGD"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 179,
+          "protein": "DHQRNPKFGATACHTLCGSHLSGLEIMARKRIDRSCIHAPNHIYRPSKGWTAHIGEQLDR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 178,
+          "protein": "ITKETQNSAPLPVIPCAVATCPA*RLWPGNV*TEVASMHPTISTDHPRDGPHISANN*I"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 177,
+          "protein": "SPKKPKIRRHCLSYPVR*PPVRLRDYGPETYRQKLHPCTQPYLQTIQGMDRTYRRTIRS"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/fasta/synthetic_digest_source.fasta": {
@@ -76,7 +341,49 @@
           "code": "fasta_sequence_only_linear",
           "message": "FASTA carries no standard topology, features or primers; imported as a sequence-only linear record"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "RRYVLAYIRCARISSMREGVPKTRFR*NSAGSSGSGKIPSLRPISCVLVRLCLLQ"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "ADTCWHISAAHESQACERECLRHGSGRILLAVRAAVRFHLYGP*VAFW*GFASCK"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "QIRVGIYPLRTNLKHARGSA*DTVQVEFCWQFGQR*DSIFTAHKLRFGEALPLA"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 165,
+          "protein": "LARGKASPKRNLWAVKMESYRCPNCQQNST*TVS*ALPLACLRFVRSGYMPTRIC"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 164,
+          "protein": "LQEAKPHQNATYGP*RWNLTAARTASRILPEPCLRHSLSHA*DSCAADICQHVSA"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 163,
+          "protein": "CKRQSLTKTQLMGRKDGILPLPELPAEFYLNRVLGTPSRMLEIRAQRIYANTYL"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/invalid_duplicate_sequence.dna": {
@@ -333,7 +640,154 @@
           ]
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "APNTQTASPRALADSLMQLARQVSRLESGQ*AQRN*CELAHSLGTPGFTLYASGSYVVWNCERITISHRKQL*P*LRQACMPAGRL*RIPGYRARIHWPSFYNVVTGKTLALPNLIALQHIPLSPAGVIAKRPAPIALPNSCAA*MANGA*CGIFSLRICAVFHTAYGALSVQSALMPHS*ASPDTRQHPLTRPDGLVCSRHPLTDKL*PSPGAACVRGFHRHHRNARDERAS*YAYFYRLMS***WFLRRQVALFGEMCAEPLFVYFSKYIQICIRS*DNNPDKCFNNIEKGRV*VFNISVSPLFPFLRHFAFLFLLTQKRW*K*KMLKISWVHEWVTSNWISTAVRSLRVFAPKNVFQ**ALLKFCYVARYYPVLTPGKSNSVAAYTILRMTWLSTHQSQKSILRMA*Q*ENYAVLP*P*VITLRPTYF*QRSEDRRS*PLFCTTWGIM*LALIVGNRS*MKPYQTTSVTPRCL*QWQQRCANY*LANYLL*LPGNN**TGWRRIKLQDHFCARPFRLAGLLLINLEPVSVGLAVSLQHWGQMVSPPVS*LSTRRGVRQLWMNEIDRSLR*VPH*LSIGNCQTKFTHIYFRLI*NFIFNLKGSR*RSFLIIS*PKSLNVSFRSTERQTP*KRSKDLLEILFFCA*SAACKQKNHRYQRWFVCRIKSYQLFFRR*LASAERRYQILFF*CSRS*ATTSRTL*HRLHTSLC*SCYQWLLPVAISRVLPGWTQDDSYRIRRSGRAERGVRAHSPAWSERPTPN*DTYSVSYEKAPRFPKGERRTGIR*AAGSEQESARGSFQGETPGIFIVLSGFATSDLSVDFCDARQGGGAYGKTPATRPFYGSWPFAGLLLTCSFLRYPLILWITVLPPLSELIPLAAAERPSAASQ*ARKRK"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RPIRKPPLPARWPIH*CSWHDRFPDWKAGSERNAINVS*LTH*APQALHFMLPARMLCGIVSG*QFHTGNSYDHDYAKLACLQVDSRGSPGTELEFTGRRFTTS*LGKPWRYPT*SPCSTSPFRQLA**RRGPHRSPFPTVAQPEWRMAPDAVFSPYASVRYFTPHMVHSQYNLL*CRIVKPAPTPANTR*RALTGLSAPGIRLQTSCDRLRELHVSEVFTVITETRETKGPRDTPIFIG*CHDNNGFLDVRWHFSGKCARNPYLFIFLNTFKYVSAHETITLINASIILKKEEYEYSTFPCRPYSLFCGILPSCFCSPRNAGESKRC*RSVGCTSGLHRTGSQQR*DP*EFSPRRTFSNDEHF*SSAMWRGIIPY*RRARATRSPHTLFSE*LG*VLTSHRKASYGWHDSKRIMQCCHNHE**HCGQLTSDNDRRTEGANRFFAQHGGSCNSP*SLGTGAE*SHTKRRA*HHDACSNGNNVAQTINWRTTYSSFPATINRLDGGG*SCRTTSALGPSGWLVYC**IWSR*AWVSRYHCSTGARW*ALPYRSYLHDGESGNYG*TK*TDR*DRCLTD*ALVTVRPSLLIYTLD*FKTSFLI*KDLGEDPF**SHDQNPLT*VFVPLSVRPRRKDQRIFLRSFFSARNLLLANKKTTATSGGLFAGSRATNSFSEGNWLQQSADTKYCSSSVAVVRPPLQELCSTAYIPRSANPVTSGCCQWR*VVSYRVGLKTIVTG*GAAVGLNGGFVHTAQLGANDLHRTEIPTA*AMRKRHASRREKGGQVSGKRQGRNRRAHEGASRGKRLVSL*SCRVSPPLT*ASIFVMLVRGAEPMEKRQQRGLFTVPGLLLAFCSHVLSCVIP*FCG*PYYRL*VS*YRSPQPNDRAQRVSERGSGR"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "AQYANRLSPRVGRFINAAGTTGFPTGKRAVSATQLM*VSSLIRHPRLYTLCFRLVCCVEL*ADNNFTQETAMTMITPSLHACRSTLEDPRVPSSNSLAVVLQRRDWENPGVTQLNRLAAHPPFASWRNSEEARTDRPSQQLRSLNGEWRLMRYFLLTHLCGISHRIWCTLSTICSDAA*LSQPRHPPTPADAP*RACLLPASAYRQAVTVSGSCMCQRFSPSSPKRARRKGLVIRLFL*VNVMIIMVS*TSGGTFRGNVRGTPICLFF*IHSNMYPLMRQ*P**MLQ*Y*KRKSMSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYIELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYSPVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRWEPELNEAIPNDERDTTMPVAMATTLRKLLTGELLTLASRQQLIDWMEADKVAGPLLRSALPAGWFIADKSGAGERGSRGIIAALGPDGKPSRIVVIYTTGSQATMDERNRQIAEIGASLIKHW*LSDQVYSYIL*IDLKLHF*FKRI*VKILFDNLMTKIP*REFSFH*ASDPVEKIKGSS*DPFFLRVICCLQTKKPPLPAVVCLPDQELPTLFPKVTGFSRAQIPNTVLLV*P*LGHHFKNSVAPPTYLALLILLPVAAASGDKSCLTGLDSRR*LPDKAQRSG*TGGSCTQPSLERTTYTELRYLQREL*ESATLPEGRKADRYPVSGRVGTGERTRELPGGNAWYLYSPVGFRHL*LERRFL*CSSGGRSLWKNASNAAFLRFLAFCWPFAHMFFPALSPDSVDNRITAFE*ADTARRSRTTERSESVSEEAE"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 2685,
+          "protein": "SSASSLTDSLRSVVRLRRAVSAHSKAVIRLSTESGDNAGKNM*AKGQQKARNRKKAALLAFFHRLRPPDEHHKNRRSSQRWRNPTGL*RYQAFPPGSSLVRSPVPTLPLTGYLSAFLPSGSVALSHSSRCRYLSSV*VVRSKLGCVHEPPVQPDRCALSGNYRLESNPVRHDLSPLAAATGNRISRARYVGGATEFLKWWPNYGYTRRTVFGICALLKPVTFGKRVGSS*SGKQTTAGSGGFFVCKQQITRRKKGSQEDPLIFSTGSDAQWNENSR*GILVMRLSKRIFT*ILLN*K*SFKSI*SIYE*TWSDSYQCLISEAPISAICLFRSSIVA*LPVV*ITTIREGLPSGPSAAMIPRDPRSPAPDLSAINQPAGRAERRSGPATLSASIQSINCCREARVSSSPVNSLRNVVAIATGIVVSRSSFGMASFSSGSQRSRRVT*SPMLCKKAVSSFGPPIVVRSKLAAVLSLMVMAALHNSLTVMPSVRCFSVTGEYSTKSF*E*CMRRPSCSCPASIRDNTAPHSRTLKVLIIGKRSSGRKLSRILPLLRSSSM*PTRAPN*SSASFTFTSVSG*AKTGRQNAAKKGIRATRKC*ILILFLFQYY*SIYQGYCLMSGYIFECI*KNKQIGVPRTFPRKVPPDV*ETIIIMTLTYKNRRITRPFRLARFGDDGENL*HMQLPETVTACL*ADAGSRQARQGASAGVGGCRGWLNYAASEQIVLRVHHMRCEIPHRCVRRKYRIRRHSPFRLRNCWEGRSVRASSLLRQLAKGGCAARRLSWVTPGFSQSRRCKTTASEFELGTRGSSRVDLQACKLGVIMVIAVSCVKLLSAHNSTQHTSRKHKV*SLGCLMSELTHINCVALTARFPVGKPVVPAALMNRPTRGERRFAYWA"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 2684,
+          "protein": "LPLPRSLTRCARSFGCGERYQLTQRR*YGYPQNQGITQERTCEQKASKRPGTVKRPRCWRFSIGSAPLTSITKIDAQVRGGETRQDYKDTRRFPLEAPSCALLFRPCRLPDTCPPFSLREAWRFLIAHAVGISVRCRSFAPSWAVCTNPPFSPTAAPYPVTIVLSPTR*DTTYRHWQQPLVTGLAERGM*AVLQSS*SGGLTTATLEEQYLVSALC*SQLPSEKELVALDPANKPPLVAVVFLFASSRLRAEKKDLKKIL*SFLRGLTLSGTKTHVKGFWS*DYQKGSSPRSF*IKNEVLNQSKVYMSKLGLTVTNA*SVRHLSQRSVYFVHP*LPDSPSCR*LRYGRAYHLAPVLQ*YRETHAHRLQIYQQ*TSQPEGPSAEVVLQLYPPPSSLLIVAGKLE*VVRQLIVCATLLPLLQASWCHARRLVWLHSAPVPNDQGELHDPPCCAKKRLAPSVLRSLSEVSWPQCYHSWLWQHCIILLLSCHP*DAFL*LVSTQPSHSENSVCGDRVALARRQYGIIPRHIAEL*KCSSLENVLRGENSQGSYRC*DPVRCNPLVHPTDLQHLLLSPAFLGEQKQEGKMPQKRE*GRHGNVEYSYSSFFNIIEAFIRVIVS*ADTYLNVFRKINK*GFRAHFPEKCHLTSKKPLLS*H*PIKIGVSRGPFVSRVSVMTVKTSDTCSSRRRSQLVCKRMPGADKPVRARQRVLAGVGAGLTMRHQSRLY*ECTICGVKYRTDA*GENTASGAIRHSGCATVGKGDRCGPLRYYASWRKGDVLQGD*VG*RQGFPSHDVVKRRPVNSSSVPGDPLESTCRHASLA*SWS*LFPV*NCYPLTIPHNIRAGSIKCKAWGA**VS*LTLIALRSLPAFQSGNLSCQLH**IGQRAGRGGLRIGR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 2683,
+          "protein": "FRFLAH*LAALGRSAAASGISSLKGGNTVIHRIRG*RRKEHVSKRPAKGQEP*KGRVAGVFP*APPP*RASQKSTLKSEVAKPDRTIKIPGVSPWKLPRALSCSDPAAYRIPVRLSPFGKRGAFS*LTL*VSQFGVGRSLQAGLCARTPRSARPLRLIR*LSS*VQPGKTRLIATGSSHW*QD*QSEVCRRCYRVLEVVA*LRLH*KNSIWYLRSAEASYLRKKSW*LLIRQTNHRW*RWFFCLQAADYAQKKRISRRSFDLFYGV*RSVERKLTLRDFGHEIIKKDLHLDPFKLKMKF*INLKYI*VNLV*QLPMLNQ*GTYLSDLSISFIHSCLTPRRVDNYDTGGLTIWPQCCNDTARPTLTGSRFISNKPASRKGRAQKWSCNFIRLHPVY*LLPGS*SK*FAS**FAQRCCHCYRHRGVTLVVWYGFIQLRFPTIKASYMIPHVVQKSG*LLRSSDRCQK*VGRSVITHGYGSTA*FSYCHAIRKMLFCDW*VLNQVILRIVYAATELLLPGVNTG*YRAT*QNFKSAHHWKTFFGAKTLKDLTAVEIQFDVTHSCTQLIFSIFYFHQRFWVSKNRKAKCRKKGNKGDTEMLNTHTLPFSILLKHLSGLLSHERIHI*MYLEK*TNRGSAHISPKSAT*RLRNHYYHDINL*K*AYHEALSSRAFR**R*KPLTHAAPGDGHSLSVSGCREQTSPSGRVSGCWRVSGLA*LCGIRADCTESAPYAV*NTAQMRKEKIPHQAPFAIQAAQLLGRAIGAGLFAITPAGERGMCCKAIKLGNARVFPVTTL*NDGQ*IRARYPGIL*SRPAGMQAWRNHGHSCFLCEIVIRSQFHTTYEPEA*SVKPGVPNE*ANSH*LRCAHCPLSSRETCRASCINESANARGEAVCVLG"
+        }
+      ],
+      "orfs": [
+        {
+          "id": "orf-0001",
+          "strand": "reverse",
+          "start": 142,
+          "length": 357,
+          "codons": 118,
+          "protein": "MRCEIPHRCVRRKYRIRRHSPFRLRNCWEGRSVRASSLLRQLAKGGCAARRLSWVTPGFSQSRRCKTTASEFELGTRGSSRVDLQACKLGVIMVIAVSCVKLLSAHNSTQHTSRKHKV"
+        },
+        {
+          "id": "orf-0002",
+          "strand": "reverse",
+          "start": 149,
+          "length": 93,
+          "codons": 30,
+          "protein": "MQAWRNHGHSCFLCEIVIRSQFHTTYEPEA"
+        },
+        {
+          "id": "orf-0003",
+          "strand": "forward",
+          "start": 215,
+          "length": 324,
+          "codons": 107,
+          "protein": "MTMITPSLHACRSTLEDPRVPSSNSLAVVLQRRDWENPGVTQLNRLAAHPPFASWRNSEEARTDRPSQQLRSLNGEWRLMRYFLLTHLCGISHRIWCTLSTICSDAA"
+        },
+        {
+          "id": "orf-0004",
+          "strand": "reverse",
+          "start": 302,
+          "length": 174,
+          "codons": 57,
+          "protein": "MRKEKIPHQAPFAIQAAQLLGRAIGAGLFAITPAGERGMCCKAIKLGNARVFPVTTL"
+        },
+        {
+          "id": "orf-0005",
+          "strand": "reverse",
+          "start": 510,
+          "length": 159,
+          "codons": 52,
+          "protein": "MTVKTSDTCSSRRRSQLVCKRMPGADKPVRARQRVLAGVGAGLTMRHQSRLY"
+        },
+        {
+          "id": "orf-0006",
+          "strand": "forward",
+          "start": 884,
+          "length": 861,
+          "codons": 286,
+          "protein": "MSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYIELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYSPVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRWEPELNEAIPNDERDTTMPVAMATTLRKLLTGELLTLASRQQLIDWMEADKVAGPLLRSALPAGWFIADKSGAGERGSRGIIAALGPDGKPSRIVVIYTTGSQATMDERNRQIAEIGASLIKHW"
+        },
+        {
+          "id": "orf-0007",
+          "strand": "forward",
+          "start": 981,
+          "length": 102,
+          "codons": 33,
+          "protein": "MLKISWVHEWVTSNWISTAVRSLRVFAPKNVFQ"
+        },
+        {
+          "id": "orf-0008",
+          "strand": "reverse",
+          "start": 1012,
+          "length": 150,
+          "codons": 49,
+          "protein": "MRRPSCSCPASIRDNTAPHSRTLKVLIIGKRSSGRKLSRILPLLRSSSM"
+        },
+        {
+          "id": "orf-0009",
+          "strand": "reverse",
+          "start": 1171,
+          "length": 171,
+          "codons": 56,
+          "protein": "MLCKKAVSSFGPPIVVRSKLAAVLSLMVMAALHNSLTVMPSVRCFSVTGEYSTKSF"
+        },
+        {
+          "id": "orf-0010",
+          "strand": "reverse",
+          "start": 1348,
+          "length": 267,
+          "codons": 88,
+          "protein": "MIPRDPRSPAPDLSAINQPAGRAERRSGPATLSASIQSINCCREARVSSSPVNSLRNVVAIATGIVVSRSSFGMASFSSGSQRSRRVT"
+        },
+        {
+          "id": "orf-0011",
+          "strand": "forward",
+          "start": 2308,
+          "length": 120,
+          "codons": 39,
+          "protein": "MRKRHASRREKGGQVSGKRQGRNRRAHEGASRGKRLVSL"
+        },
+        {
+          "id": "orf-0012",
+          "strand": "forward",
+          "start": 2473,
+          "length": 114,
+          "codons": 37,
+          "protein": "MLVRGAEPMEKRQQRGLFTVPGLLLAFCSHVLSCVIP"
+        },
+        {
+          "id": "orf-0013",
+          "strand": "reverse",
+          "start": 2663,
+          "length": 150,
+          "codons": 49,
+          "protein": "MSELTHINCVALTARFPVGKPVVPAALMNRPTRGERRFAYWALFRFLAH"
+        }
+      ],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_circular.dna": {
@@ -382,7 +836,49 @@
           "code": "snapgene_packet_not_interpreted",
           "message": "preserved uninterpreted packet 0x1c (23 bytes)"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "TYVRTY"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RTYVRT"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "VRTYVR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 19,
+          "protein": "TYVRTY"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 18,
+          "protein": "RTYVRT"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 17,
+          "protein": "VRTYVR"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_linear.dna": {
@@ -417,7 +913,71 @@
           ]
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "translations": [
+        {
+          "feature_id": "feature-0001",
+          "table": 1,
+          "protein": "XX",
+          "codon_positions": [
+            13,
+            12,
+            11,
+            10,
+            9,
+            3
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": null,
+          "warnings": [
+            {
+              "code": "translation_incomplete_codon",
+              "message": "2 trailing base(s)"
+            }
+          ]
+        }
+      ],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "TXXXX"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RXXX"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "VXXX"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 14,
+          "protein": "XXXXR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 13,
+          "protein": "XXXX"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 12,
+          "protein": "XXXT"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_multipart_origin.dna": {
@@ -446,7 +1006,49 @@
           ]
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "TYVR"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RTY"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "VRT"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 11,
+          "protein": "TYVR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 10,
+          "protein": "RTY"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 9,
+          "protein": "VRT"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_overlaps.dna": {
@@ -501,7 +1103,49 @@
           ]
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "MTVSLAFIAV"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "*PLA*HSLQ"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "DR*PSIHCS"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 29,
+          "protein": "DCNEC*ANGH"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 28,
+          "protein": "TAMNARLTV"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 27,
+          "protein": "LQ*MLG*RS"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_partial.dna": {
@@ -557,7 +1201,49 @@
           "code": "snapgene_primer_skipped",
           "message": "primer 2 has an invalid sequence: invalid IUPAC DNA symbol '!' at byte 2"
         }
-      ]
+      ],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "TYVR"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "RTY"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "VRT"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 11,
+          "protein": "TYVR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 10,
+          "protein": "RTY"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 9,
+          "protein": "VRT"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_restriction_circular.dna": {
@@ -568,7 +1254,49 @@
       "unplaced_primers": [],
       "circular": true,
       "features": [],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "FKKKKKKK"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "SKKKKKKR"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "QKKKKKKE"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 25,
+          "protein": "FFFFFFFL"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 24,
+          "protein": "SFFFFFF*"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 23,
+          "protein": "LFFFFFFE"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_restriction_end.dna": {
@@ -579,7 +1307,49 @@
       "unplaced_primers": [],
       "circular": false,
       "features": [],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "GL"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "V"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "S"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 5,
+          "protein": "ET"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 4,
+          "protein": "R"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 3,
+          "protein": "D"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_restriction_linear.dna": {
@@ -590,7 +1360,49 @@
       "unplaced_primers": [],
       "circular": false,
       "features": [],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "KKKKEFKKKKGSKKKKDIKKKKGTKKKKGLKKKKETKKKKRLKKKKETKKKK"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "KKKKNSKKKKDPKKKKISKKKKVPKKKKVSKKKKRPKKKNVSKKKKRRKKK"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "KKKRIQKKKRIQKKKRYQKKKRYQKKKRSQKKKRDQKKKTSQKKKRDEKKK"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 155,
+          "protein": "FFFFRLFFFFETFFFFGLFFFFETFFFFGTFFFFDIFFFFGSFFFFEFFFFF"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 154,
+          "protein": "FFFFVSFFFLRRFFFLVSFFFLRPFFFLVPFFFLISFFFLDPFFFLNSFFF"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 153,
+          "protein": "FFFSSLFFF*DVFFFWSLFFF*DLFFFWYLFFF*YLFFFWILFFF*ILFFF"
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_translation.dna": {
@@ -697,7 +1509,530 @@
           ]
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "translations": [
+        {
+          "feature_id": "feature-0001",
+          "table": 1,
+          "protein": "MVVRQVPWRRWRLNQFRLATGANLHRVASIVIWFCCYVNECSSKGRSLCLHLSGAWCYPSDRTTPDAKAKYKFSVNARGYG*",
+          "codon_positions": [
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238,
+            239,
+            240,
+            241,
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            249,
+            250,
+            251,
+            252,
+            253,
+            254,
+            255,
+            256,
+            257,
+            258,
+            259,
+            260,
+            261,
+            262,
+            263,
+            264,
+            265,
+            266,
+            267,
+            268,
+            269,
+            270,
+            271,
+            272,
+            273,
+            274,
+            275,
+            276,
+            277
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": true,
+          "warnings": []
+        },
+        {
+          "feature_id": "feature-0002",
+          "table": 1,
+          "protein": "MYRLKQIDSTF*",
+          "codon_positions": [
+            342,
+            341,
+            340,
+            339,
+            338,
+            337,
+            336,
+            335,
+            334,
+            333,
+            332,
+            331,
+            330,
+            329,
+            328,
+            327,
+            326,
+            325,
+            324,
+            323,
+            322,
+            321,
+            311,
+            310,
+            309,
+            308,
+            307,
+            306,
+            305,
+            304,
+            303,
+            302,
+            301,
+            300,
+            299,
+            298
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": true,
+          "warnings": []
+        },
+        {
+          "feature_id": "feature-0003",
+          "table": 1,
+          "protein": "MQTVPRI*",
+          "codon_positions": [
+            552,
+            553,
+            554,
+            555,
+            556,
+            557,
+            558,
+            559,
+            560,
+            561,
+            562,
+            563,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": null,
+          "warnings": []
+        },
+        {
+          "feature_id": "feature-0004",
+          "table": 1,
+          "protein": "MPLGCQDRP*",
+          "codon_positions": [
+            364,
+            365,
+            366,
+            367,
+            368,
+            369,
+            370,
+            371,
+            372,
+            373,
+            374,
+            375,
+            376,
+            377,
+            378,
+            379,
+            380,
+            381,
+            382,
+            383,
+            384,
+            385,
+            386,
+            387,
+            388,
+            389,
+            390,
+            391,
+            392,
+            393
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": null,
+          "warnings": []
+        },
+        {
+          "feature_id": "feature-0005",
+          "table": 11,
+          "protein": "MSIVPLRED*",
+          "codon_positions": [
+            414,
+            415,
+            416,
+            417,
+            418,
+            419,
+            420,
+            421,
+            422,
+            423,
+            424,
+            425,
+            426,
+            427,
+            428,
+            429,
+            430,
+            431,
+            432,
+            433,
+            434,
+            435,
+            436,
+            437,
+            438,
+            439,
+            440,
+            441,
+            442,
+            443
+          ],
+          "initiator_as_methionine": true,
+          "imported_matches": true,
+          "warnings": []
+        },
+        {
+          "feature_id": "feature-0006",
+          "table": 1,
+          "protein": "MITLXXND*",
+          "codon_positions": [
+            464,
+            465,
+            466,
+            467,
+            468,
+            469,
+            470,
+            471,
+            472,
+            473,
+            474,
+            475,
+            476,
+            477,
+            478,
+            479,
+            480,
+            481,
+            482,
+            483,
+            484,
+            485,
+            486,
+            487,
+            488,
+            489,
+            490
+          ],
+          "initiator_as_methionine": false,
+          "imported_matches": false,
+          "warnings": [
+            {
+              "code": "translation_imported_mismatch",
+              "message": "differs from the imported translation at residue 2"
+            }
+          ]
+        }
+      ],
+      "translation_skipped": [
+        {
+          "code": "translation_skipped",
+          "message": "feature-0007: feature \"feature-0007\" has unknown strand; translation needs a declared strand"
+        }
+      ],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "PRI*VFTSGHLWLSGKCPGDGGD*INSAWLPVQIYIEWQV*LYGFAVMSMNAPRRDGLCVCISVEHGVIQVIAPHQMRKLSTSSQLMREATAK*QHGALFKK*NKTIRFVLVGTWSVRAMPHAPRVPRQAVAPQHTQSVSIVPLRED*G*ISNTP*SHXXXMINFLLRKRDAQEWALNYMG*AWMQTV"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "PEFKFSLPVTYGCQASALATVEIKSIPPGYRCKSTSSGKYSYMVLLLCQ*MLLEGTVFVSASQWSMVLSK*SHHTRCES*VQVLS*CARLRLSNSMVRYSKSRIKRYDLF*SVHGLSAQCPMPLGCQDRP*HRNILNPCQSSHSGRIKGK*AIHHDHTXXX*LISCSASVMHKNGR*TIWAEHGCRP"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": "QNLSFHFRSLMVVRQVPWRRWRLNQFRLATGANLHRVASIVIWFCCYVNECSSKGRSLCLHLSGAWCYPSDRTTPDAKAKYKFSVNARGYG*VTAWCAIQKVE*NDTICFSRYMVCPRNAPCP*GAKTGRSTATYSIRVNRPTQGGLRVNKQYTMITLXXND*FPAPQA*CTRMGAKLYGLSMDADR"
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 563,
+          "protein": "HGLHPCSAHIV*RPFLCITLAEQEINHXXXV*SWCIAYLPLILPEWDD*HGLSMLRCYGLSWHPRGMGHCADRPCTD*NKSYRFILLFE*RTMLLLSRSLAH*LRTCT*LSHLVWCDHLDNTMLH*DADTKTVPSRSIH*HNSKTI*LYLPLDVDLHR*PGGIDLISTVARALA*QP*VTGSENLNSG"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 562,
+          "protein": "TVCIHAQPI*FSAHSCASRLRSRKLIIXXXCDHGVLLIYP*SSLSGTIDTD*VCCGATACLGTLGAWGIARTDHVPTKTNRIVLFYFLNSAPCCYLAVASRIN*ELVLSFRIWCGAITWITPCSTEMQTQRPSLRGAFIDITAKPYNYTCHSM*ICTGSQAELI*SPPSPGHLPDNHK*PEVKT*IL"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 561,
+          "protein": "RSASMLSPYSLAPILVHHACGAGN*SXXXSVIMVYCLFTLNPP*VGRLTRIEYVAVLRPVLAP*GHGALRGQTMYRLKQIVSFYSTF*IAHHAVT*P*PRALTENLYLAFASGVVRSLG*HHAPLRCRHKDRPFEEHSLT*QQNHITILATRCRFAPVARRN*FNLHRRQGTCLTTISDRK*KLKFW"
+        }
+      ],
+      "orfs": [
+        {
+          "id": "orf-0001",
+          "strand": "forward",
+          "start": 141,
+          "length": 141,
+          "codons": 46,
+          "protein": "MSMNAPRRDGLCVCISVEHGVIQVIAPHQMRKLSTSSQLMREATAK"
+        },
+        {
+          "id": "orf-0002",
+          "strand": "forward",
+          "start": 521,
+          "length": 321,
+          "codons": 106,
+          "protein": "MGAKLYGLSMDADRAQNLSFHFRSLMVVRQVPWRRWRLNQFRLATGANLHRVASIVIWFCCYVNECSSKGRSLCLHLSGAWCYPSDRTTPDAKAKYKFSVNARGYG"
+        }
+      ],
+      "orf_min_codons": 30
     }
   },
   "fixtures/formats/snapgene/synthetic_unannotated.dna": {
@@ -708,7 +2043,49 @@
       "unplaced_primers": [],
       "circular": false,
       "features": [],
-      "warnings": []
+      "warnings": [],
+      "translations": [],
+      "translation_skipped": [],
+      "frames": [
+        {
+          "strand": "forward",
+          "offset": 0,
+          "first": 0,
+          "protein": "T"
+        },
+        {
+          "strand": "forward",
+          "offset": 1,
+          "first": 1,
+          "protein": "R"
+        },
+        {
+          "strand": "forward",
+          "offset": 2,
+          "first": 2,
+          "protein": ""
+        },
+        {
+          "strand": "reverse",
+          "offset": 0,
+          "first": 3,
+          "protein": "T"
+        },
+        {
+          "strand": "reverse",
+          "offset": 1,
+          "first": 2,
+          "protein": "R"
+        },
+        {
+          "strand": "reverse",
+          "offset": 2,
+          "first": 1,
+          "protein": ""
+        }
+      ],
+      "orfs": [],
+      "orf_min_codons": 30
     }
   }
 }

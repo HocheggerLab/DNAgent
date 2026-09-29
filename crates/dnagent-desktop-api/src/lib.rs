@@ -1,4 +1,5 @@
 //! Small, explicit desktop transport boundary; not a serialization of domain internals.
+use dnagent_domain::translation::{self, CodingStrand, StartPolicy};
 use dnagent_domain::{Strand, Topology};
 use serde::Serialize;
 use std::path::Path;
@@ -42,6 +43,44 @@ pub struct UnplacedPrimer {
     pub description: Option<String>,
 }
 
+/// Engine translation of one CDS feature, for display under the sequence.
+#[derive(Debug, Serialize, TS)]
+pub struct FeatureTranslation {
+    pub feature_id: String,
+    pub table: u8,
+    /// One letter per codon; stops are `*`.
+    pub protein: String,
+    /// Reference positions of each codon's three coding bases, flattened (3 per codon).
+    pub codon_positions: Vec<u32>,
+    pub initiator_as_methionine: bool,
+    /// Comparison with the imported `translation` qualifier; null when absent.
+    pub imported_matches: Option<bool>,
+    pub warnings: Vec<Diagnostic>,
+}
+
+/// One whole-molecule reading frame (table 1). Forward codon `i` covers
+/// `first + 3i ..= first + 3i + 2`; reverse codon `i` covers `first - 3i - 2 ..= first - 3i`.
+/// Codons crossing the origin are omitted.
+#[derive(Debug, Serialize, TS)]
+pub struct FrameTranslation {
+    pub strand: Direction,
+    pub offset: u32,
+    pub first: u32,
+    pub protein: String,
+}
+
+/// A complete ORF (start to stop, table 1, ATG starts). `start`/`length` may wrap.
+#[derive(Debug, Serialize, TS)]
+pub struct Orf {
+    pub id: String,
+    pub strand: Direction,
+    pub start: u32,
+    pub length: u32,
+    /// Amino acids excluding the stop.
+    pub codons: u32,
+    pub protein: String,
+}
+
 #[derive(Debug, Serialize, TS)]
 pub struct Document {
     pub name: String,
@@ -53,6 +92,28 @@ pub struct Document {
     pub circular: bool,
     pub features: Vec<Feature>,
     pub warnings: Vec<Diagnostic>,
+    /// CDS translations in source order; untranslatable CDSs are listed in `translation_skipped`.
+    pub translations: Vec<FeatureTranslation>,
+    pub translation_skipped: Vec<Diagnostic>,
+    /// Frames +1, +2, +3, -1, -2, -3.
+    pub frames: Vec<FrameTranslation>,
+    /// ORFs of at least `orf_min_codons`; the GUI may filter to longer ones.
+    pub orfs: Vec<Orf>,
+    pub orf_min_codons: u32,
+}
+
+/// Lower bound for ORFs sent to the GUI (which filters upwards, default 75).
+const ORF_MIN_CODONS: usize = 30;
+
+fn direction(strand: CodingStrand) -> Direction {
+    match strand {
+        CodingStrand::Forward => Direction::Forward,
+        CodingStrand::Reverse => Direction::Reverse,
+    }
+}
+
+fn u32_of(value: usize) -> u32 {
+    u32::try_from(value).expect("bounded record")
 }
 
 /// Prototype limit bounds frontend rendering; not a biological restriction.
@@ -94,6 +155,9 @@ pub fn open_document(path: &Path) -> Result<Document, Diagnostic> {
                 .collect(),
         })
         .collect();
+    let (translations, translation_skipped) = translation_dtos(&record);
+    let frames = frame_dtos(&record);
+    let orfs = orf_dtos(&record);
     Ok(Document {
         name: record.name().into(),
         sequence: record.sequence().as_str().into(),
@@ -116,7 +180,104 @@ pub fn open_document(path: &Path) -> Result<Document, Diagnostic> {
                 message: warning.message,
             })
             .collect(),
+        translations,
+        translation_skipped,
+        frames,
+        orfs,
+        orf_min_codons: u32_of(ORF_MIN_CODONS),
     })
+}
+
+fn translation_dtos(
+    record: &dnagent_domain::SequenceRecord,
+) -> (Vec<FeatureTranslation>, Vec<Diagnostic>) {
+    let (cds, _) = dnagent_app::translation::translate_cds_features(record, None);
+    let translations = cds
+        .translations
+        .iter()
+        .map(|item| {
+            let t = &item.translation;
+            let mut warnings = Vec::new();
+            if !t.internal_stops.is_empty() {
+                warnings.push(Diagnostic {
+                    code: "translation_internal_stop".into(),
+                    message: format!("{} internal stop codon(s)", t.internal_stops.len()),
+                });
+            }
+            if t.trailing_bases > 0 {
+                warnings.push(Diagnostic {
+                    code: "translation_incomplete_codon".into(),
+                    message: format!("{} trailing base(s)", t.trailing_bases),
+                });
+            }
+            if let Some(comparison) = item.imported_translation.as_ref().filter(|c| !c.matches) {
+                warnings.push(Diagnostic {
+                    code: "translation_imported_mismatch".into(),
+                    message: format!(
+                        "differs from the imported translation at residue {}",
+                        comparison.first_difference.map_or(0, |i| i + 1)
+                    ),
+                });
+            }
+            FeatureTranslation {
+                feature_id: item.feature_id.clone(),
+                table: t.table,
+                protein: t.protein.clone(),
+                codon_positions: t
+                    .codons
+                    .iter()
+                    .flat_map(|c| c.positions.map(u32_of))
+                    .collect(),
+                initiator_as_methionine: t.initiator_as_methionine,
+                imported_matches: item.imported_translation.as_ref().map(|c| c.matches),
+                warnings,
+            }
+        })
+        .collect();
+    let translation_skipped = cds
+        .skipped
+        .iter()
+        .map(|skip| Diagnostic {
+            code: "translation_skipped".into(),
+            message: format!("{}: {}", skip.feature_id, skip.reason),
+        })
+        .collect();
+    (translations, translation_skipped)
+}
+
+fn frame_dtos(record: &dnagent_domain::SequenceRecord) -> Vec<FrameTranslation> {
+    translation::six_frames(record.sequence(), 1)
+        .expect("table 1 exists")
+        .into_iter()
+        .map(|frame| FrameTranslation {
+            strand: direction(frame.strand),
+            offset: u32_of(frame.offset),
+            first: u32_of(frame.first),
+            protein: frame.protein,
+        })
+        .collect()
+}
+
+fn orf_dtos(record: &dnagent_domain::SequenceRecord) -> Vec<Orf> {
+    translation::find_orfs(
+        record.sequence(),
+        record.topology(),
+        1,
+        ORF_MIN_CODONS,
+        StartPolicy::AtgOnly,
+    )
+    .expect("valid ORF parameters")
+    .orfs
+    .into_iter()
+    .map(|orf| Orf {
+        id: orf.id,
+        strand: direction(orf.strand),
+        start: u32_of(orf.start),
+        length: u32_of(orf.length),
+        codons: u32_of(orf.codons),
+        protein: orf.protein,
+    })
+    .collect()
 }
 
 /// Generated from Rust DTOs; the frontend must not maintain parallel definitions.
@@ -128,6 +289,9 @@ pub fn typescript() -> String {
         Feature::decl(),
         Diagnostic::decl(),
         UnplacedPrimer::decl(),
+        FeatureTranslation::decl(),
+        FrameTranslation::decl(),
+        Orf::decl(),
         Document::decl(),
     ];
     let mut result = String::from(

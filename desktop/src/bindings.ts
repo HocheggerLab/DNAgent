@@ -8,6 +8,25 @@ export type Feature = { id: string, label: string, kind: string, color: string |
 parts: Array<Segment>, };
 export type Diagnostic = { code: string, message: string, };
 export type UnplacedPrimer = { name: string, sequence_5to3: string, description: string | null, };
+export type FeatureTranslation = { feature_id: string, table: number,
+/**
+ * One letter per codon; stops are `*`.
+ */
+protein: string,
+/**
+ * Reference positions of each codon's three coding bases, flattened (3 per codon).
+ */
+codon_positions: Array<number>, initiator_as_methionine: boolean,
+/**
+ * Comparison with the imported `translation` qualifier; null when absent.
+ */
+imported_matches: boolean | null, warnings: Array<Diagnostic>, };
+export type FrameTranslation = { strand: Direction, offset: number, first: number, protein: string, };
+export type Orf = { id: string, strand: Direction, start: number, length: number,
+/**
+ * Amino acids excluding the stop.
+ */
+codons: number, protein: string, };
 export type Document = { name: string, sequence: string,
 /**
  * Complement aligned to forward coordinates, left-to-right 3′→5′.
@@ -16,4 +35,16 @@ aligned_complement_3to5: string,
 /**
  * Imported oligos only; binding coordinates are not retained by the importer.
  */
-unplaced_primers: Array<UnplacedPrimer>, circular: boolean, features: Array<Feature>, warnings: Array<Diagnostic>, };
+unplaced_primers: Array<UnplacedPrimer>, circular: boolean, features: Array<Feature>, warnings: Array<Diagnostic>,
+/**
+ * CDS translations in source order; untranslatable CDSs are listed in `translation_skipped`.
+ */
+translations: Array<FeatureTranslation>, translation_skipped: Array<Diagnostic>,
+/**
+ * Frames +1, +2, +3, -1, -2, -3.
+ */
+frames: Array<FrameTranslation>,
+/**
+ * ORFs of at least `orf_min_codons`; the GUI may filter to longer ones.
+ */
+orfs: Array<Orf>, orf_min_codons: number, };
