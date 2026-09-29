@@ -5,10 +5,12 @@ pub mod compatibility;
 pub mod digest;
 pub mod existing_overlaps;
 pub mod fragment_annotations;
+mod genetic_codes;
 pub mod gibson;
 pub mod ligation;
 pub mod primer_optimisation;
 pub mod restriction;
+pub mod translation;
 
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt};
