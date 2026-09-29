@@ -11,6 +11,8 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+mod library_cmd;
+
 const SCHEMA_VERSION: &str = "0.9.0";
 
 #[derive(Debug, Parser)]
@@ -68,6 +70,10 @@ enum Command {
     },
     /// Report the active enzyme catalogue: source, release, hash and unsupported enzymes (JSON).
     EnzymeCatalogue,
+    /// The feature library: build it from sequence files and query it.
+    Library(library_cmd::LibraryArgs),
+    /// Find library features in a sequence (exact matches, both strands, across the origin).
+    DetectFeatures(library_cmd::DetectArgs),
     /// Find restriction recognition sites and nominal cut positions (not a digest).
     Sites {
         input: PathBuf,
@@ -286,6 +292,8 @@ impl Command {
             Self::Map { .. } => "map",
             Self::Enzymes { .. } => "enzymes",
             Self::EnzymeCatalogue => "enzyme-catalogue",
+            Self::Library(args) => args.name(),
+            Self::DetectFeatures(_) => "detect-features",
             Self::Sites { .. } => "sites",
             Self::Digest { .. } => "digest",
             Self::CompatibleEnds(_) => "compatible-ends",
@@ -315,6 +323,8 @@ impl Command {
             | Self::Orfs { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
             Self::Translate(args) => matches!(args.output, OutputMode::Json),
+            Self::Library(args) => args.requests_json(),
+            Self::DetectFeatures(args) => matches!(args.output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
             Self::GibsonOptimise { .. } | Self::PrimerDesign { .. } => true,
@@ -411,6 +421,14 @@ fn main() -> ExitCode {
                             Some(AppError::Ligation(_) | AppError::LigationPlan(_))
                         ) {
                             "ligation_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Library(_))
+                        ) || error
+                            .downcast_ref::<dnagent_library::LibraryError>()
+                            .is_some()
+                        {
+                            "library_failed"
                         } else if matches!(
                             error.downcast_ref::<AppError>(),
                             Some(AppError::Gibson(_) | AppError::GibsonPlan(_))
@@ -515,6 +533,8 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         }
         Command::Enzymes { output } => print_enzymes(output, warnings)?,
         Command::EnzymeCatalogue => print_enzyme_catalogue(warnings)?,
+        Command::Library(args) => library_cmd::run_library(args, warnings)?,
+        Command::DetectFeatures(args) => library_cmd::run_detect(args, strict, warnings)?,
         Command::Sites {
             input,
             enzymes,

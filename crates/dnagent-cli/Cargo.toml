@@ -17,6 +17,7 @@ gui = ["dep:dnagent-gui"]
 [dependencies]
 clap.workspace = true
 dnagent-app = { path = "../dnagent-app" }
+dnagent-library = { path = "../dnagent-library" }
 dnagent-domain = { path = "../dnagent-domain" }
 dnagent-formats = { path = "../dnagent-formats" }
 dnagent-gui = { path = "../dnagent-gui", optional = true }

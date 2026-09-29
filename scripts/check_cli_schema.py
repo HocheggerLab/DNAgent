@@ -208,6 +208,33 @@ def main():
             if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
                 raise ValueError(f"unexpected response for {args}")
             checked.append(body)
+        # Feature library: built from the public fixtures into a scratch database.
+        db = ["--db", str(Path(scratch) / "features.sqlite")]
+        missing = ["--db", str(Path(scratch) / "missing.sqlite")]
+        puc19 = str(ROOT / "fixtures/formats/snapgene/pUC19_M77789.dna")
+        for args, success in [
+            (["library", *missing, "info", "--output", "json"], False),
+            (["detect-features", puc19, *missing, "--output", "json"], False),
+            (["library", *db, "import", str(ROOT / "fixtures/formats"), "--output", "json"], True),
+            (["library", *db, "import", str(ROOT / "fixtures/formats"), "--output", "json"], True),
+            (["library", *db, "info", "--output", "json"], True),
+            (["library", *db, "list", "--output", "json"], True),
+            (["library", *db, "list", "--kind", "CDS", "--limit", "3", "--output", "json"], True),
+            (["library", *db, "search", "amp", "--output", "json"], True),
+            (["library", *db, "show", "1", "--output", "json"], True),
+            (["library", *db, "show", "999999", "--output", "json"], False),
+            (["library", *db, "edit", "1", "--name", "renamed", "--output", "json"], True),
+            (["library", *db, "edit", "1", "--hide", "--output", "json"], True),
+            (["detect-features", puc19, *db, "--output", "json"], True),
+            (["detect-features", puc19, *db, "--new-only", "--min-length", "100", "--output", "json"], True),
+            (["detect-features", str(ROOT / "fixtures/formats/snapgene/synthetic_multipart_origin.dna"), *db, "--output", "json"], True),
+        ]:
+            proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=30)
+            body = json.loads(proc.stdout)
+            validator.validate(body)
+            if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+                raise ValueError(f"unexpected response for {args}")
+            checked.append(body)
     for command, filename, schema_file in [
         ("primer-design", "synthetic-primer-design.json", "primer-design-plan-1.schema.json"),
         (

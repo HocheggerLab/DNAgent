@@ -4,6 +4,7 @@ pub mod amplification;
 pub mod compatibility;
 pub mod digest;
 pub mod existing_overlaps;
+pub mod feature_match;
 pub mod fragment_annotations;
 mod genetic_codes;
 pub mod gibson;

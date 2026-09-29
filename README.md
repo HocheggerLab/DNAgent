@@ -122,6 +122,14 @@ the workspace (`~/DNAgent/handoff/`), and copies a prompt for an agent running i
 terminal. GenBank files the agent writes into `~/DNAgent` are offered as new tabs, and
 changed open files reload. See [agent handoff](docs/agent-handoff.md).
 
+### Feature library
+
+`dnagent library import <folder>` collects the annotated features of your constructs into
+a private SQLite library (deduplicated by sequence on either strand, with aliases and
+provenance). `dnagent detect-features <file>` finds library parts in any construct. See
+[feature library](docs/feature-library.md). Files are read by content, so GenBank saved
+as `.dna` opens too.
+
 ### Translation and ORFs
 
 `dnagent translate` translates a feature (honouring joins, origin crossings, `codon_start`
