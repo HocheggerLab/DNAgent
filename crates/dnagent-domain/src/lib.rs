@@ -185,7 +185,7 @@ impl Length {
 }
 
 /// Strand relative to the record's forward sequence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Strand {
     /// Forward/reference strand.

@@ -2,6 +2,7 @@
 
 pub mod assembly;
 pub mod genbank;
+pub mod genbank_record;
 
 use dnagent_domain::{DomainError, SequenceRecord};
 use serde::Serialize;
@@ -60,6 +61,8 @@ pub struct FormatExtensions {
     pub opaque_packets: Vec<OpaquePacket>,
     /// Raw copies of interpreted packets, preserving unsupported nested metadata.
     pub interpreted_source_packets: Vec<OpaquePacket>,
+    /// GenBank header lines after LOCUS (DEFINITION … COMMENT), kept verbatim for re-export.
+    pub genbank_header: Vec<String>,
 }
 
 /// Successful import plus explicit fidelity information.

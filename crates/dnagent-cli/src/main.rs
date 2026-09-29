@@ -126,6 +126,15 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
+    /// Save a record as DNAagent GenBank, preserving retained metadata (JSON report).
+    Convert {
+        input: PathBuf,
+        /// Output .gb/.gbk/.genbank path (written atomically).
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Add or remove a feature and save the result as GenBank (JSON report).
+    Annotate(AnnotateArgs),
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -162,6 +171,48 @@ struct TranslateArgs {
     table: Option<u32>,
     #[arg(long, value_enum, default_value_t = OutputMode::Text)]
     output: OutputMode,
+}
+
+#[derive(Debug, Args)]
+#[command(group(ArgGroup::new("action").required(true).args(["add", "remove"])))]
+struct AnnotateArgs {
+    input: PathBuf,
+    /// Output .gb/.gbk/.genbank path (may equal a GenBank input; written atomically).
+    #[arg(long)]
+    out: PathBuf,
+    /// Add a single-part feature over --range.
+    #[arg(long, requires_all = ["range", "label"])]
+    add: bool,
+    /// Remove the feature with this id.
+    #[arg(long)]
+    remove: Option<String>,
+    /// Zero-based, half-open START..END; END < START wraps on circular records.
+    #[arg(long, value_parser = parse_span)]
+    range: Option<(usize, usize)>,
+    #[arg(long)]
+    label: Option<String>,
+    /// GenBank feature key (ignored with --translate, which makes a CDS).
+    #[arg(long, default_value = "misc_feature")]
+    kind: String,
+    #[arg(long, value_enum, default_value_t = FeatureStrandArg::Forward)]
+    strand: FeatureStrandArg,
+    /// Make a CDS with codon_start, transl_table and a computed /translation.
+    #[arg(long)]
+    translate: bool,
+    #[arg(long, default_value_t = 1, requires = "translate")]
+    table: u32,
+    #[arg(long, default_value_t = 1, requires = "translate", value_parser = clap::value_parser!(u8).range(1..=3))]
+    codon_start: u8,
+    /// Display colour, #rrggbb.
+    #[arg(long)]
+    color: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum FeatureStrandArg {
+    Forward,
+    Reverse,
+    Unknown,
 }
 
 const TABLE_HELP: &str = "Genetic codes: NCBI gc.prt 4.6 tables 1-6, 9-16, 21-33 (1 = Standard, 2 = Vertebrate Mitochondrial, 11 = Bacterial/Archaeal/Plastid).";
@@ -242,6 +293,8 @@ impl Command {
             Self::PrimerDesign { .. } => "primer-design",
             Self::GibsonAssemble { .. } => "gibson-assemble",
             Self::Translate(_) => "translate",
+            Self::Convert { .. } => "convert",
+            Self::Annotate(_) => "annotate",
             Self::Orfs { .. } => "orfs",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
@@ -266,7 +319,7 @@ impl Command {
             Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
                 matches!(output, OutputMode::Json)
             }
-            Self::Map { .. } => true,
+            Self::Map { .. } | Self::Convert { .. } | Self::Annotate(_) => true,
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
         }
@@ -368,6 +421,15 @@ fn main() -> ExitCode {
                             Some(AppError::Translation(_) | AppError::FeatureNotFound(_))
                         ) {
                             "translation_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(
+                                AppError::Edit(_)
+                                    | AppError::UnsupportedOutput(_)
+                                    | AppError::Write { .. }
+                            )
+                        ) {
+                            "edit_failed"
                         } else {
                             "command_failed"
                         },
@@ -470,13 +532,9 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
             run_gibson_assemble(&plan, output, strict, warnings)?;
         }
         Command::Translate(args) => run_translate(&args, strict, warnings)?,
-        Command::Orfs {
-            input,
-            min_codons,
-            starts,
-            table,
-            output,
-        } => run_orfs(&input, min_codons, starts, table, output, strict, warnings)?,
+        command @ Command::Orfs { .. } => run_orfs_command(command, strict, warnings)?,
+        Command::Convert { input, out } => run_convert(&input, &out, strict, warnings)?,
+        Command::Annotate(args) => run_annotate(&args, strict, warnings)?,
         Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
@@ -1052,6 +1110,132 @@ fn run_orfs(
         }
     }
     Ok(())
+}
+
+/// Save as GenBank after strict checks (nothing is written if strict mode refuses),
+/// then print the JSON report merged with `extra`.
+fn save_report(
+    command: &'static str,
+    report: &ImportReport,
+    out: &Path,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+    extra: &serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    dnagent_app::require_genbank_path(out)?;
+    let (text, write_warnings) =
+        dnagent_app::genbank_text(report, &dnagent_app::genbank_date_today());
+    warnings.extend(write_warnings);
+    if strict && !warnings.is_empty() {
+        return Err(AppError::ImportWarnings {
+            count: warnings.len(),
+        }
+        .into());
+    }
+    dnagent_app::write_atomic(out, &text)?;
+    let mut result = serde_json::json!({
+        "output_path": out.display().to_string(),
+        "format": "genbank",
+        "feature_count": report.record.features().len(),
+        "primer_count": report.record.primers().len(),
+        "retained_snapgene_packets": report.preserved_metadata.opaque_packets.len() + report.preserved_metadata.interpreted_source_packets.len(),
+    });
+    if let (Some(target), Some(fields)) = (result.as_object_mut(), extra.as_object()) {
+        target.extend(fields.clone());
+    }
+    print_json(command, &result, warnings)?;
+    Ok(())
+}
+
+fn run_convert(
+    input: &Path,
+    out: &Path,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = load_input(input, strict, true, warnings)?;
+    save_report(
+        "convert",
+        &report,
+        out,
+        strict,
+        warnings,
+        &serde_json::json!({}),
+    )
+}
+
+fn run_orfs_command(
+    command: Command,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Command::Orfs {
+        input,
+        min_codons,
+        starts,
+        table,
+        output,
+    } = command
+    else {
+        unreachable!("called for the orfs command only")
+    };
+    run_orfs(&input, min_codons, starts, table, output, strict, warnings)
+}
+
+fn run_annotate(
+    args: &AnnotateArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use dnagent_app::editing::{FeatureSpec, TranslateSpec};
+    let report = load_input(&args.input, strict, true, warnings)?;
+    if let Some(id) = &args.remove {
+        let next = dnagent_app::editing::remove_feature(&report, id)?;
+        return save_report(
+            "annotate",
+            &next,
+            &args.out,
+            strict,
+            warnings,
+            &serde_json::json!({"action": "remove", "feature_id": id}),
+        );
+    }
+    let (start, end) = args.range.expect("clap requires --range with --add");
+    let spec = FeatureSpec {
+        start,
+        end,
+        strand: match args.strand {
+            FeatureStrandArg::Forward => dnagent_domain::Strand::Forward,
+            FeatureStrandArg::Reverse => dnagent_domain::Strand::Reverse,
+            FeatureStrandArg::Unknown => dnagent_domain::Strand::Unknown,
+        },
+        kind: args.kind.clone(),
+        label: args
+            .label
+            .clone()
+            .expect("clap requires --label with --add"),
+        color: args.color.clone(),
+        translate: args.translate.then_some(TranslateSpec {
+            table: args.table,
+            codon_start: args.codon_start,
+        }),
+    };
+    let (next, id, preview) = dnagent_app::editing::add_feature(&report, &spec)?;
+    warnings.extend(preview.warnings.iter().cloned());
+    let feature = dnagent_app::feature_views(&next.record)
+        .into_iter()
+        .find(|f| f.id == id)
+        .expect("added feature");
+    save_report(
+        "annotate",
+        &next,
+        &args.out,
+        strict,
+        warnings,
+        &serde_json::json!({
+            "action": "add", "feature_id": id, "feature": feature, "translation": preview.translation,
+        }),
+    )
 }
 
 fn load_input(

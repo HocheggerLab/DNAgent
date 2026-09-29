@@ -1,6 +1,7 @@
 //! Typed application use cases shared by CLI and GUI adapters.
 
 pub mod amplification;
+pub mod editing;
 pub mod gibson;
 pub mod gibson_extensions;
 pub mod ligation;
@@ -29,7 +30,7 @@ pub enum AppError {
         source: std::io::Error,
     },
     #[error(
-        "unsupported input extension for {0}; accepted sequence files are .dna, .fa, .fasta and .fna"
+        "unsupported input extension for {0}; accepted sequence files are .dna, .gb, .gbk, .genbank, .fa, .fasta and .fna"
     )]
     UnsupportedExtension(String),
     #[error("invalid FASTA input: {0}")]
@@ -70,6 +71,16 @@ pub enum AppError {
     Translation(#[from] dnagent_domain::translation::TranslationError),
     #[error("no feature with id {0:?}; list ids with `dnagent features`")]
     FeatureNotFound(String),
+    #[error(transparent)]
+    Edit(#[from] editing::EditError),
+    #[error("failed to write {path}: {source}")]
+    Write {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("unsupported output {0}; DNAagent saves GenBank (.gb, .gbk or .genbank)")]
+    UnsupportedOutput(String),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
@@ -86,7 +97,10 @@ pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
         .extension()
         .and_then(|s| s.to_str())
         .map(str::to_ascii_lowercase);
-    if !matches!(extension.as_deref(), Some("dna" | "fa" | "fasta" | "fna")) {
+    if !matches!(
+        extension.as_deref(),
+        Some("dna" | "fa" | "fasta" | "fna" | "gb" | "gbk" | "genbank")
+    ) {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
     }
     let bytes = std::fs::read(path).map_err(|source| AppError::Read {
@@ -102,7 +116,10 @@ pub fn import_path_bytes(path: &Path, bytes: &[u8]) -> Result<ImportReport, AppE
         .extension()
         .and_then(|value| value.to_str())
         .map(str::to_ascii_lowercase);
-    if !matches!(extension.as_deref(), Some("dna" | "fa" | "fasta" | "fna")) {
+    if !matches!(
+        extension.as_deref(),
+        Some("dna" | "fa" | "fasta" | "fna" | "gb" | "gbk" | "genbank")
+    ) {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
     }
     let fallback_name = path
@@ -112,6 +129,9 @@ pub fn import_path_bytes(path: &Path, bytes: &[u8]) -> Result<ImportReport, AppE
     match extension.as_deref() {
         Some("dna") => Ok(dnagent_format_snapgene::import_bytes(bytes, fallback_name)?),
         Some("fa" | "fasta" | "fna") => import_single_fasta(bytes, fallback_name),
+        Some("gb" | "gbk" | "genbank") => {
+            Ok(dnagent_formats::genbank_record::read(bytes, fallback_name)?)
+        }
         _ => Err(AppError::UnsupportedExtension(path.display().to_string())),
     }
 }
@@ -372,6 +392,83 @@ pub fn assembly_genbank(
     name: &str,
 ) -> Result<String, AppError> {
     Ok(dnagent_formats::assembly::genbank(assembly, name)?)
+}
+
+/// Today's date in GenBank LOCUS form (UTC), e.g. `29-SEP-2026`.
+#[must_use]
+pub fn genbank_date_today() -> String {
+    const MONTHS: [&str; 12] = [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ];
+    let days = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() / 86_400);
+    // Civil-from-days (Howard Hinnant), proleptic Gregorian.
+    let z = i64::try_from(days).unwrap_or(0) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{day:02}-{}-{year}",
+        MONTHS[usize::try_from(month - 1).unwrap_or(0)]
+    )
+}
+
+/// Serialise a report as DNAagent GenBank. Returned warnings describe limitations of
+/// this write; they are never silent.
+#[must_use]
+pub fn genbank_text(report: &ImportReport, date: &str) -> (String, Vec<ImportWarning>) {
+    dnagent_formats::genbank_record::write(
+        report,
+        &dnagent_formats::genbank_record::WriteOptions {
+            date: date.to_owned(),
+        },
+    )
+}
+
+/// Reject output paths that are not GenBank.
+pub fn require_genbank_path(path: &Path) -> Result<(), AppError> {
+    let extension = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase);
+    if matches!(extension.as_deref(), Some("gb" | "gbk" | "genbank")) {
+        Ok(())
+    } else {
+        Err(AppError::UnsupportedOutput(path.display().to_string()))
+    }
+}
+
+/// Write text atomically: a sibling temporary file, then rename over the target.
+pub fn write_atomic(path: &Path, text: &str) -> Result<(), AppError> {
+    let mut temporary = path.as_os_str().to_owned();
+    temporary.push(".dnagent-tmp");
+    let temporary = std::path::PathBuf::from(temporary);
+    std::fs::write(&temporary, text).map_err(|source| AppError::Write {
+        path: temporary.display().to_string(),
+        source,
+    })?;
+    std::fs::rename(&temporary, path).map_err(|source| AppError::Write {
+        path: path.display().to_string(),
+        source,
+    })
+}
+
+/// Serialise and save GenBank; returns the write warnings (limitations of this save).
+pub fn save_genbank(
+    report: &ImportReport,
+    path: &Path,
+    date: &str,
+) -> Result<Vec<ImportWarning>, AppError> {
+    require_genbank_path(path)?;
+    let (text, warnings) = genbank_text(report, date);
+    write_atomic(path, &text)?;
+    Ok(warnings)
 }
 
 /// Checked sequence-range projection.

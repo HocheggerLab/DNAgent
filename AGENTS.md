@@ -11,7 +11,8 @@
 - Keep GUI-only selection, hover, zoom and viewport state in the frontend (`desktop/` for Tauri; `dnagent-gui` for the retained egui viewer). Generate TypeScript DTOs from the Rust desktop API; never duplicate biological calculations in TypeScript.
 - Use zero-based, half-open coordinates internally and in JSON.
 - Preserve multipart and origin-spanning features; never silently flatten or discard them.
-- SnapGene support is read-only until explicitly expanded.
+- SnapGene `.dna` is read-only; DNAagent saves GenBank (`docs/genbank-records.md`). Saving must be
+  lossless for everything DNAagent models, or report the limitation; never drop metadata silently.
 - Unsupported format content must be preserved or reported with structured warnings.
 
 ## Provenance and licensing
@@ -42,6 +43,7 @@ uv run scripts/check_gibson.py --binary target/debug/dnagent
 uv run scripts/check_gibson_extensions.py --binary target/debug/dnagent
 uv run scripts/check_amplification.py --binary target/debug/dnagent
 uv run scripts/check_translation.py --binary target/debug/dnagent
+uv run scripts/check_genbank.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
 cargo test -p dnagent-desktop-api --test e2e_recordings  # recorded GUI responses match Rust
 (cd desktop && npm test && npm run e2e)  # GUI scenarios checked against the CLI

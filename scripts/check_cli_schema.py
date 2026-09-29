@@ -189,6 +189,24 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError(f"unexpected response for {args}")
         checked.append(body)
+    with tempfile.TemporaryDirectory(prefix="dnagent-schema-edit-") as scratch:
+        saved = str(Path(scratch) / "saved.gb")
+        for args, success in [
+            (["convert", translation_fixture, "--out", saved], True),
+            (["annotate", saved, "--out", saved, "--add", "--range", "32..278", "--label", "orf", "--translate"], True),
+            (["annotate", saved, "--out", saved, "--add", "--range", "550..10", "--label", "wrap", "--strand", "unknown"], True),
+            (["annotate", saved, "--out", saved, "--remove", "feature-0008"], True),
+            (["annotate", saved, "--out", saved, "--remove", "missing"], False),
+            (["convert", translation_fixture, "--out", str(Path(scratch) / "bad.dna")], False),
+            (["inspect", saved, "--output", "json"], True),
+            (["features", str(ROOT / "fixtures/formats/genbank/pUC19_M77789.gb"), "--output", "json"], True),
+        ]:
+            proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=30)
+            body = json.loads(proc.stdout)
+            validator.validate(body)
+            if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+                raise ValueError(f"unexpected response for {args}")
+            checked.append(body)
     for command, filename, schema_file in [
         ("primer-design", "synthetic-primer-design.json", "primer-design-plan-1.schema.json"),
         (
