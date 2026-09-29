@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// Bump with a migration when the schema changes.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS features (
     stranded INTEGER NOT NULL DEFAULT 1, -- most occurrences have a strand (directional feature)
     family_id INTEGER,               -- the family head (itself for heads); set by the app layer
     grouping TEXT NOT NULL DEFAULT 'auto' CHECK (grouping IN ('auto', 'standalone')),
+    family_relation TEXT,            -- why a member joined its head: contained | similar_dna | same_protein
+    family_identity REAL,            -- identity to the head for similar_dna / same_protein (1.0 for contained)
     status TEXT NOT NULL DEFAULT 'imported' CHECK (status IN ('imported', 'curated', 'hidden'))
 );
 CREATE TABLE IF NOT EXISTS sources (
@@ -152,6 +154,10 @@ pub struct FeatureSummary {
     pub family_occurrences: u64,
     /// `auto`, or `standalone` (never grouped into a family).
     pub grouping: String,
+    /// For members: `contained`, `similar_dna` or `same_protein`; null for heads.
+    pub relation: Option<String>,
+    /// For members: identity to the head (1.0 when contained); null for heads.
+    pub identity: Option<f64>,
 }
 
 /// Where a feature was seen.
@@ -209,8 +215,20 @@ pub struct Edit {
 #[derive(Debug, Clone)]
 pub struct FamilyInput {
     pub id: i64,
+    pub kind: String,
     pub sequence: String,
     pub standalone: bool,
+    /// The feature's name and every label it was seen under.
+    pub names: Vec<String>,
+}
+
+/// A family member: its head, why it joined and how closely it matches.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FamilyLink {
+    pub member: i64,
+    pub head: i64,
+    pub relation: &'static str,
+    pub identity: f64,
 }
 
 pub struct Library {
@@ -270,10 +288,15 @@ impl Library {
                 )
                 .optional()
                 .map_err(sql)?;
-            if version.as_deref() == Some("1") {
+            let migrations = match version.as_deref() {
+                Some("1") => format!("{MIGRATE_1_TO_2}{MIGRATE_2_TO_3}"),
+                Some("2") => MIGRATE_2_TO_3.to_owned(),
+                _ => String::new(),
+            };
+            if !migrations.is_empty() {
                 library
                     .connection
-                    .execute_batch(&format!("BEGIN; {MIGRATE_1_TO_2} COMMIT;"))
+                    .execute_batch(&format!("BEGIN; {migrations} COMMIT;"))
                     .map_err(sql)?;
             } else if version.as_deref() != Some(&SCHEMA_VERSION.to_string()) {
                 return Err(LibraryError::Version {
@@ -450,6 +473,7 @@ impl Library {
             .prepare(
                 "SELECT f.id, f.name, f.kind, f.length, f.color, f.status,
                         count(o.id), count(DISTINCT o.source_id), coalesce(f.family_id, f.id), f.grouping,
+                        f.family_relation, f.family_identity,
                         (SELECT count(*) FROM features m WHERE m.family_id = f.id AND m.id != f.id AND m.status != 'hidden'),
                         count(o.id) + (SELECT count(*) FROM occurrences a JOIN features m ON m.id = a.feature_id
                                         WHERE m.family_id = f.id AND m.id != f.id AND m.status != 'hidden') AS total
@@ -479,8 +503,10 @@ impl Library {
                     sources: r.get::<_, i64>(7)?.unsigned_abs(),
                     family_id: r.get(8)?,
                     grouping: r.get(9)?,
-                    variants: r.get::<_, i64>(10)?.unsigned_abs(),
-                    family_occurrences: r.get::<_, i64>(11)?.unsigned_abs(),
+                    relation: r.get(10)?,
+                    identity: r.get(11)?,
+                    variants: r.get::<_, i64>(12)?.unsigned_abs(),
+                    family_occurrences: r.get::<_, i64>(13)?.unsigned_abs(),
                 })
             })
             .map_err(|e| self.sql(e))?;
@@ -630,58 +656,84 @@ impl Library {
         self.show(id)
     }
 
-    /// Whether families must be recomputed (after imports, hiding or grouping changes).
-    pub fn families_stale(&self) -> Result<bool, LibraryError> {
-        let value: Option<String> = self
-            .connection
-            .query_row("SELECT value FROM meta WHERE key = 'families'", [], |r| {
-                r.get(0)
-            })
-            .optional()
-            .map_err(|e| self.sql(e))?;
-        Ok(value.as_deref() != Some("current"))
+    /// Whether families must be recomputed: after imports, hiding or grouping changes, or
+    /// when they were computed by another version of the grouping rule.
+    pub fn families_stale(&self, rule: &str) -> Result<bool, LibraryError> {
+        let value = |key: &str| {
+            self.connection
+                .query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| {
+                    r.get::<_, String>(0)
+                })
+                .optional()
+                .map_err(|e| self.sql(e))
+        };
+        Ok(value("families")?.as_deref() != Some("current")
+            || value("family_rule")?.as_deref() != Some(rule))
     }
 
-    /// Visible features with their sequences, for computing families.
+    /// Visible features with their sequences and names, for computing families.
     pub fn family_inputs(&self) -> Result<Vec<FamilyInput>, LibraryError> {
         let mut statement = self
             .connection
-            .prepare("SELECT id, sequence, grouping = 'standalone' FROM features WHERE status != 'hidden' ORDER BY id")
+            .prepare(
+                "SELECT f.id, f.kind, f.sequence, f.grouping = 'standalone', f.name, o.label
+                   FROM features f LEFT JOIN occurrences o ON o.feature_id = f.id
+                  WHERE f.status != 'hidden' ORDER BY f.id, o.id",
+            )
             .map_err(|e| self.sql(e))?;
         let rows = statement
             .query_map([], |r| {
-                Ok(FamilyInput {
-                    id: r.get(0)?,
-                    sequence: r.get(1)?,
-                    standalone: r.get(2)?,
-                })
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, bool>(3)?,
+                    r.get::<_, String>(4)?,
+                    r.get::<_, Option<String>>(5)?,
+                ))
             })
             .map_err(|e| self.sql(e))?;
-        rows.collect::<Result<_, _>>().map_err(|e| self.sql(e))
+        let mut inputs: Vec<FamilyInput> = Vec::new();
+        for row in rows {
+            let (id, kind, sequence, standalone, name, label) = row.map_err(|e| self.sql(e))?;
+            if inputs.last().is_none_or(|last| last.id != id) {
+                inputs.push(FamilyInput {
+                    id,
+                    kind,
+                    sequence,
+                    standalone,
+                    names: vec![name],
+                });
+            }
+            let names = &mut inputs.last_mut().expect("just pushed").names;
+            if let Some(label) = label.filter(|l| !names.contains(l)) {
+                names.push(label);
+            }
+        }
+        Ok(inputs)
     }
 
-    /// Store computed families as (feature, head) pairs; features not listed are their own head.
-    pub fn set_families(&mut self, heads: &[(i64, i64)]) -> Result<(), LibraryError> {
+    /// Store computed families; features not listed are their own head.
+    pub fn set_families(&mut self, links: &[FamilyLink], rule: &str) -> Result<(), LibraryError> {
         let error_path = self.path.display().to_string();
         let sql = |source| LibraryError::Sqlite {
             path: error_path.clone(),
             source,
         };
         let tx = self.connection.transaction().map_err(sql)?;
-        tx.execute("UPDATE features SET family_id = id", [])
-            .map_err(sql)?;
-        for (id, head) in heads {
-            tx.execute(
-                "UPDATE features SET family_id = ?2 WHERE id = ?1",
-                params![id, head],
-            )
-            .map_err(sql)?;
-        }
         tx.execute(
-            "INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'current')",
+            "UPDATE features SET family_id = id, family_relation = NULL, family_identity = NULL",
             [],
         )
         .map_err(sql)?;
+        for link in links {
+            tx.execute(
+                "UPDATE features SET family_id = ?2, family_relation = ?3, family_identity = ?4 WHERE id = ?1",
+                params![link.member, link.head, link.relation, link.identity],
+            )
+            .map_err(sql)?;
+        }
+        tx.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'current'), ('family_rule', ?1)", [rule]).map_err(sql)?;
         tx.commit().map_err(sql)
     }
 }
@@ -691,6 +743,14 @@ const MIGRATE_1_TO_2: &str = "
 ALTER TABLE features ADD COLUMN family_id INTEGER;
 ALTER TABLE features ADD COLUMN grouping TEXT NOT NULL DEFAULT 'auto' CHECK (grouping IN ('auto', 'standalone'));
 UPDATE meta SET value = '2' WHERE key = 'schema_version';
+INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'stale');
+";
+
+/// v2 → v3: why and how closely a member resembles its family head.
+const MIGRATE_2_TO_3: &str = "
+ALTER TABLE features ADD COLUMN family_relation TEXT;
+ALTER TABLE features ADD COLUMN family_identity REAL;
+UPDATE meta SET value = '3' WHERE key = 'schema_version';
 INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'stale');
 ";
 

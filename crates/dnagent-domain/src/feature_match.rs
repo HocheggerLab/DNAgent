@@ -146,6 +146,40 @@ impl Searcher {
     }
 }
 
+/// Fewest substitutions, insertions and deletions that align all of `short` to some
+/// stretch of `long` (end gaps in `long` are free), or `None` if more than `max`.
+#[must_use]
+pub fn semiglobal_edits(short: &[u8], long: &[u8], max: usize) -> Option<usize> {
+    let m = long.len();
+    let mut previous = vec![0usize; m + 1]; // aligning nothing costs nothing anywhere in `long`
+    let mut current = vec![0usize; m + 1];
+    for (i, &a) in short.iter().enumerate() {
+        current[0] = i + 1;
+        let mut best = current[0];
+        for j in 1..=m {
+            let substitution = previous[j - 1] + usize::from(a != long[j - 1]);
+            current[j] = substitution.min(previous[j] + 1).min(current[j - 1] + 1);
+            best = best.min(current[j]);
+        }
+        if best > max {
+            return None;
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+    previous.iter().copied().min().filter(|&edits| edits <= max)
+}
+
+/// Standard-code translation of whole codons from the first base (stops as `*`).
+#[must_use]
+pub fn translate_standard(sequence: &str) -> String {
+    let code = crate::translation::GeneticCode::standard();
+    sequence
+        .as_bytes()
+        .chunks_exact(3)
+        .map(|c| code.translate_codon([c[0], c[1], c[2]]))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,6 +218,32 @@ mod tests {
         );
         assert!(find_exact("CGTTTTTAC", Topology::Linear, "ACCG").is_empty());
         assert!(find_exact("ACG", Topology::Circular, "ACGT").is_empty());
+    }
+
+    #[test]
+    fn semiglobal_edits_align_the_short_one_fully() {
+        assert_eq!(
+            semiglobal_edits(b"ACGT", b"TTACGTTT", 0),
+            Some(0),
+            "exact containment"
+        );
+        assert_eq!(
+            semiglobal_edits(b"ACCT", b"TTACGTTT", 1),
+            Some(1),
+            "one substitution"
+        );
+        assert_eq!(
+            semiglobal_edits(b"ACGGT", b"TTACGTTT", 1),
+            Some(1),
+            "one insertion in the short one"
+        );
+        assert_eq!(
+            semiglobal_edits(b"AGT", b"TTACGTTT", 1),
+            Some(1),
+            "one deletion"
+        );
+        assert_eq!(semiglobal_edits(b"GGGG", b"TTACGTTT", 2), None, "bounded");
+        assert_eq!(translate_standard("ATGAAATAGC"), "MK*");
     }
 
     #[test]

@@ -177,9 +177,9 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `click_sequence_base: n` | |
 | `click: {testid, index?}` | A real Playwright pointer click on the nth `data-testid` element. |
 | `wait_idle: true` | Wait until no request is pending. |
-| `set_viewport: {width, height}` | Resize the browser window, then wait two animation frames for re-layout. |
+| `set_viewport: {width, height}` | Resize the browser window, then wait until the map is re-laid out for the new size (`map.layout_current`). |
 | `set_color_scheme: "light" \| "dark"` | Emulate the OS appearance (`prefers-color-scheme`). |
-| `select_option: {testid, value}` | Choose an option in a real `<select>`, e.g. `theme-select`. |
+| `select_option: {testid, value}` | Choose an option in a real `<select>`, e.g. `theme-select`, then wait for idle (options can start engine requests). |
 | `reload: true` | Reload the page: local preferences survive, the open document does not. |
 | `select_orf: {id}` | Click that ORF's track (Sequence) or arc (Map); ORFs must be shown. |
 | `drag_bases: {from, to}` | Real mouse drag across forward-strand bases; the range is half-open and includes both ends. |
@@ -420,6 +420,14 @@ delete-and-readd-from-library.
 Ninth round, variant families (2026-09-30): the desktop lists folded variants (caught by
 detect-features-variants); no length cut-off, so nested parts become variants (caught by
 the desktop-api/app unit test and check_feature_library.py).
+
+Harness fix (2026-09-30): `enzymes-unique-sites` failed three times, in loaded full
+runs only. `select_option` waited two animation frames but not for idle, and choosing
+another enzyme set starts a `find_sites` request, so a busy machine asserted while it
+was still pending (`enzymes.shown` null). Delaying `find_sites` by 400 ms reproduces it
+at the same step; `select_option` now waits for idle. `set_viewport` similarly waits for
+the map to be re-laid out (`map.layout_current`) instead of two frames (a 150 ms delayed
+re-layout failed the old wait).
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the

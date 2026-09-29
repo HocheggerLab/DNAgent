@@ -147,12 +147,19 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     } else if ('set_viewport' in step) {
       await page.setViewportSize(step.set_viewport);
       await settle();
+      // The map re-lays out on a ResizeObserver frame; under load two frames may not be
+      // enough, so wait until the drawing matches the new canvas size.
+      await page.waitForFunction(() => {
+        const map = window.__DNAGENT_TEST__!.getState().map;
+        return map === null || map.layout_current;
+      }, null, { timeout: IDLE_TIMEOUT_MS }).catch(() => { throw new Error('the map did not re-lay out for the new viewport'); });
     } else if ('set_color_scheme' in step) {
       await page.emulateMedia({ colorScheme: step.set_color_scheme });
       await settle();
     } else if ('select_option' in step) {
       await page.getByTestId(step.select_option.testid).selectOption(step.select_option.value, { timeout: IDLE_TIMEOUT_MS });
       await settle();
+      await waitIdle(); // an option can start engine requests (e.g. another enzyme set)
     } else if ('reload' in step) {
       await page.reload();
       await ready();

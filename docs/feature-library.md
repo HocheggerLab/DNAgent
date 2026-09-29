@@ -55,20 +55,31 @@ through the origin if they wrap, reverse-complemented for reverse features.
 - **Re-importing is safe.** Unchanged files are skipped. A file whose content changed
   replaces its earlier occurrences. A copy of an imported file is reported as a
   `duplicate`. Features no file carries any more are removed.
-- **Variant families:** the same part is often annotated with slightly different ends
-  (ori 589 bp, pBR322_origin 620 bp, ColE1 origin 629 and 683 bp; AAV2 ITR 130 and
-  141 bp). A feature joins a **family** when its sequence lies inside a longer one (either
-  strand) and is at least 80 % of its length; the family head is the longest such
-  feature. Precisely: features are taken longest first, and each joins the longest
-  existing head that contains it within that length ratio, otherwise it heads its own
-  family (no chains). Nested parts much shorter than their container (tet operator in a
-  TRE promoter, T7 promoter in lacZα) stay separate. `library list` shows one row per
-  family, ranked by the family's total occurrences, with a variant count; `library
-  show` lists the family. Every variant stays in the library and is still detected on
-  its own. `library edit --standalone` keeps a feature out of families (e.g. a homology
-  arm that happens to lie inside an exon); `--grouped` undoes it. Families are
-  recomputed after imports and edits. Point variants and codon-optimised versions are
-  not substrings of each other and are not grouped (yet).
+- **Variant families:** the same part is often stored in slightly different versions:
+  different ends (ori 589 bp, pBR322_origin 620 bp, ColE1 origin 629 and 683 bp), a few
+  point differences (five 600 bp PuroR), or another codon usage. A shorter-or-equal
+  feature (≥ 80 % of the head's length) joins a **family** when
+  - its sequence lies inside the head's, on either strand (`contained`); or
+  - they **share a name** and it aligns fully within the head (either strand) at ≥ 97 %
+    identity, for features of ≥ 100 bp (`similar_dna`: point variants); or
+  - they **share a name**, both are CDSs of ≥ 100 codons, and their proteins (standard
+    code, from the first base) are ≥ 98 % identical (`same_protein`: codon variants).
+
+  "Sharing a name" means any name or label either was seen under, ignoring case and
+  punctuation ("Hyg(R)" = "HygR", "f1 ori" = "F1 ori"). Similarity alone is not enough:
+  engineered point mutants (Plk1-K82R, OsTIR1 F74G, eSpCas9, rtTA vs tTA), other
+  fluorescent proteins (mEmerald vs GFP) and other att or lox sites are 97–99.8 %
+  identical to their parents but are different parts, and they have different names.
+  Nested parts much shorter than their container (tet operator in a TRE promoter) stay
+  separate.
+
+  Features are taken longest first and each joins the longest existing head it relates
+  to, otherwise it heads its own family (no chains). `library list` shows one row per
+  family, ranked by the family's total occurrences, with a variant count; `library show`
+  lists the family with each variant's relation and identity. Every variant stays in the
+  library and is detected on its own. `library edit --standalone` keeps a feature out of
+  families; `--grouped` undoes it. Families are recomputed after imports and edits, and
+  when a new DNAgent version changes the rule.
 - **Curation:** `library edit` renames, retypes, hides or unhides a feature. Edited
   features keep your changes on later imports, and hidden ones are not detected.
 - **Strand:** if a feature is usually annotated without a strand, detections report
@@ -144,11 +155,13 @@ explicitly:
 - It orders the pieces of a reverse feature that wraps the origin incorrectly. A feature
   whose parts tile one contiguous span is read from that span.
 
-The script also recomputes variant families and `superseded_by` independently. On the
-lab collection (2026-09-30): 281 files, 716 features from 4,466 occurrences, 614
-families; 281 detection scans (13,096 matches, 5,041 of them folded variants) agreed.
+The script also recomputes variant families (with Biopython's `PairwiseAligner` for the
+identity rules) and `superseded_by` independently. On the lab collection (2026-09-30):
+281 files, 716 features from 4,466 occurrences, 530 families (94 contained, 89 point
+variants, 3 codon variants); 281 detection scans (13,096 matches, 4,950 of them folded
+variants) agreed.
 
 ## Not yet
 
-- Similarity-based grouping of point variants and codon-optimised versions.
+- Grouping differently named copies of the same part (needs curation; use `library edit`).
 - Integration with the lab inventory database.

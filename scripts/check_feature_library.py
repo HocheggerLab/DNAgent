@@ -34,6 +34,7 @@ import warnings
 import xml.etree.ElementTree as ET
 
 from Bio import BiopythonWarning, SeqIO
+from Bio.Align import PairwiseAligner
 from Bio.Seq import Seq
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -183,20 +184,52 @@ def brute_force(sequence: str, circular: bool, query: str) -> set[tuple[int, str
 BINARY = Path("target/debug/dnagent")
 
 
-def families(sequences: dict[int, str]) -> dict[int, int]:
-    """Documented rule: longest first; join the longest head containing the sequence (either
-    strand) when at least 80 % of its length, else head a family. No features are standalone
-    in a fresh library."""
+# score = -(edits aligning all of the query within the target): end gaps *in the query*
+# (target overhangs) are free; Biopython's target_end_gap_score scores gaps in the target.
+ALIGNER = PairwiseAligner(mode="global", match_score=0, mismatch_score=-1, open_gap_score=-1, extend_gap_score=-1,
+                          target_end_gap_score=-1, query_end_gap_score=0)
+
+
+def within_identity(short: str, long: str, minimum: float) -> bool:
+    """`short` aligns fully within `long` with at most floor((1 - minimum) * len) edits."""
+    return -ALIGNER.score(long, short) <= int((1 - minimum) * len(short))
+
+
+def fold(name: str) -> str:
+    return "".join(c.lower() for c in name if c.isalnum())
+
+
+def families(features: dict[int, tuple[str, str, set[str]]]) -> dict[int, tuple[int, str | None]]:
+    """Documented rule (docs/feature-library.md): longest first; join the longest head that is
+    at most 1.25x as long and contains the sequence (either strand), or shares a folded name
+    and is >= 97 % identical (>= 100 bp) or encodes a >= 98 % identical protein (CDSs,
+    >= 100 codons); else head a family. No features are standalone in a fresh library."""
     heads: list[int] = []
-    head_of = {}
-    for fid in sorted(sequences, key=lambda f: (-len(sequences[f]), f)):
-        seq = sequences[fid]
+    head_of: dict[int, tuple[int, str | None]] = {}
+    for fid in sorted(features, key=lambda f: (-len(features[f][1]), f)):
+        kind, seq, names = features[fid]
         rev = str(Seq(seq).reverse_complement())
-        head = next((h for h in heads if len(sequences[h]) > len(seq) and 5 * len(seq) >= 4 * len(sequences[h])
-                     and (seq in sequences[h] or rev in sequences[h])), None)
-        if head is None:
+        found = None
+        for h in heads:
+            h_kind, h_seq, h_names = features[h]
+            if len(seq) > len(h_seq) or 5 * len(seq) < 4 * len(h_seq):
+                continue
+            if len(seq) < len(h_seq) and (seq in h_seq or rev in h_seq):
+                found = (h, "contained")
+            elif not ({fold(n) for n in names} - {""}) & {fold(n) for n in h_names}:
+                continue
+            elif len(seq) >= 100 and any(within_identity(s, h_seq, 0.97) for s in (seq, rev)):
+                found = (h, "similar_dna")
+            elif kind.lower() == "cds" and h_kind.lower() == "cds":
+                pa, pb = (str(Seq(x[: len(x) // 3 * 3]).translate()) for x in (seq, h_seq))
+                pa, pb = sorted((pa, pb), key=len)
+                if len(pa) >= 100 and within_identity(pa, pb, 0.98):
+                    found = (h, "same_protein")
+            if found:
+                break
+        if found is None:
             heads.append(fid)
-        head_of[fid] = head if head is not None else fid
+        head_of[fid] = found if found else (fid, None)
     return head_of
 
 
@@ -235,11 +268,18 @@ def check(binary: Path, source: Path, private: bool) -> str:
         entries = [(fid, sequence, bool(stranded)) for fid, _, _, sequence, stranded, _ in rows if len(sequence) >= MIN_LENGTH]
         # Variant families, recomputed from the stored sequences.
         cli(binary, "library", "--db", db, "info")  # brings families up to date
-        stored_heads = dict(connection.execute("SELECT id, coalesce(family_id, id) FROM features WHERE status != 'hidden'").fetchall())
-        expected_heads = families({fid: sequence for fid, _, _, sequence, _, _ in rows})
-        if stored_heads != expected_heads:
-            wrong = [fid for fid in expected_heads if stored_heads.get(fid) != expected_heads[fid]]
-            disagreements.append(f"families differ for {len(wrong)} features")
+        family_rows = connection.execute("SELECT id, coalesce(family_id, id), family_relation FROM features WHERE status != 'hidden'").fetchall()
+        stored_links = {fid: (head, relation) for fid, head, relation in family_rows}
+        labels: dict[int, set[str]] = {}
+        for fid, label in connection.execute("SELECT feature_id, label FROM occurrences"):
+            labels.setdefault(fid, set()).add(label)
+        kinds = dict(connection.execute("SELECT id, kind FROM features"))
+        links = families({fid: (kinds[fid], sequence, labels.get(fid, set()) | {name}) for fid, _, name, sequence, _, _ in rows})
+        if stored_links != links:
+            wrong = sorted(fid for fid in links if stored_links.get(fid) != links[fid])
+            disagreements.append(f"families differ for {len(wrong)} features, e.g. " + ", ".join(f"{f}: stored {stored_links.get(f)}, expected {links[f]}" for f in wrong[:5]))
+        expected_heads = {fid: link[0] for fid, link in links.items()}
+        relations = Counter(link[1] for link in links.values() if link[1])
         family_count = len(set(expected_heads.values()))
         scans = matches = superseded = 0
         for path in imported:
@@ -270,7 +310,7 @@ def check(binary: Path, source: Path, private: bool) -> str:
         return (f"{where}: {len(imported)} files imported ({len(failed)} failed, as for Biopython), {len(stored)} library features "
                 f"from {sum(c for _, c in stored.values())} occurrences agree with Biopython; {scans} detect-features scans "
                 f"({matches} matches) equal an independent brute-force search; {family_count} variant families and "
-                f"{superseded} folded variant matches agree with an independent grouping")
+                f"{superseded} folded variant matches agree with an independent grouping ({dict(relations)})")
 
 
 def main() -> None:

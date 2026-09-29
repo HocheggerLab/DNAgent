@@ -1,4 +1,4 @@
-LOCUS       synthetic_variants       490 bp    DNA     linear   SYN 30-SEP-2026
+LOCUS       synthetic_variants       1892 bp    DNA     linear   SYN 30-SEP-2026
 DEFINITION  Synthetic feature variants for DNAgent library tests.
 FEATURES             Location/Qualifiers
      misc_feature    41..340
@@ -9,6 +9,14 @@ FEATURES             Location/Qualifiers
                      /label=nested motif
      misc_feature    391..450
                      /label=unrelated part
+     misc_feature    491..790
+                     /label=Variant Element
+     misc_feature    821..1120
+                     /label=variant element K50R
+     CDS             1151..1486
+                     /label=demo CDS
+     CDS             1517..1852
+                     /label=Demo-CDS
 ORIGIN
         1 agagtttgtt tcttacgagc ccttccggct tgctgctaac ttcgtaagtt aatacgatga
        61 tacagtaccg gtgccatatg gagcgggcac ggttggtagg aagcgttaag aggaacaatt
@@ -18,5 +26,28 @@ ORIGIN
       301 gacttgatac tcaagaagtt aacatactaa acctgaataa caagggcttg atcggcactt
       361 tgatcgaacc tgggcctctg acgcgtacgt tctgcacagg tgtgaaatac gacatatttc
       421 gccgattaca taagggccag ggttcctcct gctgtcataa gaactctgcc atcactctgt
-      481 taacaaatct
+      481 taacaaatct ttcgtaagtt aatacgatga tacagtaccg gtgccatatg gagcgggcac
+      541 ggttggtagg cagcgttaag aggaacaatt ttcggaggga agatcgctaa agattcgata
+      601 tacgaagaca cagcttgctt ccatattcca atatggcttc atttagtccc atattcgacc
+      661 gtgccacgtg cgattagctc gcttcagaat aaggtgaccc caatacttca caaggtgtcg
+      721 tcagctccct ttgatcaacc gcaggacggc gacttgatac tcaagaagtt aacatactaa
+      781 acctgaataa gtgaaccggg agatttcccg gtttataaga ttcgtaagtt aatacgatga
+      841 tacagtaccg gtgccatatg gagcgggcac ggttggtagg aagcgttaag aggaacaatt
+      901 ttcggaggga agatcgctaa agattcgata tacgaagaca cagcttgctt ccatattcca
+      961 atatggcttc ctttagtccc atattcgacc gtgccacgtg cgattagctc gcttcagaat
+     1021 taggtgaccc caatacttca caaggtgtcg tcagctccct ttgatcaacc gcaggacggc
+     1081 gacttgatac tcaagaagtt aacatactaa acctgaataa cttcgttatc ggtaaggtct
+     1141 gatataggag atggctggtc tgactgctgg tctgactgct ggtctgactg ctggtctgac
+     1201 tgctggtctg actgctggtc tgactgctgg tctgactgct ggtctgactg ctggtctgac
+     1261 tgctggtctg actgctggtc tgactgctgg tctgactgct ggtctgactg ctggtctgac
+     1321 tgctggtctg actgctggtc tgactgctgg tctgactgct ggtctgactg ctggtctgac
+     1381 tgctggtctg actgctggtc tgactgctgg tctgactgct ggtctgactg ctggtctgac
+     1441 tgctggtctg actgctggtc tgactgctgg tctgactgct ggttaaccac aaagaattcc
+     1501 cctctggtgg gggcgaatgg ccggcctcac cgccggcctc accgccggcc tcaccgccgg
+     1561 cctcaccgcc ggcctcaccg ccggcctcac cgccggcctc accgccggcc tcaccgccgg
+     1621 cctcaccgcc ggcctcaccg ccggcctcac cgccggcctc accgccggcc tcaccgccgg
+     1681 cctcaccgcc ggcctcaccg ccggcctcac cgccggcctc accgccggcc tcaccgccgg
+     1741 cctcaccgcc ggcctcaccg ccggcctcac cgccggcctc accgccggcc tcaccgccgg
+     1801 cctcaccgcc ggcctcaccg ccggcctcac cgccggcctc accgccggct aagataagtc
+     1861 tgattaaacg cgcttctaaa tacactgcga tt
 //

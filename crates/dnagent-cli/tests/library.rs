@@ -334,8 +334,18 @@ fn variant_families_list_once_and_can_be_split() {
         .unwrap();
     assert_eq!(
         element["variants"].as_u64(),
+        Some(2),
+        "the 270 bp version (contained) and the same-named point variant"
+    );
+    assert!(
+        rows.iter().any(|f| f["name"] == "variant element K50R"),
+        "a differently named point mutant is its own family"
+    );
+    let demo = rows.iter().find(|f| f["name"] == "demo CDS").unwrap();
+    assert_eq!(
+        demo["variants"].as_u64(),
         Some(1),
-        "the 270 bp version is a variant of the 300 bp one"
+        "the synonymous recoding encodes the same protein"
     );
     assert!(
         rows.iter().all(|f| f["name"] != "variant element short"),
@@ -356,6 +366,15 @@ fn variant_families_list_once_and_can_be_split() {
         .unwrap()
         .clone();
     assert_eq!(short["family_id"], element["id"]);
+    assert_eq!(short["relation"], "contained");
+    let point = all["result"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Variant Element")
+        .unwrap();
+    assert_eq!(point["relation"], "similar_dna");
+    assert_eq!(point["family_id"], element["id"]);
     let id = short["id"].as_i64().unwrap().to_string();
     let split = json(&run(&[
         "library",
@@ -374,7 +393,8 @@ fn variant_families_list_once_and_can_be_split() {
     );
     let info = json(&run(&["library", "--db", &db, "info", "--output", "json"]));
     assert_eq!(
-        info["result"]["families"].as_u64(),
-        info["result"]["features"].as_u64()
+        info["result"]["families"].as_u64().unwrap() + 2,
+        info["result"]["features"].as_u64().unwrap(),
+        "only the point variant and the recoded CDS are still members"
     );
 }

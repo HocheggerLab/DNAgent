@@ -300,10 +300,11 @@ fn print_show_text(detail: &dnagent_library::FeatureDetail) {
     }
     println!("{}", detail.sequence);
     for member in &detail.family {
-        let role = if member.id == member.family_id {
-            "family head"
-        } else {
-            "variant"
+        let role = match (&member.relation, member.identity) {
+            (Some(relation), Some(identity)) => {
+                format!("variant ({relation}, {:.1} %)", identity * 100.0)
+            }
+            _ => "family head".to_owned(),
         };
         println!(
             "{role}\t{}\t{}\t{} bp",

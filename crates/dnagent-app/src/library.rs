@@ -1,13 +1,15 @@
 //! Building the feature library from sequence files, and detecting library features in a
 //! record. Storage is `dnagent-library`; sequence identity and matching are the domain's.
 use crate::{AppError, SEQUENCE_EXTENSIONS, import_path_bytes};
-use dnagent_domain::feature_match::{Searcher, canonical, feature_sequence, reverse_complement};
+use dnagent_domain::feature_match::{
+    Searcher, canonical, feature_sequence, reverse_complement, semiglobal_edits, translate_standard,
+};
 use dnagent_domain::{
     Feature, Location, LocationOperator, Region, SequenceRecord, Strand, Topology,
 };
 use dnagent_formats::ImportWarning;
 use dnagent_library::{
-    Candidate, Entry, FamilyInput, Library, LibraryInfo, Qualifier, SourceOutcome,
+    Candidate, Entry, FamilyInput, FamilyLink, Library, LibraryInfo, Qualifier, SourceOutcome,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -474,50 +476,182 @@ pub fn span_within(inner: (usize, usize), outer: (usize, usize), length: usize) 
     ((inner.0 + length - outer.0) % length) + inner.1 <= outer.1
 }
 
-/// A shorter feature joins a family when it is at least this share of the head's length.
-pub const VARIANT_MIN_SHARE: (usize, usize) = (4, 5);
+/// Version of the grouping rule; libraries grouped by another version are regrouped.
+pub const FAMILY_RULE: &str = "2: contained, or same name and similar_dna 0.97 / same_protein 0.98";
 
-/// Variant families: features by length (longest first); each joins the longest family
-/// head that contains its sequence on either strand and is at most 1.25× as long
-/// (it is ≥ 80 % of the head), else it heads its own family. Standalone features head
-/// their own. Returns (member, head) pairs for members only.
-#[must_use]
-pub fn compute_families(inputs: &[FamilyInput]) -> Vec<(i64, i64)> {
-    let mut order: Vec<&FamilyInput> = inputs.iter().collect();
-    order.sort_by(|a, b| {
-        b.sequence
-            .len()
-            .cmp(&a.sequence.len())
-            .then(a.id.cmp(&b.id))
-    });
+/// A shorter feature joins a family only if it is at least this share of the head's length.
+pub const VARIANT_MIN_SHARE: (usize, usize) = (4, 5);
+/// Point variants: at least this long, and this DNA identity (either strand).
+pub const SIMILAR_DNA_MIN_LENGTH: usize = 100;
+pub const SIMILAR_DNA_MIN_IDENTITY: f64 = 0.97;
+/// Codon variants: CDSs of at least this many amino acids with this protein identity.
+pub const SAME_PROTEIN_MIN_LENGTH: usize = 100;
+pub const SAME_PROTEIN_MIN_IDENTITY: f64 = 0.98;
+
+/// Identity of `short` aligned fully within `long` (1 - edits / length), if at least `min`.
+fn identity(short: &str, long: &str, min: f64) -> Option<f64> {
+    let n = short.len();
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // lengths far below 2^52
+    let max = ((1.0 - min) * n as f64).floor() as usize;
+    #[allow(clippy::cast_precision_loss)]
+    semiglobal_edits(short.as_bytes(), long.as_bytes(), max)
+        .map(|edits| 1.0 - edits as f64 / n as f64)
+}
+
+/// Share of `short`'s k-mers found in `long_kmers` (a cheap filter before aligning).
+fn kmer_share(short: &str, long_kmers: &std::collections::HashSet<&[u8]>, k: usize) -> f64 {
+    let windows: Vec<&[u8]> = short.as_bytes().windows(k).collect();
+    #[allow(clippy::cast_precision_loss)]
+    let share = windows.iter().filter(|w| long_kmers.contains(*w)).count() as f64
+        / windows.len().max(1) as f64;
+    share
+}
+
+type KmerSet<'a> = std::collections::HashSet<&'a [u8]>;
+
+struct Prepared<'a> {
+    input: &'a FamilyInput,
+    reverse: Option<String>,
+    protein: Option<String>,
+    /// Names folded to lower-case letters and digits ("Hyg(R)" and "HygR" are equal).
+    names: Vec<String>,
+}
+
+fn fold_name(name: &str) -> String {
+    name.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Why and how closely `member` resembles `head`, or `None` if it does not join it.
+fn relation(
+    member: &Prepared<'_>,
+    head: &Prepared<'_>,
+    head_kmers: &std::collections::HashSet<&[u8]>,
+    head_peptides: &std::collections::HashSet<&[u8]>,
+) -> Option<(&'static str, f64)> {
+    let (short, long) = (&member.input.sequence, &head.input.sequence);
     let (num, den) = VARIANT_MIN_SHARE;
-    let mut heads: Vec<&FamilyInput> = Vec::new();
-    let mut members = Vec::new();
-    for feature in order {
-        let reverse = reverse_complement(&feature.sequence);
-        let head = (!feature.standalone)
+    if short.len() > long.len()
+        || short.len() * den < long.len() * num
+        || member.input.id == head.input.id
+    {
+        return None;
+    }
+    let strands = || std::iter::once(short.as_str()).chain(member.reverse.as_deref());
+    if short.len() < long.len() && strands().any(|s| long.contains(s)) {
+        return Some(("contained", 1.0));
+    }
+    // Similar but not identical sequences are only the same part if they share a name:
+    // otherwise engineered point mutants (kinase-dead, F74G, eSpCas9) and other colours or
+    // att sites would be folded into their parents.
+    if !member
+        .names
+        .iter()
+        .any(|n| !n.is_empty() && head.names.contains(n))
+    {
+        return None;
+    }
+    if short.len() >= SIMILAR_DNA_MIN_LENGTH
+        && kmer_share(short, head_kmers, 8) >= 0.2
+        && let Some(best) = strands()
+            .filter_map(|s| identity(s, long, SIMILAR_DNA_MIN_IDENTITY))
+            .reduce(f64::max)
+    {
+        return Some(("similar_dna", best));
+    }
+    let (a, b) = (member.protein.as_ref()?, head.protein.as_ref()?);
+    let (pa, pb) = if a.len() <= b.len() { (a, b) } else { (b, a) };
+    (pa.len() >= SAME_PROTEIN_MIN_LENGTH && kmer_share(pa, head_peptides, 3) >= 0.2)
+        .then(|| identity(pa, pb, SAME_PROTEIN_MIN_IDENTITY))
+        .flatten()
+        .map(|best| ("same_protein", best))
+}
+
+/// Variant families. Features are taken longest first; each joins the longest family head
+/// it relates to, else it heads its own family (no chains). A feature relates to a head
+/// at most 1.25× its length (it is ≥ 80 % of the head) that
+/// - contains it exactly, on either strand (`contained`); or
+/// - shares a name with it (ignoring case and punctuation, including every label either
+///   was seen under) and matches at ≥ 97 % identity, aligned fully within the head on
+///   either strand, if it is ≥ 100 bp (`similar_dna`: point variants); or
+/// - shares a name with it and encodes, as a CDS of ≥ 100 codons, a protein at ≥ 98 %
+///   identity to the head's (both CDSs, standard code from the first base;
+///   `same_protein`: codon variants).
+///
+/// Standalone features head their own family. Returns links for members only.
+#[must_use]
+pub fn compute_families(inputs: &[FamilyInput]) -> Vec<FamilyLink> {
+    let mut order: Vec<Prepared<'_>> = inputs
+        .iter()
+        .map(|input| Prepared {
+            input,
+            reverse: reverse_complement(&input.sequence),
+            protein: input
+                .kind
+                .eq_ignore_ascii_case("CDS")
+                .then(|| translate_standard(&input.sequence)),
+            names: input.names.iter().map(|n| fold_name(n)).collect(),
+        })
+        .collect();
+    order.sort_by(|a, b| {
+        b.input
+            .sequence
+            .len()
+            .cmp(&a.input.sequence.len())
+            .then(a.input.id.cmp(&b.input.id))
+    });
+    // (index in `order`, DNA 8-mers of both strands, protein 3-mers)
+    let mut heads: Vec<(usize, KmerSet<'_>, KmerSet<'_>)> = Vec::new();
+    let mut links = Vec::new();
+    for index in 0..order.len() {
+        let member = &order[index];
+        let found = (!member.input.standalone)
             .then(|| {
-                heads.iter().find(|h| {
-                    h.sequence.len() > feature.sequence.len()
-                        && feature.sequence.len() * den >= h.sequence.len() * num
-                        && (h.sequence.contains(&feature.sequence)
-                            || reverse.as_deref().is_some_and(|r| h.sequence.contains(r)))
+                heads.iter().find_map(|(h, kmers, peptides)| {
+                    relation(member, &order[*h], kmers, peptides).map(|r| (*h, r))
                 })
             })
             .flatten();
-        match head {
-            Some(h) => members.push((feature.id, h.id)),
-            None => heads.push(feature),
+        if let Some((h, (relation, identity))) = found {
+            links.push(FamilyLink {
+                member: member.input.id,
+                head: order[h].input.id,
+                relation,
+                identity,
+            });
+        } else {
+            let p = &order[index];
+            let mut kmers: std::collections::HashSet<&[u8]> =
+                p.input.sequence.as_bytes().windows(8).collect();
+            kmers.extend(
+                p.reverse
+                    .as_deref()
+                    .unwrap_or_default()
+                    .as_bytes()
+                    .windows(8),
+            );
+            let peptides = p
+                .protein
+                .as_deref()
+                .map(|q| q.as_bytes().windows(3).collect())
+                .unwrap_or_default();
+            heads.push((index, kmers, peptides));
         }
     }
-    members
+    links
 }
 
 /// Recompute families if imports or edits made them stale.
 pub fn refresh_families(library: &mut Library) -> Result<(), AppError> {
-    if library.families_stale()? {
+    if library.families_stale(FAMILY_RULE)? {
         let families = compute_families(&library.family_inputs()?);
-        library.set_families(&families)?;
+        library.set_families(&families, FAMILY_RULE)?;
     }
     Ok(())
 }
@@ -562,39 +696,124 @@ mod tests {
         }
     }
 
+    fn pseudo_random(n: usize, seed: u64) -> String {
+        let mut x = seed;
+        (0..n)
+            .map(|_| {
+                x = x
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                b"ACGT"[usize::try_from(x >> 62).unwrap()] as char
+            })
+            .collect()
+    }
+
+    fn substitute(seq: &str, positions: &[usize]) -> String {
+        seq.char_indices()
+            .map(|(i, c)| {
+                if positions.contains(&i) {
+                    if c == 'A' { 'C' } else { 'A' }
+                } else {
+                    c
+                }
+            })
+            .collect()
+    }
+
+    fn input(id: i64, kind: &str, sequence: String) -> FamilyInput {
+        FamilyInput {
+            id,
+            kind: kind.into(),
+            sequence,
+            standalone: false,
+            names: vec!["part".into()],
+        }
+    }
+
+    fn named(name: &str, feature: FamilyInput) -> FamilyInput {
+        FamilyInput {
+            names: vec![name.into()],
+            ..feature
+        }
+    }
+
     #[test]
-    fn families_group_close_nested_variants_only() {
-        let seq = |s: &str| s.to_owned();
-        let long = "ACGTTGCAAGGCTTACCGATCGATCGGATTACAGGCATTACGGATCGATTACGG"; // 54 bp
+    fn families_group_nested_point_and_codon_variants_only() {
+        let long = pseudo_random(54, 1);
+        let element = pseudo_random(150, 2);
+        // Two synonymous codons per amino acid: same protein, different DNA.
+        let (a, b): (String, String) = (0..110)
+            .map(|i| {
+                [
+                    ("GCT", "GCC"),
+                    ("GGT", "GGC"),
+                    ("CTG", "CTC"),
+                    ("ACT", "ACC"),
+                ][i % 4]
+            })
+            .unzip();
         let inputs = [
+            input(1, "misc_feature", long.clone()),
+            input(2, "misc_feature", long[2..50].to_owned()), // nested, 89 %: contained
+            input(3, "misc_feature", reverse_complement(&long[1..46]).unwrap()), // other strand, 83 %: contained
+            input(4, "misc_feature", long[10..30].to_owned()), // nested part, 37 %: separate
             FamilyInput {
-                id: 1,
-                sequence: seq(long),
-                standalone: false,
-            },
-            FamilyInput {
-                id: 2,
-                sequence: seq(&long[2..50]),
-                standalone: false,
-            }, // 48/54 = 0.89: variant
-            FamilyInput {
-                id: 3,
-                sequence: reverse_complement(&long[1..46]).unwrap(),
-                standalone: false,
-            }, // other strand, 45/54 = 0.83
-            FamilyInput {
-                id: 4,
-                sequence: seq(&long[10..30]),
-                standalone: false,
-            }, // 20/54 = 0.37: a nested part, not a variant
-            FamilyInput {
-                id: 5,
-                sequence: seq(&long[0..50]),
                 standalone: true,
-            }, // split off by hand
+                ..input(5, "misc_feature", long[0..50].to_owned())
+            }, // split by hand
+            input(6, "misc_feature", element.clone()),
+            input(7, "misc_feature", substitute(&element, &[10, 90])), // 98.7 % DNA: similar_dna
+            input(
+                8,
+                "misc_feature",
+                substitute(&element, &(0..150).step_by(15).collect::<Vec<_>>()),
+            ), // 93 %: separate
+            input(9, "misc_feature", substitute(&long[0..40], &[5])), // < 100 bp: never similar_dna
+            input(10, "CDS", a.clone()),
+            input(11, "CDS", b.clone()), // same protein: same_protein
+            input(12, "misc_feature", b.clone()), // not a CDS: separate
         ];
         let families = compute_families(&inputs);
-        assert_eq!(families, vec![(2, 1), (3, 1)]);
+        let link = |member: i64| {
+            families
+                .iter()
+                .find(|l| l.member == member)
+                .map(|l| (l.head, l.relation))
+        };
+        assert_eq!(link(2), Some((1, "contained")));
+        assert_eq!(link(3), Some((1, "contained")));
+        assert_eq!(link(4), None);
+        assert_eq!(link(5), None, "standalone");
+        assert_eq!(link(7), Some((6, "similar_dna")));
+        assert!(
+            (families.iter().find(|l| l.member == 7).unwrap().identity - 148.0 / 150.0).abs()
+                < 1e-9
+        );
+        assert_eq!(link(8), None, "93 % is below the point-variant threshold");
+        assert_eq!(
+            link(9),
+            None,
+            "short features are grouped only when contained"
+        );
+        assert_eq!(link(11), Some((10, "same_protein")));
+        assert_eq!(link(12), None);
+        // Similar sequences with different names stay apart (point mutants, other colours).
+        let apart = compute_families(&[
+            named("YFP-Plk1", input(1, "misc_feature", element.clone())),
+            named(
+                "Plk1-K82R",
+                input(2, "misc_feature", substitute(&element, &[40])),
+            ),
+            named("Hyg(R)", input(3, "CDS", a.clone())),
+            named("HygR", input(4, "CDS", b.clone())),
+        ]);
+        assert_eq!(
+            apart
+                .iter()
+                .map(|l| (l.member, l.head, l.relation))
+                .collect::<Vec<_>>(),
+            vec![(4, 3, "same_protein")]
+        );
         // Detection containment wraps on circles.
         assert!(span_within((1, 3), (98, 6), 100) && !span_within((10, 3), (98, 6), 100));
     }
