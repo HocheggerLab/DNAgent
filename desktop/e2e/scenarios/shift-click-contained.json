@@ -1,0 +1,80 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "shift-click-contained",
+  "description": "Shift-clicking a feature inside the first one keeps the first feature's full extent",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "M13mp19"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "polylinker of M13mp19",
+        "extend": true
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "M13mp19",
+              "to": "polylinker of M13mp19"
+            }
+          },
+          "message": "the anchor's end counts too"
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "M13mp19",
+              "to": "polylinker of M13mp19",
+              "as": "parts"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "label": "Lac-operon"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "M13mp19",
+        "extend": true
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "features",
+            "path": "result",
+            "transform": {
+              "name": "forward_span",
+              "from": "Lac-operon",
+              "to": "M13mp19"
+            }
+          },
+          "message": "extending to a feature that starts at the same base"
+        }
+      ]
+    }
+  ]
+}
