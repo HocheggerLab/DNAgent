@@ -30,6 +30,7 @@ python3 fixtures/formats/snapgene/generate_cases.py
 | `synthetic_multipart_origin.dna` | Reverse feature with an origin-spanning part followed by a linear part |
 | `synthetic_overlaps.dna` | Linear record with three hand-authored annotations (forward, reverse, forward two-part) sharing bases 11–12; used by GUI click-cycling tests |
 | `pUC19_M77789.dna` | **Public, not synthetic:** pUC19 (2,686 bp, circular) from NCBI GenBank M77789.2 via `fixtures/formats/fasta/pUC19_M77789.fasta`. Seven misc_features transcribed from the record; ten polylinker sites (enzymes named in the record's note) located by exact unique match. Colours are display-only. Realistic-size map layout tests |
+| `synthetic_translation.dna` | Circular 564-bp synthetic record for translation/ORF tests: ≥75-codon forward CDS, reverse two-part CDS with a codon split across the junction, origin-spanning CDS, `codon_start` 2, table-11 GTG start, ambiguous bases with a deliberately wrong imported translation, unknown-strand CDS. Deterministic (seeded) codons, no biological source |
 | `synthetic_partial.dna` | Invalid feature segments and primer, explicit warnings, retained XML and opaque binary metadata |
 | `invalid_duplicate_sequence.dna` | Duplicate DNA packets rejected |
 | `invalid_missing_sequence.dna` | Missing DNA packet rejected |

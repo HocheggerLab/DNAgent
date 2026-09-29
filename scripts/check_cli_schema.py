@@ -166,6 +166,29 @@ def main():
         if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
             raise ValueError("unexpected fragments response")
         checked.append(body)
+    translation_fixture = str(ROOT / "fixtures/formats/snapgene/synthetic_translation.dna")
+    for args, success in [
+        (["translate", translation_fixture, "--feature", "feature-0001"], True),
+        (["translate", translation_fixture, "--feature", "feature-0002"], True),
+        (["translate", translation_fixture, "--range", "552..12"], True),
+        (["translate", translation_fixture, "--range", "0..30", "--strand", "reverse", "--frame", "2"], True),
+        (["translate", translation_fixture, "--all-cds"], True),
+        (["translate", translation_fixture, "--all-cds", "--strict"], False),
+        (["translate", translation_fixture, "--feature", "missing"], False),
+        (["translate", str(ROOT / "fixtures/formats/snapgene/synthetic_linear.dna"), "--all-cds"], True),
+        (["orfs", translation_fixture, "--min-codons", "5"], True),
+        (["orfs", translation_fixture, "--starts", "table", "--table", "11", "--min-codons", "3"], True),
+        (["orfs", str(ROOT / "fixtures/formats/snapgene/pUC19_M77789.dna")], True),
+        (["orfs", translation_fixture, "--min-codons", "0"], False),
+    ]:
+        proc = subprocess.run(
+            [str(binary), *args, "--output", "json"], capture_output=True, text=True, timeout=30
+        )
+        body = json.loads(proc.stdout)
+        validator.validate(body)
+        if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+            raise ValueError(f"unexpected response for {args}")
+        checked.append(body)
     for command, filename, schema_file in [
         ("primer-design", "synthetic-primer-design.json", "primer-design-plan-1.schema.json"),
         (

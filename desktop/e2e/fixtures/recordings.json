@@ -593,6 +593,113 @@
       "warnings": []
     }
   },
+  "fixtures/formats/snapgene/synthetic_translation.dna": {
+    "ok": {
+      "name": "synthetic_translation",
+      "sequence": "CCCAGAATTTAAGTTTTCACTTCCGGTCACTTATGGTTGTCAGGCAAGTGCCCTGGCGACGGTGGAGATTAAATCAATTCCGCCTGGCTACCGGTGCAAATCTACATCGAGTGGCAAGTATAGTTATATGGTTTTGCTGTTATGTCAATGAATGCTCCTCGAAGGGACGGTCTTTGTGTCTGCATCTCAGTGGAGCATGGTGTTATCCAAGTGATCGCACCACACCAGATGCGAAAGCTAAGTACAAGTTCTCAGTTAATGCGCGAGGCTACGGCTAAGTAACAGCATGGTGCGCTATTCAAAAAGTAGAATAAAACGATACGATTTGTTTTAGTCGGTACATGGTCTGTCCGCGCAATGCCCCATGCCCCTAGGGTGCCAAGACAGGCCGTAGCACCGCAACATACTCAATCCGTGTCAATCGTCCCACTCAGGGAGGATTAAGGGTAAATAAGCAATACACCATGATCACACTNAANNNNAATGATTAATTTCCTGCTCCGCAAGCGTGATGCACAAGAATGGGCGCTAAACTATATGGGCTGAGCATGGATGCAGACCGTG",
+      "aligned_complement_3to5": "GGGTCTTAAATTCAAAAGTGAAGGCCAGTGAATACCAACAGTCCGTTCACGGGACCGCTGCCACCTCTAATTTAGTTAAGGCGGACCGATGGCCACGTTTAGATGTAGCTCACCGTTCATATCAATATACCAAAACGACAATACAGTTACTTACGAGGAGCTTCCCTGCCAGAAACACAGACGTAGAGTCACCTCGTACCACAATAGGTTCACTAGCGTGGTGTGGTCTACGCTTTCGATTCATGTTCAAGAGTCAATTACGCGCTCCGATGCCGATTCATTGTCGTACCACGCGATAAGTTTTTCATCTTATTTTGCTATGCTAAACAAAATCAGCCATGTACCAGACAGGCGCGTTACGGGGTACGGGGATCCCACGGTTCTGTCCGGCATCGTGGCGTTGTATGAGTTAGGCACAGTTAGCAGGGTGAGTCCCTCCTAATTCCCATTTATTCGTTATGTGGTACTAGTGTGANTTNNNNTTACTAATTAAAGGACGAGGCGTTCGCACTACGTGTTCTTACCCGCGATTTGATATACCCGACTCGTACCTACGTCTGGCAC",
+      "unplaced_primers": [],
+      "circular": true,
+      "features": [
+        {
+          "id": "feature-0001",
+          "label": "forward CDS",
+          "kind": "CDS",
+          "color": "#b1ff67",
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 32,
+              "length": 246
+            }
+          ]
+        },
+        {
+          "id": "feature-0002",
+          "label": "reverse split CDS",
+          "kind": "CDS",
+          "color": "#9eafd2",
+          "strand": "reverse",
+          "parts": [
+            {
+              "start": 298,
+              "length": 14
+            },
+            {
+              "start": 321,
+              "length": 22
+            }
+          ]
+        },
+        {
+          "id": "feature-0003",
+          "label": "origin CDS",
+          "kind": "CDS",
+          "color": "#ffef86",
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 552,
+              "length": 24
+            }
+          ]
+        },
+        {
+          "id": "feature-0004",
+          "label": "codon_start 2 CDS",
+          "kind": "CDS",
+          "color": null,
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 363,
+              "length": 31
+            }
+          ]
+        },
+        {
+          "id": "feature-0005",
+          "label": "bacterial GTG CDS",
+          "kind": "CDS",
+          "color": null,
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 414,
+              "length": 30
+            }
+          ]
+        },
+        {
+          "id": "feature-0006",
+          "label": "ambiguous CDS",
+          "kind": "CDS",
+          "color": null,
+          "strand": "forward",
+          "parts": [
+            {
+              "start": 464,
+              "length": 27
+            }
+          ]
+        },
+        {
+          "id": "feature-0007",
+          "label": "unknown-strand CDS",
+          "kind": "CDS",
+          "color": null,
+          "strand": "unknown",
+          "parts": [
+            {
+              "start": 511,
+              "length": 21
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  },
   "fixtures/formats/snapgene/synthetic_unannotated.dna": {
     "ok": {
       "name": "synthetic_unannotated",

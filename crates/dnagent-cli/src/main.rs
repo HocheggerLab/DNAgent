@@ -1,9 +1,10 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
 use dnagent_app::{
     AppError, InspectView, end_compatibility, feature_views, open_path, primer_views,
     require_warning_free_import, restriction_sites, sequence_range, simulate_digest,
 };
 use dnagent_domain::restriction::ENZYMES;
+use dnagent_domain::translation::{CodingStrand, GeneticCode, StartPolicy};
 use dnagent_formats::{ImportReport, ImportWarning};
 use dnagent_render::MapScene;
 use serde::Serialize;
@@ -108,6 +109,23 @@ enum Command {
         #[arg(long, value_enum, default_value_t = AssemblyOutput::Json)]
         output: AssemblyOutput,
     },
+    /// Translate a feature, a range or every CDS with a pinned NCBI genetic code.
+    Translate(TranslateArgs),
+    /// Find complete open reading frames (start to stop) in all six frames.
+    Orfs {
+        input: PathBuf,
+        /// Minimum amino acids per ORF, excluding the stop codon.
+        #[arg(long, default_value_t = 75)]
+        min_codons: usize,
+        /// Start codons: ATG only, or every start codon of the table.
+        #[arg(long, value_enum, default_value_t = StartArg::Atg)]
+        starts: StartArg,
+        /// NCBI translation table number.
+        #[arg(long, default_value_t = 1)]
+        table: u32,
+        #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+        output: OutputMode,
+    },
     /// Render a deterministic SVG map.
     Map {
         input: PathBuf,
@@ -117,6 +135,47 @@ enum Command {
     /// Open the desktop viewer (requires the gui build feature).
     #[cfg(feature = "gui")]
     Gui { input: Option<PathBuf> },
+}
+
+#[derive(Debug, Args)]
+#[command(group(ArgGroup::new("target").required(true).args(["feature", "range", "all_cds"])))]
+#[command(after_help = TABLE_HELP)]
+struct TranslateArgs {
+    input: PathBuf,
+    /// Feature id (see `dnagent features`); honours codon_start and transl_table.
+    #[arg(long)]
+    feature: Option<String>,
+    /// Zero-based, half-open START..END; END < START wraps on circular records.
+    #[arg(long, value_parser = parse_span)]
+    range: Option<(usize, usize)>,
+    /// Translate every CDS feature.
+    #[arg(long)]
+    all_cds: bool,
+    /// Coding strand for --range.
+    #[arg(long, value_enum, default_value_t = StrandArg::Forward)]
+    strand: StrandArg,
+    /// Bases skipped at the 5′ end of the coding strand for --range (0, 1 or 2).
+    #[arg(long, default_value_t = 0)]
+    frame: usize,
+    /// NCBI table number; overrides transl_table (default 1 for ranges).
+    #[arg(long)]
+    table: Option<u32>,
+    #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+    output: OutputMode,
+}
+
+const TABLE_HELP: &str = "Genetic codes: NCBI gc.prt 4.6 tables 1-6, 9-16, 21-33 (1 = Standard, 2 = Vertebrate Mitochondrial, 11 = Bacterial/Archaeal/Plastid).";
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum StrandArg {
+    Forward,
+    Reverse,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum StartArg {
+    Atg,
+    Table,
 }
 
 #[derive(Debug, Args)]
@@ -182,6 +241,8 @@ impl Command {
             Self::GibsonOptimise { .. } => "gibson-optimise",
             Self::PrimerDesign { .. } => "primer-design",
             Self::GibsonAssemble { .. } => "gibson-assemble",
+            Self::Translate(_) => "translate",
+            Self::Orfs { .. } => "orfs",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
         }
@@ -195,7 +256,9 @@ impl Command {
             | Self::Enzymes { output, .. }
             | Self::Sites { output, .. }
             | Self::Digest { output, .. }
+            | Self::Orfs { output, .. }
             | Self::Sequence { output, .. } => matches!(output, OutputMode::Json),
+            Self::Translate(args) => matches!(args.output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
             Self::GibsonOptimise { .. } | Self::PrimerDesign { .. } => true,
@@ -300,6 +363,11 @@ fn main() -> ExitCode {
                             Some(AppError::Amplification(_) | AppError::AmplificationPlan(_))
                         ) {
                             "amplification_failed"
+                        } else if matches!(
+                            error.downcast_ref::<AppError>(),
+                            Some(AppError::Translation(_) | AppError::FeatureNotFound(_))
+                        ) {
+                            "translation_failed"
                         } else {
                             "command_failed"
                         },
@@ -401,6 +469,14 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::GibsonAssemble { plan, output } => {
             run_gibson_assemble(&plan, output, strict, warnings)?;
         }
+        Command::Translate(args) => run_translate(&args, strict, warnings)?,
+        Command::Orfs {
+            input,
+            min_codons,
+            starts,
+            table,
+            output,
+        } => run_orfs(&input, min_codons, starts, table, output, strict, warnings)?,
         Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
@@ -839,6 +915,145 @@ fn run_sites(
     Ok(())
 }
 
+fn print_protein(header: &str, protein: &str) {
+    println!(">{header}");
+    for chunk in protein.as_bytes().chunks(60) {
+        println!("{}", String::from_utf8_lossy(chunk));
+    }
+}
+
+fn finish_warnings(
+    extra: Vec<ImportWarning>,
+    requests_json: bool,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), AppError> {
+    if !requests_json {
+        for warning in &extra {
+            eprintln!("warning [{}]: {}", warning.code, warning.message);
+        }
+    }
+    warnings.extend(extra);
+    if strict && !warnings.is_empty() {
+        return Err(AppError::ImportWarnings {
+            count: warnings.len(),
+        });
+    }
+    Ok(())
+}
+
+fn run_translate(
+    args: &TranslateArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use dnagent_app::translation as service;
+    let requests_json = matches!(args.output, OutputMode::Json);
+    let report = load_input(&args.input, strict, requests_json, warnings)?;
+    let record = &report.record;
+    if let Some(table) = args.table {
+        GeneticCode::ncbi(table).map_err(AppError::from)?;
+    }
+    if let Some(feature) = &args.feature {
+        let (view, extra) = service::translate_feature(record, feature, args.table)?;
+        finish_warnings(extra, requests_json, strict, warnings)?;
+        match args.output {
+            OutputMode::Json => print_json("translate", &view, warnings)?,
+            OutputMode::Text => print_protein(
+                &format!(
+                    "{} {} table={}",
+                    view.feature.feature_id, view.feature.label, view.feature.translation.table
+                ),
+                &view.feature.translation.protein,
+            ),
+        }
+    } else if let Some((start, end)) = args.range {
+        let strand = match args.strand {
+            StrandArg::Forward => CodingStrand::Forward,
+            StrandArg::Reverse => CodingStrand::Reverse,
+        };
+        let view = service::translate_range(
+            record,
+            start,
+            end,
+            strand,
+            args.frame,
+            args.table.unwrap_or(1),
+        )?;
+        finish_warnings(Vec::new(), requests_json, strict, warnings)?;
+        match args.output {
+            OutputMode::Json => print_json("translate", &view, warnings)?,
+            OutputMode::Text => print_protein(
+                &format!(
+                    "{start}..{end} {:?} frame={} table={}",
+                    view.translation.strand, args.frame, view.translation.table
+                ),
+                &view.translation.protein,
+            ),
+        }
+    } else {
+        let (view, extra) = service::translate_cds_features(record, args.table);
+        finish_warnings(extra, requests_json, strict, warnings)?;
+        match args.output {
+            OutputMode::Json => print_json("translate", &view, warnings)?,
+            OutputMode::Text => {
+                for item in &view.translations {
+                    print_protein(
+                        &format!(
+                            "{} {} table={}",
+                            item.feature_id, item.label, item.translation.table
+                        ),
+                        &item.translation.protein,
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_orfs(
+    input: &Path,
+    min_codons: usize,
+    starts: StartArg,
+    table: u32,
+    output: OutputMode,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let requests_json = matches!(output, OutputMode::Json);
+    let report = load_input(input, strict, requests_json, warnings)?;
+    let starts = match starts {
+        StartArg::Atg => StartPolicy::AtgOnly,
+        StartArg::Table => StartPolicy::TableStarts,
+    };
+    let view = dnagent_app::translation::find_orfs(&report.record, table, min_codons, starts)?;
+    match output {
+        OutputMode::Json => print_json("orfs", &view, warnings)?,
+        OutputMode::Text => {
+            println!(
+                "Complete ORFs (start to stop), zero-based half-open; computational, not validated genes."
+            );
+            println!("id	strand	start	end	length	codons	frame	wraps_origin");
+            let length = report.record.sequence().len();
+            for orf in &view.scan.orfs {
+                println!(
+                    "{}	{:?}	{}	{}	{}	{}	{}	{}",
+                    orf.id,
+                    orf.strand,
+                    orf.start,
+                    (orf.start + orf.length) % length.max(1),
+                    orf.length,
+                    orf.codons,
+                    orf.frame,
+                    orf.wraps_origin
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 fn load_input(
     path: &Path,
     strict: bool,
@@ -887,6 +1102,20 @@ fn parse_range(value: &str) -> Result<(usize, usize), String> {
     if start > end {
         return Err("range start must not exceed end".to_owned());
     }
+    Ok((start, end))
+}
+
+/// START..END for translation; END < START is allowed and wraps on circular records.
+fn parse_span(value: &str) -> Result<(usize, usize), String> {
+    let (start, end) = value
+        .split_once("..")
+        .ok_or_else(|| "range must use START..END".to_owned())?;
+    let start = start
+        .parse::<usize>()
+        .map_err(|_| "range start must be a non-negative integer".to_owned())?;
+    let end = end
+        .parse::<usize>()
+        .map_err(|_| "range end must be a non-negative integer".to_owned())?;
     Ok((start, end))
 }
 

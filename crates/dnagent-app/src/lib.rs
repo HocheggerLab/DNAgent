@@ -4,6 +4,7 @@ pub mod amplification;
 pub mod gibson;
 pub mod gibson_extensions;
 pub mod ligation;
+pub mod translation;
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
 use dnagent_domain::digest::{self, Digest, DigestError};
@@ -65,6 +66,10 @@ pub enum AppError {
     Amplification(#[from] dnagent_domain::amplification::DesignError),
     #[error("invalid amplification plan JSON: {0}")]
     AmplificationPlan(serde_json::Error),
+    #[error(transparent)]
+    Translation(#[from] dnagent_domain::translation::TranslationError),
+    #[error("no feature with id {0:?}; list ids with `dnagent features`")]
+    FeatureNotFound(String),
     #[error("invalid sequence range [{start}, {end}) for length {length}")]
     InvalidRange {
         start: usize,
