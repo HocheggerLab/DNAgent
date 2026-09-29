@@ -96,6 +96,22 @@ A pinned human GRCh38/RefSeq RNA profile can be installed outside Git with
 Use `plan` to inspect it without downloading. See [reference storage](docs/reference-store.md).
 This provisions databases only; BLAST specificity is not yet connected to primer design.
 
+### Editing and GenBank
+
+DNAagent opens and saves GenBank (`.gb`, `.gbk`, `.genbank`); SnapGene `.dna` files are
+read-only. `dnagent convert` saves a record as GenBank without losing anything DNAagent
+read. SnapGene-only data and the original import warnings travel along in a DNAagent
+comment block. `dnagent annotate` adds a feature (optionally a translated CDS with a
+computed `/translation`) or removes one. The desktop app does the same through
+shift-click selection, a New-feature dialog, undo/redo and Save.
+
+```bash
+dnagent convert construct.dna --out construct.gb
+dnagent annotate construct.gb --out construct.gb --add --range 1250..6188 --label "fusion ORF" --translate
+```
+
+See [GenBank records](docs/genbank-records.md).
+
 ### Translation and ORFs
 
 `dnagent translate` translates a feature (honouring joins, origin crossings, `codon_start`

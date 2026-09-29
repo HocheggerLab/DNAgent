@@ -14,6 +14,14 @@ npm ci
 npm run tauri dev
 ```
 
+**Editing:** click a feature and shift-click another to select everything between them
+(forward from the first, through the origin on circular molecules), or drag across bases.
+**New feature…** adds an annotation with a live engine preview; tick **Translate** to make
+a CDS (with genetic code and codon start), which then shows its amino acids. Undo/Redo
+(⌘Z/⇧⌘Z) and **Delete feature** (for features added in this session) work as expected.
+**Save** / **Save as…** (⌘S) write GenBank, including everything DNAagent read from the
+original; `.dna` files are never modified. GenBank files open like `.dna` files.
+
 Appearance follows macOS light/dark mode; override it with the **Appearance** menu.
 The feature list collapses with **‹** so the map can use the whole window.
 
@@ -53,8 +61,6 @@ npm run tauri build -- --no-bundle
 # From desktop/ (first time: npx playwright install chromium)
 npm run e2e         # headless Chromium; checks GUI state against the dnagent CLI
 npm run e2e:headed  # watch the same scenarios run
-# From repository root, after DTO or fixture changes:
-cargo run -p dnagent-desktop-api --example export_recordings > desktop/e2e/fixtures/recordings.json
 ```
 
 ### Design review gallery
@@ -67,12 +73,13 @@ npm run review -- ~/path/to/private.dna # plus local files, never committed
 Renders each construct's map in light and dark mode at three window sizes plus
 selected-feature views, and writes `e2e/artifacts/review/latest/index.html` with the
 previous run shown underneath each tile for before/after comparison. Local files are
-recorded through the Rust desktop API into the gitignored `e2e/artifacts/` folder.
+opened by a local Rust test server; only screenshots are written, into the gitignored
+`e2e/artifacts/` folder.
 
 Scenarios in `e2e/scenarios/*.json` drive the real frontend through a test-only
-automation API (Vite `e2e` mode, absent from production builds). Native calls are
-answered from Rust-generated recordings, which `cargo test -p dnagent-desktop-api`
-checks for drift. The harness uses Chromium, not the production WKWebView/WebKitGTK,
+automation API (Vite `e2e` mode, absent from production builds). Native commands are
+answered by the real Rust desktop session through a local test server
+(`dnagent-desktop-api` example `e2e_server`). The harness uses Chromium, not the production WKWebView/WebKitGTK,
 so it tests app logic and layout, not the webview engine or the native shell. See
 [`e2e/README.md`](e2e/README.md).
 

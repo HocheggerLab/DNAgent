@@ -45,14 +45,12 @@ uv run scripts/check_amplification.py --binary target/debug/dnagent
 uv run scripts/check_translation.py --binary target/debug/dnagent
 uv run scripts/check_genbank.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
-cargo test -p dnagent-desktop-api --test e2e_recordings  # recorded GUI responses match Rust
 (cd desktop && npm test && npm run e2e)  # GUI scenarios checked against the CLI
 ```
 
 GUI changes need a passing `npm run e2e`. Expected biological values in scenarios
-come from the CLI, never from literals; see `desktop/e2e/README.md`. After changing
-DTOs or public fixtures, regenerate `desktop/e2e/fixtures/recordings.json` with
-`cargo run -p dnagent-desktop-api --example export_recordings`.
+come from the CLI, never from literals; see `desktop/e2e/README.md`. The e2e suite runs
+the real Rust desktop session through a local test server (no recorded responses).
 Map scenarios assert that every feature is drawn and every label is placed or
 reported; keep those invariants when changing the layout. `npm run review -- <file>`
 may render private constructs for design review, but only into the gitignored

@@ -57,8 +57,14 @@ command reads a user-entered or picker-selected local file path through the exis
 sandbox; compromised trusted frontend code could invoke that command on other paths.
 Do not load remote frontend content. A CSP restricts production content and connections.
 
-Read-only, one document, no project persistence, editing, undo, assembly UI, jobs API
-or WASM. A native file picker supplements path entry. A 100,000-base viewer limit bounds DOM rendering after import;
+Features can now be added (optionally as translated CDSs) from a shift-click span or a
+dragged range. Features added in the current session can be deleted, and every edit can
+be undone or redone. Records save as GenBank (`docs/genbank-records.md`); `.dna` stays
+read-only. A Rust `Session` in `dnagent-desktop-api` owns history, validation and saving.
+The Tauri shell holds one per window and issues commands (`open_document`,
+`preview_feature`, `add_feature`, `remove_feature`, `undo`, `redo`, `save_genbank`); the
+e2e test server runs the same session. Sequence bases, imported features and
+multi-document projects are not editable. There is no assembly UI, jobs API or WASM. A native file picker supplements path entry. A 100,000-base viewer limit bounds DOM rendering after import;
 it does not impose an input-file byte limit. Rendering is intentionally unvirtualised.
 The map fills its panel and is re-laid out on resize. Features are outlined block
 arrows packed into overlap lanes (all parts of a feature share a lane); arrowheads
@@ -86,7 +92,7 @@ fixtures. Display-helper tests cover origin crossings, arrow traversal, colour v
 and label spacing, plus row clipping and real source-end preservation. Rust tests
 cover all IUPAC complementary symbols and the generated transport contract.
 End-to-end selection, tab, picker, overlap-cycling, warning and stale-request
-scenarios run in headless Chromium against Rust-generated recordings, with CLI
+scenarios run in headless Chromium against a live Rust test server, with CLI
 output as ground truth (`desktop/e2e/README.md`). They do not exercise the
 native webview or shell.
 Then add a validated assembly/junction view. Harden file limits and command

@@ -1,7 +1,7 @@
 // Design-review gallery: renders construct views in light and dark mode at several
 // window sizes and writes one HTML contact sheet (with the previous run for
-// before/after comparison). Local files are recorded through the Rust desktop API into
-// e2e/artifacts/, which is gitignored: private constructs never enter Git.
+// before/after comparison). Local files are opened by the live Rust test server; only
+// screenshots are written, into the gitignored e2e/artifacts/. Private files never enter Git.
 //
 //   npm run review                       # public fixtures only
 //   npm run review -- ~/path/to/file.dna # plus local files
@@ -32,12 +32,6 @@ interface Shot { file: string; caption: string; notes: string[] }
 function inputs(): { key: string; label: string }[] {
   const local = process.argv.slice(2).map(path => resolve(process.cwd(), path.replace(/^~(?=\/)/, process.env.HOME ?? '~')));
   for (const path of local) if (!existsSync(path)) throw new Error(`no such file: ${path}`);
-  if (local.length) {
-    mkdirSync(resolve(ARTIFACTS, 'local-review'), { recursive: true });
-    const json = execFileSync('cargo', ['run', '-q', '-p', 'dnagent-desktop-api', '--example', 'export_recordings', '--', ...local],
-      { cwd: REPO, encoding: 'utf8', maxBuffer: 1 << 28 });
-    writeFileSync(resolve(ARTIFACTS, 'local-review/recordings.json'), json);
-  }
   return [...DEFAULT_FIXTURES.map(key => ({ key, label: basename(key) })), ...local.map(key => ({ key, label: `${basename(key)} (local)` }))];
 }
 
@@ -91,9 +85,14 @@ async function main() {
   const files = inputs();
   if (existsSync(OUT)) { rmSync(PREVIOUS, { recursive: true, force: true }); renameSync(OUT, PREVIOUS); }
   mkdirSync(OUT, { recursive: true });
-  const vite = spawn('npx', ['vite', '--mode', 'e2e', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { cwd: DESKTOP, stdio: 'ignore' });
+  const SERVER_PORT = 1433;
+  const server = spawn('cargo', ['run', '-q', '-p', 'dnagent-desktop-api', '--example', 'e2e_server', '--', '--port', String(SERVER_PORT)], { cwd: REPO, stdio: 'ignore' });
+  const vite = spawn('npx', ['vite', '--mode', 'e2e', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
+    { cwd: DESKTOP, stdio: 'ignore', env: { ...process.env, DNAGENT_E2E_PORT: String(SERVER_PORT) } });
   try {
-    for (let i = 0; i < 100; i++) { try { await fetch(`http://127.0.0.1:${PORT}`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
+    for (const url of [`http://127.0.0.1:${SERVER_PORT}/health`, `http://127.0.0.1:${PORT}`]) {
+      for (let i = 0; i < 1200; i++) { try { await fetch(url); break; } catch { await new Promise(r => setTimeout(r, 250)); } }
+    }
     const browser = await chromium.launch();
     const sections: { label: string; shots: Shot[] }[] = [];
     for (const { key, label } of files) {
@@ -141,7 +140,7 @@ async function main() {
     await browser.close();
     writeFileSync(resolve(OUT, 'index.html'), gallery(sections));
     console.log(`review gallery: ${relative(process.cwd(), resolve(OUT, 'index.html'))}\n  open ${resolve(OUT, 'index.html')}`);
-  } finally { vite.kill(); }
+  } finally { vite.kill(); server.kill(); }
 }
 
 await main();
