@@ -2,6 +2,7 @@
 
 pub mod amplification;
 pub mod editing;
+pub mod enzymes;
 pub mod gibson;
 pub mod gibson_extensions;
 pub mod ligation;

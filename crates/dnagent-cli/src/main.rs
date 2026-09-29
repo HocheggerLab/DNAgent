@@ -3,7 +3,7 @@ use dnagent_app::{
     AppError, InspectView, end_compatibility, feature_views, open_path, primer_views,
     require_warning_free_import, restriction_sites, sequence_range, simulate_digest,
 };
-use dnagent_domain::restriction::ENZYMES;
+use dnagent_domain::restriction::active_catalogue;
 use dnagent_domain::translation::{CodingStrand, GeneticCode, StartPolicy};
 use dnagent_formats::{ImportReport, ImportWarning};
 use dnagent_render::MapScene;
@@ -66,6 +66,8 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
+    /// Report the active enzyme catalogue: source, release, hash and unsupported enzymes (JSON).
+    EnzymeCatalogue,
     /// Find restriction recognition sites and nominal cut positions (not a digest).
     Sites {
         input: PathBuf,
@@ -283,6 +285,7 @@ impl Command {
             Self::Sequence { .. } => "sequence",
             Self::Map { .. } => "map",
             Self::Enzymes { .. } => "enzymes",
+            Self::EnzymeCatalogue => "enzyme-catalogue",
             Self::Sites { .. } => "sites",
             Self::Digest { .. } => "digest",
             Self::CompatibleEnds(_) => "compatible-ends",
@@ -319,7 +322,9 @@ impl Command {
             Self::Ligate { output, .. } | Self::Gibson { output, .. } => {
                 matches!(output, OutputMode::Json)
             }
-            Self::Map { .. } | Self::Convert { .. } | Self::Annotate(_) => true,
+            Self::Map { .. } | Self::Convert { .. } | Self::Annotate(_) | Self::EnzymeCatalogue => {
+                true
+            }
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
         }
@@ -365,7 +370,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let command = cli.command.name();
     let requests_json = cli.command.requests_json();
-    let mut warnings = Vec::new();
+    let mut warnings = dnagent_app::enzymes::activate();
     match run(cli, &mut warnings) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
@@ -509,6 +514,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
             }
         }
         Command::Enzymes { output } => print_enzymes(output, warnings)?,
+        Command::EnzymeCatalogue => print_enzyme_catalogue(warnings)?,
         Command::Sites {
             input,
             enzymes,
@@ -910,12 +916,26 @@ fn run_digest(
     Ok(())
 }
 
+fn print_enzyme_catalogue(warnings: &[ImportWarning]) -> Result<(), serde_json::Error> {
+    let catalogue = active_catalogue();
+    print_json(
+        "enzyme-catalogue",
+        &serde_json::json!({
+            "source": catalogue.source,
+            "enzyme_count": catalogue.enzymes.len(),
+            "unsupported": catalogue.unsupported,
+            "install_hint": "python3 scripts/manage_enzymes.py install (REBASE is downloaded locally, never bundled)",
+        }),
+        warnings,
+    )
+}
+
 fn print_enzymes(output: OutputMode, warnings: &[ImportWarning]) -> Result<(), serde_json::Error> {
     match output {
-        OutputMode::Json => print_json("enzymes", &ENZYMES, warnings)?,
+        OutputMode::Json => print_json("enzymes", &active_catalogue().enzymes, warnings)?,
         OutputMode::Text => {
             println!("enzyme\trecognition\ttop_offset\tbottom_offset");
-            for enzyme in ENZYMES {
+            for enzyme in &active_catalogue().enzymes {
                 println!(
                     "{}\t{}\t{}\t{}",
                     enzyme.name,

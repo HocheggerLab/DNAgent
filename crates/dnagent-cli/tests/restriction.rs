@@ -24,13 +24,24 @@ fn sites(file: &str, enzymes: &str, strict: bool) -> (bool, Value) {
 
 #[test]
 fn lists_catalogue_and_scans_all_six_enzymes() {
+    // Pin the built-in catalogue: an installed REBASE release would list more enzymes.
     let output = Command::new(env!("CARGO_BIN_EXE_dnagent"))
         .args(["enzymes", "--output", "json"])
+        .env("DNAGENT_ENZYMES", "builtin")
         .output()
         .unwrap();
     assert!(output.status.success());
     let catalogue: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(catalogue["result"].as_array().unwrap().len(), 6);
+    let names: Vec<&str> = catalogue["result"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names.len(), 99);
+    for name in ["EcoRI", "BamHI", "EcoRV", "KpnI", "BsaI", "BsmBI"] {
+        assert!(names.contains(&name), "{name}");
+    }
     let (ok, body) = sites(
         "synthetic_restriction_linear.dna",
         "EcoRI,BamHI,EcoRV,KpnI,BsaI,BsmBI",

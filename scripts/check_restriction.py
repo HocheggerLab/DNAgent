@@ -12,6 +12,7 @@ This is an independent software comparison, not experimental validation.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import random
 import struct
@@ -43,6 +44,8 @@ def main():
             text=True,
             timeout=30,
             check=True,
+            # The built-in catalogue; an installed REBASE is covered by check_enzymes.py.
+            env=dict(os.environ, DNAGENT_ENZYMES="builtin"),
         )
         body = json.loads(output.stdout)
         validator.validate(body)
@@ -50,7 +53,9 @@ def main():
             raise ValueError("unexpected failure")
         return body["result"]
 
+    catalogue_entries = 0
     for item in call("enzymes"):
+        catalogue_entries += 1
         enzyme = getattr(Restriction, item["name"])
         expected = {
             "name": str(enzyme),
@@ -130,7 +135,7 @@ def main():
             check(path)
             private_count += 1
     print(
-        f"Biopython comparison and schema validation passed: {count} synthetic scans, {private_count} private scans, six catalogue entries."
+        f"Biopython comparison and schema validation passed: {count} synthetic scans, {private_count} private scans, {catalogue_entries} catalogue entries."
     )
 
 

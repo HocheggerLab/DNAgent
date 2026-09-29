@@ -200,6 +200,7 @@ def main():
             (["convert", translation_fixture, "--out", str(Path(scratch) / "bad.dna")], False),
             (["inspect", saved, "--output", "json"], True),
             (["features", str(ROOT / "fixtures/formats/genbank/pUC19_M77789.gb"), "--output", "json"], True),
+            (["enzyme-catalogue"], True),
         ]:
             proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=30)
             body = json.loads(proc.stdout)

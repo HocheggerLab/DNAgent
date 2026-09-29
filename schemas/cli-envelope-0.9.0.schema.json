@@ -7,7 +7,7 @@
   "required": ["schema_version", "command", "ok", "warnings"],
   "properties": {
     "schema_version": {"const": "0.9.0"},
-    "command": {"enum": ["inspect", "features", "primers", "sequence", "map", "enzymes", "sites", "digest", "compatible-ends", "fragments", "ligate", "gibson", "gibson-optimise", "gibson-assemble", "primer-design", "translate", "orfs", "convert", "annotate"]},
+    "command": {"enum": ["inspect", "features", "primers", "sequence", "map", "enzymes", "sites", "digest", "compatible-ends", "fragments", "ligate", "gibson", "gibson-optimise", "gibson-assemble", "primer-design", "translate", "orfs", "convert", "annotate", "enzyme-catalogue"]},
     "ok": {"type": "boolean"},
     "warnings": {"$ref": "#/$defs/warnings"},
     "result": {},
@@ -24,6 +24,7 @@
         {"properties": {"command": {"const": "orfs"}, "result": {"$ref": "#/$defs/orf_scan"}}},
         {"properties": {"command": {"const": "convert"}, "result": {"$ref": "#/$defs/genbank_save"}}},
         {"properties": {"command": {"const": "annotate"}, "result": {"$ref": "#/$defs/annotate"}}},
+        {"properties": {"command": {"const": "enzyme-catalogue"}, "result": {"$ref": "#/$defs/enzyme_catalogue"}}},
         {"properties": {"command": {"const": "inspect"}, "result": {"$ref": "#/$defs/inspect"}}},
         {"properties": {"command": {"const": "features"}, "result": {"type": "array", "items": {"$ref": "#/$defs/feature"}}}},
         {"properties": {"command": {"const": "primers"}, "result": {"type": "array", "items": {"$ref": "#/$defs/primer"}}}},
@@ -43,6 +44,7 @@
     {"required": ["error"], "not": {"required": ["result"]}, "properties": {"ok": {"const": false}}}
   ],
   "$defs": {
+    "enzyme_catalogue": {"type": "object", "additionalProperties": false, "required": ["source", "enzyme_count", "unsupported", "install_hint"], "properties": {"source": {"type": "object", "additionalProperties": false, "required": ["name", "version", "sha256"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "sha256": {"type": ["string", "null"]}}}, "enzyme_count": {"type": "integer", "minimum": 1}, "unsupported": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "reason"], "properties": {"name": {"type": "string"}, "reason": {"type": "string"}}}}, "install_hint": {"type": "string"}}},
     "genbank_save": {"type": "object", "additionalProperties": false, "required": ["feature_count", "format", "output_path", "primer_count", "retained_snapgene_packets"], "properties": {"output_path": {"type": "string", "minLength": 1}, "format": {"const": "genbank"}, "feature_count": {"type": "integer", "minimum": 0}, "primer_count": {"type": "integer", "minimum": 0}, "retained_snapgene_packets": {"type": "integer", "minimum": 0}}},
     "annotate": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["action", "feature", "feature_count", "feature_id", "format", "output_path", "primer_count", "retained_snapgene_packets", "translation"], "properties": {"output_path": {"type": "string", "minLength": 1}, "format": {"const": "genbank"}, "feature_count": {"type": "integer", "minimum": 0}, "primer_count": {"type": "integer", "minimum": 0}, "retained_snapgene_packets": {"type": "integer", "minimum": 0}, "action": {"const": "add"}, "feature_id": {"type": "string", "minLength": 1}, "feature": {"$ref": "#/$defs/feature"}, "translation": {"oneOf": [{"type": "null"}, {"type": "object", "required": ["protein", "codons"]}]}}}, {"type": "object", "additionalProperties": false, "required": ["action", "feature_count", "feature_id", "format", "output_path", "primer_count", "retained_snapgene_packets"], "properties": {"output_path": {"type": "string", "minLength": 1}, "format": {"const": "genbank"}, "feature_count": {"type": "integer", "minimum": 0}, "primer_count": {"type": "integer", "minimum": 0}, "retained_snapgene_packets": {"type": "integer", "minimum": 0}, "action": {"const": "remove"}, "feature_id": {"type": "string", "minLength": 1}}}]},
     "genetic_code_source": {"type": "object", "additionalProperties": false, "required": ["provider", "version", "sha256"], "properties": {"provider": {"const": "NCBI gc.prt"}, "version": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
@@ -748,8 +750,8 @@
       "type": "object", "additionalProperties": false,
       "required": ["name", "recognition_sequence", "top_cut_offset", "bottom_cut_offset"],
       "properties": {
-        "name": {"enum": ["EcoRI", "BamHI", "EcoRV", "KpnI", "BsaI", "BsmBI"]},
-        "recognition_sequence": {"type": "string", "pattern": "^[ACGT]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "recognition_sequence": {"type": "string", "pattern": "^[ACGTRYSWKMBDHVN]+$"},
         "top_cut_offset": {"type": "integer"}, "bottom_cut_offset": {"type": "integer"}
       }
     },
