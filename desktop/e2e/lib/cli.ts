@@ -19,6 +19,8 @@ export function assertBinary(): void {
 /** The JSON envelope of `dnagent <command> <fixture> --output json` (failure envelopes included). */
 export function cli(command: CliCommand, fixture: string, args: string[] = []): Record<string, unknown> {
   const key = [command, fixture, ...args].join(' ');
+  // Only committed fixtures are immutable; saved files and workspace files change during a scenario.
+  if (!fixture.startsWith('fixtures/')) cache.delete(key);
   if (!cache.has(key)) {
     assertBinary();
     let stdout: string;

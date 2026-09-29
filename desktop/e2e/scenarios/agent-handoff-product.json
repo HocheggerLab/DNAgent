@@ -1,0 +1,217 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "agent-handoff-product",
+  "description": "Hand off all tabs (with unsaved edits and selections) to the agent; a GenBank product the agent writes is offered and opens as a new tab",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "set_workspace": "desktop/e2e/artifacts/agent-handoff-product/ws"
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "reverse split CDS",
+        "extend": true
+      }
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "for agent"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "reverse split CDS",
+        "extend": true
+      }
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "M13mp19"
+      }
+    },
+    {
+      "click": {
+        "testid": "handoff"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "workspace.handoff.open",
+          "equals": true
+        },
+        {
+          "state": "workspace.handoff.context_path",
+          "equals": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/context.json"
+        },
+        {
+          "state": "tabs[*].name",
+          "equals_json_file": {
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/context.json",
+            "path": "constructs[*].name"
+          },
+          "message": "every tab is in the context"
+        },
+        {
+          "state": "selection.feature_id",
+          "equals_json_file": {
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/context.json",
+            "one": "constructs[?(@.active==true)].selected_feature.id"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/pUC19_M77789.gb",
+            "path": "result[*].id"
+          },
+          "message": "snapshot of the active tab"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "doc-tab",
+        "index": 0
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/synthetic_translation.gb",
+            "path": "result[*].id"
+          },
+          "message": "the snapshot includes the unsaved added feature"
+        },
+        {
+          "state": "selection.range.start",
+          "equals_json_file": {
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/context.json",
+            "one": "constructs[0].selection.start"
+          }
+        },
+        {
+          "state": "selection.range.end",
+          "equals_json_file": {
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/context.json",
+            "one": "constructs[0].selection.end"
+          }
+        },
+        {
+          "state": "edit.dirty",
+          "equals": true,
+          "message": "handing off does not save the original"
+        }
+      ]
+    },
+    {
+      "run_cli": {
+        "args": [
+          "annotate",
+          "desktop/e2e/artifacts/agent-handoff-product/ws/handoff/synthetic_translation.gb",
+          "--out",
+          "desktop/e2e/artifacts/agent-handoff-product/ws/product.gb",
+          "--add",
+          "--range",
+          "0..30",
+          "--label",
+          "agent-made"
+        ]
+      },
+      "note": "the agent writes a product into the workspace"
+    },
+    {
+      "poll_workspace": true
+    },
+    {
+      "expect": [
+        {
+          "state": "workspace.notices",
+          "equals": [
+            {
+              "kind": "new",
+              "path": "desktop/e2e/artifacts/agent-handoff-product/ws/product.gb"
+            }
+          ],
+          "message": "only the product is offered; handoff files are not"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "notice-open"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "tabs[?(@.active==true)].path",
+          "single": true,
+          "equals": "desktop/e2e/artifacts/agent-handoff-product/ws/product.gb"
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/product.gb",
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "features[*].name",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/agent-handoff-product/ws/product.gb",
+            "path": "result[*].label"
+          }
+        },
+        {
+          "state": "workspace.notices",
+          "equals": []
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

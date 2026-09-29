@@ -43,6 +43,8 @@ export interface AppState {
     revision: number; can_undo: boolean; can_redo: boolean; dirty: boolean; added_feature_ids: string[]; saved_path: string | null;
     shown: { dirty: boolean; undo: boolean; redo: boolean; new_feature: boolean; delete_feature: boolean };
   };
+  /** Number of tabs shown in the tab bar. */
+  tab_count: number;
   /** Open construct tabs (model) and what the tab bar shows. */
   tabs: { document_id: number; name: string; path: string; dirty: boolean; active: boolean; shown_dirty: boolean }[];
   workspace: {
@@ -312,6 +314,7 @@ export function getState(model: ModelView): AppState {
       },
     },
     dialog: dialogState(),
+    tab_count: document.querySelectorAll('[data-testid="doc-tab"]').length,
     tabs: model.tabs.map(tab => {
       const node = [...document.querySelectorAll<HTMLElement>('[data-testid="doc-tab"]')].find(n => n.dataset.documentId === String(tab.document_id));
       return { ...tab, shown_dirty: node?.querySelector('.dot') !== null && node !== undefined };

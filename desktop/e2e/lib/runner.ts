@@ -1,9 +1,10 @@
 // Executes one validated scenario against the e2e-mode frontend.
 import type { Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { cli } from './cli.ts';
+import { BINARY, cli, REPO_ROOT } from './cli.ts';
 import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
@@ -15,7 +16,7 @@ const show = (value: unknown) => JSON.stringify(value, null, 2)?.replace(/\n\s*/
 /** Resolve a CLI-derived expectation. `fixture` defaults to the most recently opened one. */
 export function resolveCli(expectation: CliExpectation, defaultFixture: string, savedFile: string | null = null): unknown {
   if (expectation.saved && !savedFile) throw new Error('equals_cli.saved used before any save_as step');
-  const fixture = expectation.saved ? savedFile! : expectation.fixture ?? defaultFixture;
+  const fixture = expectation.file ?? (expectation.saved ? savedFile! : expectation.fixture ?? defaultFixture);
   const envelope = cli(expectation.command, fixture, expectation.args ?? []);
   let value = expectation.one !== undefined ? queryOne(envelope, expectation.one) : query(envelope, expectation.path!);
   const transform = expectation.transform;
@@ -79,10 +80,15 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     if (failed !== expectError) throw new Error(expectError ? `expected the open to fail, status: ${status}` : `open failed: ${status}`);
   };
 
+  // CLI defaults follow the active tab's file when it is repo-relative (tabs can switch).
+  const activeFile = async () => {
+    const active = (await state()).tabs.find(tab => tab.active)?.path;
+    return active && !active.startsWith('/') ? active : fixture;
+  };
   const run = async (step: Step): Promise<void> => {
     if ('open' in step) {
       if (step.open.saved && !savedFile) throw new Error('open.saved used before any save_as step');
-      fixture = step.open.saved ? savedFile! : step.open.fixture ?? scenario.fixture;
+      fixture = step.open.file ?? (step.open.saved ? savedFile! : step.open.fixture ?? scenario.fixture);
       await page.evaluate(([path, delayMs]) => window.__DNAGENT_TEST__!.open(path, { delayMs }), [fixture, step.open.delay_ms] as const);
       if (step.open.wait !== false) { await waitIdle(); await checkOpened(step.open.expect_error ?? false); }
     } else if ('browse' in step) {
@@ -92,7 +98,7 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     } else if ('select_feature' in step) {
       const target = step.select_feature;
       const id = 'id' in target ? target.id
-        : queryOne(cli('features', fixture), `result[?(@.label=='${target.label.replace(/['\\]/g, '\\$&')}')].id`) as string;
+        : queryOne(cli('features', await activeFile()), `result[?(@.label=='${target.label.replace(/['\\]/g, '\\$&')}')].id`) as string;
       // Wait for the list item to be rendered (not for idle), so a selection can be made
       // while an older, stale request is still in flight.
       await page.waitForFunction(featureId => [...document.querySelectorAll<HTMLElement>('[data-testid="feature-item"]')]
@@ -139,6 +145,21 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     } else if ('remember' in step) {
       const snapshot = await state();
       memory.set(step.remember.as, step.remember.single ? queryOne(snapshot, step.remember.state) : query(snapshot, step.remember.state));
+    } else if ('set_workspace' in step) {
+      // Always start from an empty folder (the schema restricts this to desktop/e2e/artifacts).
+      rmSync(resolve(REPO_ROOT, step.set_workspace), { recursive: true, force: true });
+      mkdirSync(resolve(REPO_ROOT, step.set_workspace), { recursive: true });
+      await page.evaluate(path => window.__DNAGENT_TEST__!.chooseWorkspace(path), step.set_workspace);
+      await waitIdle();
+    } else if ('poll_workspace' in step) {
+      await page.evaluate(() => window.__DNAGENT_TEST__!.pollWorkspace());
+      await waitIdle();
+    } else if ('run_cli' in step) {
+      try {
+        execFileSync(BINARY, step.run_cli.args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: 'pipe' });
+      } catch (error) {
+        throw new Error(`agent command failed: dnagent ${step.run_cli.args.join(' ')}\n${String((error as { stdout?: string }).stdout ?? error)}`);
+      }
     } else if ('fill' in step) {
       await page.getByTestId(step.fill.testid).fill(step.fill.value, { timeout: IDLE_TIMEOUT_MS });
       await settle();
@@ -153,17 +174,23 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       savedFile = step.save_as.path;
     } else if ('expect' in step) {
       const snapshot = await state();
+      const defaultFile = await activeFile();
       const failures: string[] = [];
       for (const [item, assertion] of step.expect.entries()) {
         const label = `expect[${item}]${assertion.message ? ` (${assertion.message})` : ''} ${assertion.state}`;
         try {
           const actual = assertion.single ? queryOne(snapshot, assertion.state) : query(snapshot, assertion.state);
           if (assertion.equals_memory !== undefined && !memory.has(assertion.equals_memory)) throw new Error(`nothing remembered as ${assertion.equals_memory}`);
-          const expected = assertion.equals_memory !== undefined ? memory.get(assertion.equals_memory)
-            : assertion.equals_cli ? resolveCli(assertion.equals_cli, fixture, savedFile)
+          const fileJson = (spec: { file: string; path?: string; one?: string }) => {
+            const data = JSON.parse(readFileSync(resolve(REPO_ROOT, spec.file), 'utf8'));
+            return spec.one !== undefined ? queryOne(data, spec.one) : query(data, spec.path!);
+          };
+          const expected = assertion.equals_json_file ? fileJson(assertion.equals_json_file)
+            : assertion.equals_memory !== undefined ? memory.get(assertion.equals_memory)
+            : assertion.equals_cli ? resolveCli(assertion.equals_cli, defaultFile, savedFile)
             : assertion.equals_state !== undefined ? query(snapshot, assertion.equals_state) : assertion.equals;
           if (!isDeepStrictEqual(actual, expected)) {
-            failures.push(`${label}\n      GUI state: ${show(actual)}\n      expected:  ${show(expected)}\n      from:      ${describeExpected(assertion, fixture)}`);
+            failures.push(`${label}\n      GUI state: ${show(actual)}\n      expected:  ${show(expected)}\n      from:      ${describeExpected(assertion, defaultFile)}`);
           }
         } catch (error) {
           failures.push(`${label}: ${(error as Error).message}`);

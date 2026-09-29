@@ -1,0 +1,161 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "workspace-reload",
+  "description": "An open file changed by the agent reloads when the tab is clean, and asks when the tab has unsaved edits",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "set_workspace": "desktop/e2e/artifacts/workspace-reload/ws"
+    },
+    {
+      "run_cli": {
+        "args": [
+          "convert",
+          "fixtures/formats/snapgene/synthetic_translation.dna",
+          "--out",
+          "desktop/e2e/artifacts/workspace-reload/ws/live.gb"
+        ]
+      }
+    },
+    {
+      "open": {
+        "file": "desktop/e2e/artifacts/workspace-reload/ws/live.gb"
+      }
+    },
+    {
+      "poll_workspace": true
+    },
+    {
+      "run_cli": {
+        "args": [
+          "annotate",
+          "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+          "--out",
+          "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+          "--add",
+          "--range",
+          "0..9",
+          "--label",
+          "outside"
+        ]
+      },
+      "note": "the agent edits the open file"
+    },
+    {
+      "poll_workspace": true
+    },
+    {
+      "expect": [
+        {
+          "state": "workspace.notices",
+          "equals": [],
+          "message": "a clean tab reloads silently"
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "edit.dirty",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "reverse split CDS",
+        "extend": true
+      }
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "mine"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "run_cli": {
+        "args": [
+          "annotate",
+          "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+          "--out",
+          "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+          "--remove",
+          "feature-0008"
+        ]
+      }
+    },
+    {
+      "poll_workspace": true
+    },
+    {
+      "expect": [
+        {
+          "state": "workspace.notices",
+          "equals": [
+            {
+              "kind": "conflict",
+              "path": "desktop/e2e/artifacts/workspace-reload/ws/live.gb"
+            }
+          ]
+        },
+        {
+          "state": "edit.dirty",
+          "equals": true,
+          "message": "unsaved edits are not thrown away without asking"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "notice-reload"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "file": "desktop/e2e/artifacts/workspace-reload/ws/live.gb",
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "edit.dirty",
+          "equals": false
+        },
+        {
+          "state": "workspace.notices",
+          "equals": []
+        }
+      ]
+    }
+  ]
+}

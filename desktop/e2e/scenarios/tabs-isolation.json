@@ -1,0 +1,241 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "tabs-isolation",
+  "description": "Each tab keeps its own document, selection and undo history; reopening an open file switches to it",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/synthetic_linear.dna"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "tabs[0].name",
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "tabs[1].name",
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "tabs[?(@.active==true)].name",
+          "single": true,
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "selection.feature_id",
+          "equals": null,
+          "message": "a new tab starts without a selection"
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "doc-tab",
+        "index": 0
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+            "path": "result[*].id"
+          }
+        },
+        {
+          "state": "selection.feature_id",
+          "equals_cli": {
+            "command": "features",
+            "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+            "one": "result[?(@.label=='forward CDS')].id"
+          },
+          "message": "the first tab's selection is restored"
+        }
+      ]
+    },
+    {
+      "select_feature": {
+        "label": "forward CDS"
+      }
+    },
+    {
+      "select_feature": {
+        "label": "reverse split CDS",
+        "extend": true
+      }
+    },
+    {
+      "click": {
+        "testid": "new-feature"
+      }
+    },
+    {
+      "fill": {
+        "testid": "feature-label",
+        "value": "tab edit"
+      }
+    },
+    {
+      "click": {
+        "testid": "feature-add"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 1
+        },
+        {
+          "state": "tabs[0].dirty",
+          "equals": true
+        },
+        {
+          "state": "tabs[0].shown_dirty",
+          "equals": true
+        },
+        {
+          "state": "tabs[1].dirty",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "doc-tab",
+        "index": 1
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "edit.revision",
+          "equals": 0,
+          "message": "undo history is per tab"
+        },
+        {
+          "state": "edit.shown.undo",
+          "equals": false
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "features",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result[*].id"
+          }
+        }
+      ]
+    },
+    {
+      "press": "Meta+1"
+    },
+    {
+      "expect": [
+        {
+          "state": "tabs[?(@.active==true)].name",
+          "single": true,
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+            "path": "result.name"
+          }
+        },
+        {
+          "state": "edit.revision",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/synthetic_linear.dna"
+      },
+      "note": "already open: switches instead of opening twice"
+    },
+    {
+      "expect": [
+        {
+          "state": "tab_count",
+          "equals": 2,
+          "message": "reopening an open file does not add a tab"
+        },
+        {
+          "state": "tabs[?(@.active==true)].name",
+          "single": true,
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result.name"
+          }
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "doc-tab-close",
+        "index": 0
+      },
+      "note": "closing the edited tab asks first (accepted)"
+    },
+    {
+      "expect": [
+        {
+          "state": "tab_count",
+          "equals": 1
+        },
+        {
+          "state": "tabs[*].name",
+          "single": true,
+          "equals_cli": {
+            "command": "inspect",
+            "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+            "path": "result.name"
+          },
+          "message": "one tab left"
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}
