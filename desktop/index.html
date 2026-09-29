@@ -4,14 +4,14 @@
 <body>
 <main>
   <header>
-    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
-    <p id="status" data-testid="status" role="status">Read-only DNAagent prototype.</p>
+    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
+    <p id="status" data-testid="status" role="status">DNAagent: open a construct. Saving writes GenBank; .dna files are never modified.</p>
     <div id="warnings" data-testid="warnings"></div>
   </header>
   <section class="workspace">
     <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div></aside>
     <article>
-      <h2 id="title" data-testid="title">No construct loaded</h2>
+      <div class="title-row"><h2 id="title" data-testid="title">No construct loaded</h2><span id="dirty" data-testid="dirty-indicator" title="Unsaved changes" hidden>● unsaved</span></div>
       <nav role="tablist" aria-label="Construct views">
         <button id="tab-map" data-testid="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>
         <button id="tab-sequence" data-testid="tab-sequence" role="tab" aria-controls="panel-sequence" aria-selected="false" tabindex="-1">Sequence</button>
@@ -22,7 +22,7 @@
         <label class="sequence-only"><input type="checkbox" id="opt-frames" data-testid="toggle-frames"> Six-frame translation</label>
         <label class="sequence-only">Amino acids <select id="opt-aa" data-testid="amino-acid-mode"><option value="one">1-letter</option><option value="three">3-letter</option></select></label>
       </div>
-      <p id="selection" data-testid="selection-summary">No feature selected</p>
+      <div class="selection-row"><p id="selection" data-testid="selection-summary">No feature selected</p><button id="new-feature" data-testid="new-feature" type="button" hidden>New feature…</button><button id="delete-feature" data-testid="delete-feature" type="button" hidden>Delete feature</button></div>
       <div id="range-panel" data-testid="range-panel" hidden>
         <label>Translate <select id="range-strand" data-testid="range-strand"><option value="forward">forward strand</option><option value="reverse">reverse strand</option></select></label>
         <code id="range-protein" data-testid="range-translation"></code>
@@ -39,6 +39,40 @@
     </article>
   </section>
 </main>
+<dialog id="feature-dialog" data-testid="feature-dialog" aria-labelledby="feature-dialog-title">
+  <form id="feature-form" method="dialog">
+    <h3 id="feature-dialog-title">New feature</h3>
+    <p id="feature-range" data-testid="feature-range"></p>
+    <div class="dialog-grid">
+      <label>Label <input id="feature-label" data-testid="feature-label" autocomplete="off" required></label>
+      <label>Type <select id="feature-kind" data-testid="feature-kind">
+        <option>misc_feature</option><option>CDS</option><option>gene</option><option>promoter</option><option>terminator</option><option>enhancer</option>
+        <option>rep_origin</option><option>polyA_signal</option><option>intron</option><option>exon</option><option>regulatory</option><option>protein_bind</option>
+        <option>primer_bind</option><option>misc_RNA</option><option>repeat_region</option><option>sig_peptide</option><option>5'UTR</option><option>3'UTR</option></select></label>
+      <label>Strand <select id="feature-strand" data-testid="feature-strand"><option value="forward">forward →</option><option value="reverse">← reverse</option><option value="unknown">unknown</option></select></label>
+      <label>Colour <input id="feature-color" data-testid="feature-color" type="color" value="#4f8fe6"></label>
+      <label class="check"><input id="feature-translate" data-testid="feature-translate" type="checkbox"> Translate (makes a CDS)</label>
+      <label>Genetic code <select id="feature-table" data-testid="feature-table">
+        <option value="1">1 Standard</option><option value="2">2 Vertebrate mitochondrial</option><option value="3">3 Yeast mitochondrial</option>
+        <option value="4">4 Mold/protozoan mito., Mycoplasma</option><option value="5">5 Invertebrate mitochondrial</option><option value="6">6 Ciliate nuclear</option>
+        <option value="9">9 Echinoderm/flatworm mito.</option><option value="10">10 Euplotid nuclear</option><option value="11">11 Bacterial, archaeal, plastid</option>
+        <option value="12">12 Alternative yeast nuclear</option><option value="13">13 Ascidian mitochondrial</option><option value="14">14 Alternative flatworm mito.</option>
+        <option value="15">15 Blepharisma nuclear</option><option value="16">16 Chlorophycean mito.</option><option value="21">21 Trematode mito.</option>
+        <option value="22">22 Scenedesmus mito.</option><option value="23">23 Thraustochytrium mito.</option><option value="24">24 Rhabdopleuridae mito.</option>
+        <option value="25">25 SR1 and Gracilibacteria</option><option value="26">26 Pachysolen nuclear</option><option value="27">27 Karyorelict nuclear</option>
+        <option value="28">28 Condylostoma nuclear</option><option value="29">29 Mesodinium nuclear</option><option value="30">30 Peritrich nuclear</option>
+        <option value="31">31 Blastocrithidia nuclear</option><option value="32">32 Balanophoraceae plastid</option><option value="33">33 Cephalodiscidae mito.</option></select></label>
+      <label>Codon start <select id="feature-codon-start" data-testid="feature-codon-start"><option>1</option><option>2</option><option>3</option></select></label>
+    </div>
+    <section id="feature-preview" data-testid="feature-preview" aria-live="polite">
+      <p id="preview-summary" data-testid="preview-summary"></p>
+      <code id="preview-protein" data-testid="preview-protein"></code>
+      <ul id="preview-warnings" data-testid="preview-warnings"></ul>
+    </section>
+    <p id="feature-error" data-testid="feature-error" role="alert"></p>
+    <menu><button type="button" id="feature-cancel" data-testid="feature-cancel">Cancel</button><button id="feature-add" data-testid="feature-add" value="add">Add feature</button></menu>
+  </form>
+</dialog>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

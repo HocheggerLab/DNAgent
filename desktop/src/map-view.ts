@@ -21,6 +21,8 @@ export interface MapOrfs {
   orfs: Orf[];
   selectedOrf: string | null;
   selectOrf: (id: string) => void;
+  /** A selected base range (half-open; `end < start` wraps), drawn as a selection band. */
+  range?: { start: number; end: number } | null;
 }
 
 export interface MapReport {
@@ -54,18 +56,18 @@ function shapes(root: SVGSVGElement): Shape {
   };
 }
 
-function interactive(node: Element, feature: Feature, select: (id: string) => void, shape: Shape) {
+function interactive(node: Element, feature: Feature, select: (id: string, extend?: boolean) => void, shape: Shape) {
   node.setAttribute('tabindex', '0');
   node.setAttribute('role', 'button');
   node.setAttribute('aria-label', `${nameOf(feature)}, ${feature.strand} strand`);
-  node.addEventListener('click', () => select(feature.id));
+  node.addEventListener('click', event => select(feature.id, (event as MouseEvent).shiftKey));
   node.addEventListener('keydown', event => {
-    if (['Enter', ' '].includes((event as KeyboardEvent).key)) { event.preventDefault(); select(feature.id); }
+    if (['Enter', ' '].includes((event as KeyboardEvent).key)) { event.preventDefault(); select(feature.id, (event as KeyboardEvent).shiftKey); }
   });
   shape('title', {}, node).textContent = `${nameOf(feature)} (${feature.strand}) · ${feature.parts.map(p => `[${p.start}, ${p.start + p.length})`).join(', ')}`;
 }
 
-function pill(shape: Shape, parent: Element, feature: Feature, x: number, y: number, width: number, active: boolean, select: (id: string) => void): SVGElement {
+function pill(shape: Shape, parent: Element, feature: Feature, x: number, y: number, width: number, active: boolean, select: (id: string, extend?: boolean) => void): SVGElement {
   const color = featureColor(feature);
   const group = shape('g', { class: `map-pill map-label${active ? ' active' : ''}`, 'data-testid': 'map-label', 'data-feature-id': feature.id, 'data-label-mode': 'outside' }, parent);
   shape('rect', { x, y: y - PILL_HEIGHT / 2, width, height: PILL_HEIGHT, rx: PILL_HEIGHT / 2, fill: color }, group);
@@ -75,7 +77,7 @@ function pill(shape: Shape, parent: Element, feature: Feature, x: number, y: num
   return group;
 }
 
-export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void,
+export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string, extend?: boolean) => void,
   orfs: MapOrfs = { orfs: [], selectedOrf: null, selectOrf: () => undefined }): MapReport {
   svg.replaceChildren();
   const width = Math.max(240, svg.clientWidth || 900);
@@ -86,7 +88,7 @@ export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | 
   return doc.circular ? circular(svg, doc, selected, select, width, height, orfs) : linear(svg, doc, selected, select, width, height, orfs);
 }
 
-function orfInteractive(node: Element, orf: Orf, select: (id: string) => void, shape: Shape) {
+function orfInteractive(node: Element, orf: Orf, select: (id: string, extend?: boolean) => void, shape: Shape) {
   node.setAttribute('tabindex', '0');
   node.setAttribute('role', 'button');
   node.setAttribute('aria-label', `ORF ${orf.codons} amino acids, ${orf.strand} strand`);
@@ -97,7 +99,7 @@ function orfInteractive(node: Element, orf: Orf, select: (id: string) => void, s
   shape('title', {}, node).textContent = `ORF · ${orf.strand} · [${orf.start}, ${orf.start + orf.length}) · ${orf.codons} aa`;
 }
 
-function circular(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number, orfs: MapOrfs): MapReport {
+function circular(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string, extend?: boolean) => void, width: number, height: number, orfs: MapOrfs): MapReport {
   const shape = shapes(svg);
   const length = doc.sequence.length;
   const cx = width / 2;
@@ -233,6 +235,20 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
     }
   }
 
+  if (orfs.range) {
+    const { start, end } = orfs.range;
+    const span = ((end - start + length) % length) || length;
+    const a0 = angle(start);
+    const a1 = a0 + (span / length) * TAU;
+    shape('path', { d: blockArrowPath(cx, cy, radius + 13, 14, a0, a1, 'none', 0), class: 'map-band',
+      'data-testid': 'map-selection-part', 'data-part-index': 0, 'data-part-start': start, 'data-part-length': span }, bands);
+    for (const edge of [a0, a1]) {
+      const [x0, y0] = polar(cx, cy, radius + 5, edge);
+      const [x1, y1] = polar(cx, cy, radius + 21, edge);
+      shape('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: 'map-band-edge' }, bands);
+    }
+  }
+
   const { placed, hidden } = placeCircularLabels(requests, cx, cy, radius + 44, 14 + PILL_HEIGHT / 2, height - NOTICE_RESERVE - PILL_HEIGHT / 2, PILL_PITCH, 8, width - 8);
   const byId = new Map(doc.features.map(feature => [feature.id, feature]));
   for (const label of placed) {
@@ -248,7 +264,7 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
   return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs };
 }
 
-function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string) => void, width: number, height: number, orfs: MapOrfs): MapReport {
+function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string, extend?: boolean) => void, width: number, height: number, orfs: MapOrfs): MapReport {
   const shape = shapes(svg);
   const length = doc.sequence.length;
   const margin = 40;
@@ -313,6 +329,12 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
     requests.push({ id: feature.id, centre: (x0 + x1) / 2, width: textWidth(name) + 18, priority: isSelected ? Number.POSITIVE_INFINITY : totalLength(feature) });
   });
 
+  if (orfs.range) {
+    const [x0, x1] = [x(orfs.range.start), x(orfs.range.end)];
+    shape('rect', { x: x0, y: backbone + 10, width: Math.max(1, x1 - x0), height: 12, class: 'map-band',
+      'data-testid': 'map-selection-part', 'data-part-index': 0, 'data-part-start': orfs.range.start, 'data-part-length': orfs.range.end - orfs.range.start }, bands);
+    for (const edge of [x0, x1]) shape('line', { x1: edge, y1: backbone + 6, x2: edge, y2: backbone + 26, class: 'map-band-edge' }, bands);
+  }
   let orfBottom = top + laneCount * (thickness + gap);
   if (orfs.orfs.length) {
     const orfLanes = assignLanes(orfs.orfs.map(orf => ({ id: orf.id, parts: [{ start: orf.start, length: orf.length }] })), length, false, minPx * basesPerPx, 1.5 * basesPerPx);

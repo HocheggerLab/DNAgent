@@ -93,3 +93,27 @@ body[data-tab=map] .view-options .sequence-only{display:none}
 .orf-track.selected{outline:3px solid var(--selection-outline);outline-offset:-1px}
 .orf-track.arrow-right{clip-path:polygon(0 0,calc(100% - 5px) 0,100% 50%,calc(100% - 5px) 100%,0 100%)}.orf-track.arrow-left{clip-path:polygon(5px 0,100% 0,100% 100%,5px 100%,0 50%)}
 .map-orf{fill:var(--orf);stroke:none;opacity:.85;cursor:pointer}.map-orf.selected{stroke:var(--selection-outline);stroke-width:2;opacity:1}
+
+/* Editing */
+.edit-controls{display:flex;gap:6px}.edit-controls button{padding:7px 10px;font-size:13px}
+button:disabled{opacity:.45;cursor:default}button:disabled:hover{background:var(--button);border-color:var(--border)}
+.title-row{display:flex;align-items:baseline;gap:12px}.title-row h2{margin-bottom:12px}
+#dirty{font-size:12px;color:var(--warning)}
+.selection-row{display:flex;align-items:center;gap:10px;flex:none}.selection-row #selection{flex:1}
+.selection-row button{padding:5px 10px;font-size:12px;white-space:nowrap}
+#new-feature{background:var(--selection-pill);border-color:var(--selection-pill);color:var(--selection-text)}
+.badge.added{background:var(--selection-band);color:var(--text);border-color:var(--selection-outline)}
+dialog{border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);padding:18px 20px;width:min(640px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog h3{margin:0 0 4px}#feature-range{margin:0 0 14px;font-size:12px;color:var(--muted)}
+.dialog-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.dialog-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.dialog-grid label.check{flex-direction:row;align-items:center;gap:8px;color:var(--text)}
+.dialog-grid input:not([type=checkbox]),.dialog-grid select{padding:6px;font-size:13px}.dialog-grid input[type=color]{padding:2px;height:32px}
+#feature-preview{margin:14px 0 6px;padding:10px;background:var(--panel-soft);border-radius:6px;font-size:12px;max-height:200px;overflow:auto}
+#preview-summary{margin:0 0 6px;font-weight:600}
+#preview-protein{display:block;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere;user-select:all}
+#preview-warnings{margin:6px 0 0;padding-left:18px;color:var(--warning)}
+#feature-error{color:var(--stop);font-size:12px;min-height:1em;margin:4px 0}
+dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:10px 0 0;padding:0}
+#feature-add{background:var(--selection-pill);border-color:var(--selection-pill);color:var(--selection-text)}

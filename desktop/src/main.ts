@@ -1,6 +1,7 @@
-import type { Document, Diagnostic } from './bindings';
+import type { Diagnostic, Document, DocumentState, EditState } from './bindings';
+import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
-import { openDocument, pickConstructPath } from './ipc';
+import { openDocument, pickConstructPath, pickSavePath, redo, removeFeature, saveGenbank, undo } from './ipc';
 import { renderMap } from './map-view';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
 import { initTheme } from './theme';
@@ -8,6 +9,9 @@ import './style.css';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 let current: Document | null = null;
+let edit: EditState | null = null;
+/** Where a shift-click extends from: the last plainly selected feature, or a range start. */
+let anchor: { feature: string } | { base: number } | null = null;
 let selected: string | null = null;
 /** At most one of selected / selectedOrf / range is set. */
 let selectedOrf: string | null = null;
@@ -22,8 +26,35 @@ let activeTab: 'map' | 'sequence' = 'map';
 let unlabelled: { doc: Document | null; ids: Set<string> } = { doc: null, ids: new Set() };
 initTheme(element<HTMLSelectElement>('theme'));
 
-function select(id: string) {
-  selected = id; selectedOrf = null; range = null;
+/** Forward span from the anchor's start to the furthest end of anchor and target (wrapping on circles). */
+function extendedRange(target: string): { start: number; end: number } | null {
+  if (!current || !anchor) return null;
+  const doc = current;
+  const length = doc.sequence.length;
+  const feature = (id: string) => doc.features.find(f => f.id === id);
+  const b = feature(target);
+  if (!b) return null;
+  const a = 'feature' in anchor ? feature(anchor.feature) : undefined;
+  const start = 'base' in anchor ? anchor.base : a?.parts[0].start;
+  if (start === undefined) return null;
+  const parts = [...(a?.parts ?? []), ...b.parts];
+  if (!doc.circular) {
+    const low = Math.min(start, ...parts.map(p => p.start));
+    return { start: low, end: Math.max(...parts.map(p => p.start + p.length), range && 'base' in anchor ? range.end : 0) };
+  }
+  // Offsets of every part end, measured forward from the anchor start.
+  const reach = Math.max(...parts.map(p => ((p.start + p.length - start - 1 + length) % length) + 1),
+    range && 'base' in anchor ? ((range.end - start - 1 + length) % length) + 1 : 0);
+  return reach >= length ? null : { start, end: (start + reach) % length };
+}
+
+function select(id: string, extend = false) {
+  const extended = extend ? extendedRange(id) : null;
+  if (extended) {
+    range = extended; selected = null; selectedOrf = null;
+  } else {
+    selected = id; selectedOrf = null; range = null; anchor = { feature: id };
+  }
   render();
   if (activeTab === 'sequence') revealSelection();
 }
@@ -101,17 +132,28 @@ function render() {
     : activeOrf
       ? `ORF · ${activeOrf.strand} strand · [${activeOrf.start}, ${activeOrf.start + activeOrf.length}) · ${activeOrf.codons} aa + stop (computational, not an annotated gene)`
       : range
-        ? `Selection [${range.start}, ${range.end}) · ${range.end - range.start} bp`
+        ? `Selection [${range.start}, ${range.end}) · ${((range.end - range.start + length) % length || length).toLocaleString()} bp${range.end < range.start ? ' · crosses the origin' : ''}`
         : 'Select a feature, ORF or drag across bases. Sequence is always shown in the forward reference orientation.';
   const rangePanel = element('range-panel');
   rangePanel.hidden = range === null;
   if (range) {
     const strand = element<HTMLSelectElement>('range-strand').value === 'reverse' ? 'reverse' : 'forward';
-    element('range-protein').textContent = rangeTranslation(doc, range.start, range.end, strand) || '(shorter than one codon)';
+    element('range-protein').textContent = range.end < range.start
+      ? '(crosses the origin — use New feature… to preview its translation)'
+      : rangeTranslation(doc, range.start, range.end, strand) || '(shorter than one codon)';
   }
+  const added = new Set(edit?.added_feature_ids ?? []);
+  element('new-feature').hidden = range === null;
+  element('delete-feature').hidden = !(selected && added.has(selected));
+  element('dirty').hidden = !edit?.dirty;
+  document.title = `DNAagent — ${doc.name}${edit?.dirty ? ' •' : ''}`;
+  element<HTMLButtonElement>('undo').disabled = !edit?.can_undo;
+  element<HTMLButtonElement>('redo').disabled = !edit?.can_redo;
+  element<HTMLButtonElement>('save').disabled = !edit;
+  element<HTMLButtonElement>('save-as').disabled = !edit;
   if (activeTab === 'map') {
     const report = renderMap(element<HTMLElement>('map') as unknown as SVGSVGElement, doc, selected, select,
-      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf });
+      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf, range });
     unlabelled = { doc, ids: new Set(report.unlabelled) };
     const notice = element('map-notice');
     const count = unlabelled.ids.size;
@@ -131,6 +173,10 @@ function render() {
     const name = document.createElement('span'); name.dataset.testid = 'feature-name';
     name.textContent = feature.label || feature.kind;
     button.append(name, ` (${feature.strand})`);
+    if (added.has(feature.id)) {
+      const badge = document.createElement('span'); badge.className = 'badge added'; badge.dataset.testid = 'feature-added';
+      badge.textContent = 'added'; button.append(badge);
+    }
     if (unlabelledIds.has(feature.id)) {
       const badge = document.createElement('span'); badge.className = 'badge'; badge.dataset.testid = 'feature-unlabelled';
       badge.textContent = 'not labelled on map'; button.append(badge);
@@ -139,7 +185,7 @@ function render() {
     button.style.borderLeftColor = featureColor(feature);
     button.classList.toggle('selected', feature.id === selected);
     button.setAttribute('aria-pressed', String(feature.id === selected));
-    button.onclick = () => select(feature.id);
+    button.onclick = event => select(feature.id, event.shiftKey);
     list.append(button);
   }
   list.scrollTop = listScroll;
@@ -174,6 +220,8 @@ new ResizeObserver(() => {
   resizeFrame = requestAnimationFrame(() => { if (activeTab === 'map') render(); });
 }).observe(element('panel-map'));
 
+function shiftAnchor(next: { base: number }) { anchor = next; }
+
 // Drag across bases to select a range; a click without movement cycles features.
 let drag: { anchor: number; last: number } | null = null;
 let suppressClick = false;
@@ -207,6 +255,7 @@ window.addEventListener('mouseup', () => {
   setTimeout(() => { suppressClick = false; });
   range = { start: Math.min(anchor, last), end: Math.max(anchor, last) + 1 };
   selected = null; selectedOrf = null;
+  shiftAnchor({ base: range.start });
   render();
 });
 
@@ -224,13 +273,88 @@ element('sequence').onclick = event => {
   if (matches.length) select(matches[(matches.findIndex(f => f.id === selected) + 1) % matches.length].id);
 };
 
+const errorMessage = (error: unknown) => (error as Partial<Diagnostic>).message ?? String(error);
+
+/** Adopt a new session state (after an edit, undo/redo or save), keeping a valid selection. */
+function applyState(state: DocumentState, selectId?: string) {
+  current = state.document; edit = state.edit;
+  if (selectId !== undefined) { selected = selectId; selectedOrf = null; range = null; anchor = { feature: selectId }; }
+  if (selected && !current.features.some(f => f.id === selected)) selected = null;
+  if (selectedOrf && !current.orfs.some(o => o.id === selectedOrf)) selectedOrf = null;
+  render();
+}
+
+async function runEdit(label: string, action: () => Promise<DocumentState>) {
+  try {
+    applyState(await action());
+    element('status').textContent = label;
+  } catch (error) {
+    element('status').textContent = `${label} failed: ${errorMessage(error)}`;
+  }
+}
+
+function defaultSavePath(): string {
+  const source = edit?.saved_path ?? edit?.source_path ?? 'construct.dna';
+  return source.replace(/\.(dna|fa|fasta|fna|gbk|genbank|gb)$/i, '') + '.gb';
+}
+
+async function save(as: boolean) {
+  if (!edit) return;
+  const path = !as && edit.saved_path ? edit.saved_path : await pickSavePath(defaultSavePath());
+  if (!path) return;
+  try {
+    const result = await saveGenbank(edit.document_id, path);
+    applyState(result.state);
+    const notes = result.warnings.map(w => `${w.code}: ${w.message}`).join('; ');
+    element('status').textContent = `Saved GenBank to ${path}${notes ? ` — ${notes}` : ''}`;
+  } catch (error) {
+    element('status').textContent = `Save failed: ${errorMessage(error)}`;
+  }
+}
+
+function newFeature() {
+  if (!current || !edit || !range) return;
+  const documentId = edit.document_id;
+  openFeatureDialog({
+    documentId, start: range.start, end: range.end, length: current.sequence.length,
+    previousAdded: edit.added_feature_ids,
+    onAdded: (state, featureId) => { applyState(state, featureId); element('status').textContent = `Added ${featureId} (unsaved; Save writes GenBank)`; },
+  });
+}
+
+function deleteSelected() {
+  if (!edit || !selected || !edit.added_feature_ids.includes(selected)) return;
+  const [documentId, featureId] = [edit.document_id, selected];
+  void runEdit(`Deleted ${featureId}`, () => removeFeature(documentId, featureId));
+}
+
+element('undo').onclick = () => { if (edit?.can_undo) void runEdit('Undone', () => undo(edit!.document_id)); };
+element('redo').onclick = () => { if (edit?.can_redo) void runEdit('Redone', () => redo(edit!.document_id)); };
+element('save').onclick = () => void save(false);
+element('save-as').onclick = () => void save(true);
+element('new-feature').onclick = newFeature;
+element('delete-feature').onclick = deleteSelected;
+bindFeatureDialog(message => { element('status').textContent = `Add feature failed: ${message}`; });
+document.addEventListener('keydown', event => {
+  const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement;
+  if ((element<HTMLDialogElement>('feature-dialog')).open) return;
+  const command = event.metaKey || event.ctrlKey;
+  const key = event.key.toLowerCase();
+  if (command && key === 'z') { event.preventDefault(); (event.shiftKey ? element('redo') : element('undo')).click(); }
+  else if (command && key === 'y') { event.preventDefault(); element('redo').click(); }
+  else if (command && key === 's') { event.preventDefault(); void save(event.shiftKey); }
+  else if (!typing && !command && (event.key === 'Delete' || event.key === 'Backspace')) deleteSelected();
+});
+
 async function load(path: string) {
+  if (edit?.dirty && !window.confirm('Discard unsaved changes to the current construct?')) return;
   const request = ++revision;
   element('status').textContent = 'Loading…';
   try {
-    const result = await openDocument(path);
+    const state = await openDocument(path);
     if (request !== revision) return;
-    current = result; selected = null; selectedOrf = null; range = null;
+    const result = state.document;
+    current = result; edit = state.edit; selected = null; selectedOrf = null; range = null; anchor = null;
     element('primer-summary').textContent = `Imported primers: ${result.unplaced_primers.length} (unplaced)`;
     element('primer-list').replaceChildren();
     for (const primer of result.unplaced_primers) {
@@ -254,12 +378,11 @@ async function load(path: string) {
       });
       details.append(summary,explanation,messages); element('warnings').append(details);
     }
-    element('status').textContent = 'Read-only · Map and Sequence share feature selection · Unknown strands have no arrows · Click sequence bases to cycle overlapping features.';
+    element('status').textContent = 'Click a feature, shift-click another to select the span between, or drag across bases · New feature… adds an annotation · Save writes GenBank.';
     render();
   } catch (error) {
     if (request !== revision) return;
-    const diagnostic = error as Partial<Diagnostic>;
-    element('status').textContent = `Open failed: ${diagnostic.message ?? String(error)}. Previous document remains unchanged.`;
+    element('status').textContent = `Open failed: ${errorMessage(error)}. Previous document remains unchanged.`;
   }
 }
 
@@ -272,5 +395,5 @@ element('browse').onclick = async () => {
 };
 
 if (import.meta.env.MODE === 'e2e') {
-  void import('./testing/automation').then(automation => automation.install(() => ({current, selected, selectedOrf, range, options, activeTab})));
+  void import('./testing/automation').then(automation => automation.install(() => ({current, edit, selected, selectedOrf, range, options, activeTab})));
 }

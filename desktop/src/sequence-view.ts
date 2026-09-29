@@ -18,7 +18,7 @@ export interface SequenceContext {
   range: { start: number; end: number } | null;
   options: SequenceOptions;
   columns: number;
-  select: (id: string) => void;
+  select: (id: string, extend?: boolean) => void;
   selectOrf: (id: string) => void;
 }
 
@@ -64,7 +64,7 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
   const orfContains = (orf: Orf, base: number) => (base - orf.start + length) % length < orf.length;
   const highlighted = (base: number) => (activeFeature !== undefined && contains(activeFeature, base, length))
     || (activeOrf !== undefined && orfContains(activeOrf, base))
-    || (range !== null && base >= range.start && base < range.end);
+    || (range !== null && (range.start < range.end ? base >= range.start && base < range.end : base >= range.start || base < range.end));
   const byFeature = new Map(doc.translations.map(t => [t.feature_id, t]));
   const letters = new Map(doc.translations.map(t => [t.feature_id, translationLetters(t)]));
   const frames = options.showFrames ? doc.frames.map(frame => ({ frame, letters: frameLetters(frame) })) : [];
@@ -137,7 +137,7 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
         button.title = `${feature.label || feature.kind} · ${feature.strand} · ${feature.parts.map(p => `[${p.start}, ${p.start + p.length})`).join(', ')}`;
         button.setAttribute('aria-label', button.title);
         button.setAttribute('aria-pressed', String(feature.id === activeFeature?.id));
-        button.onclick = () => context.select(feature.id);
+        button.onclick = event => context.select(feature.id, event.shiftKey);
         grid.append(button);
       }
       const translation = byFeature.get(feature.id);

@@ -8,10 +8,10 @@ license.workspace = true
 dnagent-app = { path = "../dnagent-app" }
 dnagent-domain = { path = "../dnagent-domain" }
 serde.workspace = true
+serde_json.workspace = true
+dnagent-formats = { path = "../dnagent-formats" }
 ts-rs = "11"
 
-[dev-dependencies]
-serde_json.workspace = true
 
 [lints]
 workspace = true

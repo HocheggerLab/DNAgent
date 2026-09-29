@@ -1,37 +1,45 @@
-// e2e-only backend: replays `open_document` results serialised by Rust
-// (`cargo run -p dnagent-desktop-api --example export_recordings`). Never hand-edit
-// the recordings; `cargo test -p dnagent-desktop-api` fails when they are stale.
-import type { Diagnostic, Document } from '../bindings';
-import recordingsJson from '../../e2e/fixtures/recordings.json';
+// e2e-only backend: forwards every desktop command to the live Rust test server
+// (`cargo run -p dnagent-desktop-api --example e2e_server`) through the Vite proxy.
+// One server session per page load; pickers answer from queued test paths.
+import type { Diagnostic } from '../bindings';
 
-type Recording = { ok: Document } | { err: Diagnostic };
-// Optional, gitignored recordings of local (possibly private) files written by
-// `npm run review`. Scenarios can only name public fixtures, so they never depend on these.
-const local = import.meta.glob<Record<string, Recording>>('../../e2e/artifacts/local-review/recordings.json', { eager: true, import: 'default' });
-const recordings: Record<string, Recording> = Object.assign({}, ...Object.values(local), recordingsJson as unknown as Record<string, Recording>);
+const session = crypto.randomUUID();
 const delays = new Map<string, number>();
 const picks: (string | null)[] = [];
+const saves: (string | null)[] = [];
 
 /** Delay the next open of `path` once, to exercise stale-request handling. */
 export function setDelay(path: string, ms: number) { delays.set(path, ms); }
-
 /** Queue the path returned by the next Browse… picker call (null = cancelled). */
 export function queuePick(path: string | null) { picks.push(path); }
+/** Queue the path returned by the next Save-as dialog (null = cancelled). */
+export function queueSave(path: string | null) { saves.push(path); }
 
-export async function openDocument(path: string): Promise<Document> {
-  const delay = delays.get(path) ?? 0;
-  delays.delete(path);
-  if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-  const recording = recordings[path];
-  if (!recording) {
-    const known = Object.keys(recordings).join(', ');
-    throw { code: 'e2e_recording_missing', message: `no recording for ${path}; known: ${known}` } satisfies Diagnostic;
+const snake = (args: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(args).map(([key, value]) => [key.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`), value]));
+
+export async function invoke<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  const path = typeof args.path === 'string' ? args.path : '';
+  if (command === 'open_document' && delays.has(path)) {
+    const delay = delays.get(path)!;
+    delays.delete(path);
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
-  if ('err' in recording) throw structuredClone(recording.err);
-  return structuredClone(recording.ok);
+  const response = await fetch('/__dnagent/invoke', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ session, command, args: snake(args) }),
+  });
+  const body = await response.json() as { ok: boolean; value?: T; error?: Diagnostic };
+  if (!body.ok) throw body.error ?? { code: 'e2e_server', message: `HTTP ${response.status}` };
+  return body.value as T;
 }
 
 export async function pickConstructPath(): Promise<string | null> {
   if (!picks.length) throw new Error('e2e: Browse… clicked without a queued picker result');
   return picks.shift()!;
+}
+
+export async function pickSavePath(): Promise<string | null> {
+  if (!saves.length) throw new Error('e2e: Save as… clicked without a queued save path');
+  return saves.shift()!;
 }

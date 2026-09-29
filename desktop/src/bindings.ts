@@ -48,3 +48,29 @@ frames: Array<FrameTranslation>,
  * ORFs of at least `orf_min_codons`; the GUI may filter to longer ones.
  */
 orfs: Array<Orf>, orf_min_codons: number, };
+export type EditState = { document_id: number,
+/**
+ * Position in the edit history (0 = as opened).
+ */
+revision: number, can_undo: boolean, can_redo: boolean,
+/**
+ * Changes since opening or the last save.
+ */
+dirty: boolean,
+/**
+ * Features added in this session (the only ones that can be deleted).
+ */
+added_feature_ids: Array<string>, source_path: string,
+/**
+ * Last GenBank save of this session, if any.
+ */
+saved_path: string | null, };
+export type DocumentState = { document: Document, edit: EditState, };
+export type TranslateRequest = { table: number, codon_start: number, };
+export type FeatureRequest = { start: number, end: number, strand: Direction, kind: string, label: string, color: string | null, translate: TranslateRequest | null, };
+export type FeaturePreview = { length: number, parts: Array<Segment>,
+/**
+ * One letter per codon (stops as `*`), when translated.
+ */
+protein: string | null, warnings: Array<Diagnostic>, };
+export type SaveResult = { state: DocumentState, warnings: Array<Diagnostic>, };

@@ -915,6 +915,7 @@ version = "0.1.0"
 dependencies = [
  "dnagent-app",
  "dnagent-domain",
+ "dnagent-formats",
  "serde",
  "serde_json",
  "ts-rs",

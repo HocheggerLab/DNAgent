@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const desktop = resolve(import.meta.dirname, '..');
-const markers = ['__DNAGENT_TEST__', 'e2e_recording_missing', 'fixtures/formats/snapgene/synthetic_multipart_origin.dna'];
+const markers = ['__DNAGENT_TEST__', '/__dnagent/invoke', 'queued picker result'];
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap(name => {
