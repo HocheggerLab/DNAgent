@@ -63,7 +63,10 @@ be undone or redone. Records save as GenBank (`docs/genbank-records.md`); `.dna`
 read-only. A Rust `Session` in `dnagent-desktop-api` owns history, validation and saving.
 The Tauri shell holds one per window and issues commands (`open_document`,
 `preview_feature`, `add_feature`, `remove_feature`, `undo`, `redo`, `save_genbank`); the
-e2e test server runs the same session. Sequence bases, imported features and
+e2e test server runs the same session. Tabs hold several documents in one session.
+Agent handoff and workspace watching (`docs/agent-handoff.md`) use `write_handoff`,
+`poll_files`, `close_document` and `default_workspace`. There is still no shell in the app:
+agents run outside it and exchange GenBank files and `context.json` through the workspace. Sequence bases, imported features and
 multi-document projects are not editable. There is no assembly UI, jobs API or WASM. A native file picker supplements path entry. A 100,000-base viewer limit bounds DOM rendering after import;
 it does not impose an input-file byte limit. Rendering is intentionally unvirtualised.
 The map fills its panel and is re-laid out on resize. Features are outlined block

@@ -22,6 +22,12 @@ a CDS (with genetic code and codon start), which then shows its amino acids. Und
 **Save** / **Save as…** (⌘S) write GenBank, including everything DNAgent read from the
 original; `.dna` files are never modified. GenBank files open like `.dna` files.
 
+**Tabs and agent:** open several constructs; each tab keeps its own selection and undo
+history (⌘1–⌘9 switch). **Hand off to agent** (⇧⌘C) snapshots all tabs into the
+workspace (**Workspace…**, default `~/DNAgent`) and copies a prompt for your agent in a
+terminal. Files the agent writes there are offered as new tabs; changed open files reload.
+See [`../docs/agent-handoff.md`](../docs/agent-handoff.md).
+
 Appearance follows macOS light/dark mode; override it with the **Appearance** menu.
 The feature list collapses with **‹** so the map can use the whole window.
 

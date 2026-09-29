@@ -104,6 +104,8 @@ Every command dispatches the same event a user would. None of them sets app stat
   - `orf_regions`: `{strand, start, length}` rebuilt from the ORF tracks.
 - `map.orf_regions` (from the drawn arcs) and `map.undrawn_orfs` (the count in the notice).
 - `layout.sequence_columns` and `layout.sequence_fits_width` (Sequence tab only).
+- `tabs`: `[{document_id, name, path, dirty, active, shown_dirty}]` and `tab_count` (tabs in the bar).
+- `workspace`: `{path, shown, notices: [{kind: new|changed|conflict, path}], handoff: {open, prompt, context_path}}`.
 - `edit`: `{revision, can_undo, can_redo, dirty, added_feature_ids, saved_path, shown:
   {dirty, undo, redo, new_feature, delete_feature}}`. `shown` is what the controls
   display; the rest is the session's state.
@@ -167,8 +169,15 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `save_as: {path}` | Queue the save dialog's answer (under `desktop/e2e/artifacts/`) and click **Save as…**; later `equals_cli.saved` and `open.saved` use that file. |
 | `remember: {state, as, single?}` | Store a state value (e.g. the dialog's preview protein) for a later `equals_memory`. |
 
+| `set_workspace: path` | Choose the workspace through **Workspace…** (a folder under `desktop/e2e/artifacts/`, emptied first). |
+| `poll_workspace: true` | Run the app's workspace poll now (the function its timer runs). |
+| `run_cli: {args}` | Play the agent: run the real `dnagent` CLI from the repository root; it must succeed. |
+
 `select_feature` also takes `extend: true` (shift-click), `click` takes
-`modifiers: ["Shift"]`, and `open` takes `saved: true`.
+`modifiers: ["Shift"]`, and `open` takes `saved: true` or `file: <path under
+desktop/e2e/artifacts>`. CLI defaults and label lookups follow the **active tab's** file
+when it is repo-relative. Only committed `fixtures/` results are cached; files that change
+during a scenario are re-run every time.
 | `expect: [...]` | Assertions against one `getState()` snapshot; every failure in the step is reported. |
 
 Selection, tab and base-click steps don't wait for idle: they issue no request and
@@ -201,7 +210,10 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
   `orfs`. `args` are extra CLI arguments, e.g. `["--feature", "feature-0001"]` or
   `["--min-codons", "30"]`.
 - `equals_memory: <name>`: a value stored by an earlier `remember` step.
-- `equals_cli.saved: true` runs the CLI on the file written by the last `save_as`.
+- `equals_cli.saved: true` runs the CLI on the file written by the last `save_as`, and
+  `equals_cli.file` on any file under `desktop/e2e/artifacts` (snapshots, agent products).
+- `equals_json_file: {file, path | one}`: a value from a JSON file the app wrote (e.g.
+  `handoff/context.json`).
 - `single: true` on an assertion makes a filtered state path match exactly one value
   and compares it unwrapped, e.g. `selection.sequence.frames[?(@.frame=='+1')].protein`.
 - `equals_state: <path>`: another path in the same snapshot.
@@ -319,6 +331,20 @@ and GenBank bugs are therefore visible to the scenarios as well as to the unit t
 | Delete offered for imported features | undo-redo-delete |
 | ⇧⌘Z undoes instead of redoing | undo-redo-delete |
 | Unsaved indicator never shown | shift-click-translated-feature |
+
+Fifth round, tabs and agent handoff (2026-09-29):
+
+| Injected bug | Caught by |
+| --- | --- |
+| Switching tabs does not restore the selection | tabs-isolation |
+| Undo history leaks between tabs | tabs-isolation (and six others) |
+| Handoff snapshots omit unsaved edits | desktop-api unit tests, agent-handoff-product |
+| The handoff folder is watched | desktop-api unit tests, agent-handoff-product |
+| A dirty tab reloads over unsaved edits | workspace-reload |
+| A clean tab never reloads | workspace-reload |
+| Reopening an open file adds a duplicate tab | tabs-isolation (after replacing a tautological check with `tab_count`) |
+| Handoff sends the active tab's selection for every tab | agent-handoff-product |
+| The test server lacks a command | desktop-api dispatch test (added after this happened for real), agent-handoff-product, workspace-reload |
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the

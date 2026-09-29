@@ -112,6 +112,14 @@ dnagent annotate construct.gb --out construct.gb --add --range 1250..6188 --labe
 
 See [GenBank records](docs/genbank-records.md).
 
+### Tabs and agent handoff
+
+The desktop app opens several constructs in tabs. **Hand off to agent** writes GenBank
+snapshots of every tab (unsaved edits included) and a `context.json` with selections into
+the workspace (`~/DNAgent/handoff/`), and copies a prompt for an agent running in a
+terminal. GenBank files the agent writes into `~/DNAgent` are offered as new tabs, and
+changed open files reload. See [agent handoff](docs/agent-handoff.md).
+
 ### Translation and ORFs
 
 `dnagent translate` translates a feature (honouring joins, origin crossings, `codon_start`
