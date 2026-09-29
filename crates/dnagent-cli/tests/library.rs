@@ -314,3 +314,67 @@ fn a_missing_library_is_a_structured_error() {
         "querying must not create a library"
     );
 }
+
+#[test]
+fn variant_families_list_once_and_can_be_split() {
+    let scratch = Scratch::new("families");
+    let db = scratch.db();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/formats/genbank/synthetic_variants.gb");
+    assert!(
+        run(&["library", "--db", &db, "import", fixture.to_str().unwrap()])
+            .status
+            .success()
+    );
+    let families = json(&run(&["library", "--db", &db, "list", "--output", "json"]));
+    let rows = families["result"].as_array().unwrap();
+    let element = rows
+        .iter()
+        .find(|f| f["name"] == "variant element")
+        .unwrap();
+    assert_eq!(
+        element["variants"].as_u64(),
+        Some(1),
+        "the 270 bp version is a variant of the 300 bp one"
+    );
+    assert!(
+        rows.iter().all(|f| f["name"] != "variant element short"),
+        "variants are listed under their family"
+    );
+    assert!(
+        rows.iter().any(|f| f["name"] == "nested motif"),
+        "a much shorter nested part is its own family"
+    );
+    let all = json(&run(&[
+        "library", "--db", &db, "list", "--all", "--output", "json",
+    ]));
+    let short = all["result"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "variant element short")
+        .unwrap()
+        .clone();
+    assert_eq!(short["family_id"], element["id"]);
+    let id = short["id"].as_i64().unwrap().to_string();
+    let split = json(&run(&[
+        "library",
+        "--db",
+        &db,
+        "edit",
+        &id,
+        "--standalone",
+        "--output",
+        "json",
+    ]));
+    assert_eq!(split["result"]["grouping"], "standalone");
+    assert_eq!(
+        split["result"]["family_id"], short["id"],
+        "split off into its own family"
+    );
+    let info = json(&run(&["library", "--db", &db, "info", "--output", "json"]));
+    assert_eq!(
+        info["result"]["families"].as_u64(),
+        info["result"]["features"].as_u64()
+    );
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "detect-features-variants",
+  "description": "Shorter library variants of a feature are folded into its longer match (one row, 'shorter variant' note), yet a short variant on its own is still detected",
+  "fixture": "fixtures/formats/fasta/synthetic_variants_target.fasta",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "click": {
+        "testid": "detect-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.rows",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_rows"
+          },
+          "message": "one row per place and family, with folded variant counts"
+        },
+        {
+          "state": "detect.checked",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "default_detections"
+          }
+        },
+        {
+          "state": "detect.map",
+          "equals_cli": {
+            "command": "detect-features",
+            "path": "result.matches",
+            "transform": "detection_spans_new"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "remember": {
+        "state": "detect.unticked_new_names",
+        "as": "unticked"
+      }
+    },
+    {
+      "click": {
+        "testid": "detect-add"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "detect.new_names",
+          "equals_memory": "unticked",
+          "message": "the ticked rows (full element, lone short variant, unrelated part) were added"
+        }
+      ]
+    }
+  ]
+}

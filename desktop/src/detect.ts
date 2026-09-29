@@ -35,6 +35,7 @@ export function renderDetection(target: HTMLElement, detection: Detection, handl
     row.className = `detect-row${p.annotated_as.length ? ' annotated' : ''}`;
     row.dataset.testid = 'detect-row'; row.dataset.key = p.key; row.dataset.libraryId = String(p.library_id);
     row.dataset.start = String(p.start); row.dataset.length = String(p.length); row.dataset.strand = p.strand;
+    row.dataset.variants = String(p.variants);
     const box = document.createElement('input'); box.type = 'checkbox'; box.dataset.testid = 'detect-check';
     box.checked = checked.has(p.key); box.setAttribute('aria-label', `Add ${p.name}`);
     box.onchange = () => handlers.toggle(p.key);
@@ -44,6 +45,7 @@ export function renderDetection(target: HTMLElement, detection: Detection, handl
     const detail = document.createElement('span'); detail.className = 'detail';
     const outer = p.contained_in ? byKey.get(p.contained_in) : undefined;
     detail.textContent = [p.kind, `${p.length.toLocaleString()} bp`, where(p),
+      p.variants ? `+${p.variants} shorter variant${p.variants === 1 ? '' : 's'}` : '',
       p.annotated_as.length ? 'already annotated' : '', outer ? `inside ${outer.name}` : ''].filter(Boolean).join(' · ');
     label.append(name, detail);
     label.title = 'Select on the map and sequence';

@@ -1,0 +1,22 @@
+LOCUS       synthetic_variants       490 bp    DNA     linear   SYN 30-SEP-2026
+DEFINITION  Synthetic feature variants for DNAgent library tests.
+FEATURES             Location/Qualifiers
+     misc_feature    41..340
+                     /label=variant element
+     misc_feature    56..325
+                     /label=variant element short
+     protein_bind    141..160
+                     /label=nested motif
+     misc_feature    391..450
+                     /label=unrelated part
+ORIGIN
+        1 agagtttgtt tcttacgagc ccttccggct tgctgctaac ttcgtaagtt aatacgatga
+       61 tacagtaccg gtgccatatg gagcgggcac ggttggtagg aagcgttaag aggaacaatt
+      121 ttcggaggga agatcgctaa agattcgata tacgaagaca cagcttgctt ccatattcca
+      181 atatggcttc atttagtccc atattcgacc gtgccacgtg cgattagctc gcttcagaat
+      241 taggtgaccc caatacttca caaggtgtcg tcagctccct ttgatcaacc gcaggacggc
+      301 gacttgatac tcaagaagtt aacatactaa acctgaataa caagggcttg atcggcactt
+      361 tgatcgaacc tgggcctctg acgcgtacgt tctgcacagg tgtgaaatac gacatatttc
+      421 gccgattaca taagggccag ggttcctcct gctgtcataa gaactctgcc atcactctgt
+      481 taacaaatct
+//

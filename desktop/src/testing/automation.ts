@@ -123,7 +123,7 @@ export interface AppState {
   detect: null | {
     available: boolean; summary: string; add_label: string;
     /** Rows in panel order: library id, displayed name, span, strand and badges. */
-    rows: { library_id: number; name: string; start: number; length: number; strand: string; annotated: boolean; contained: boolean }[];
+    rows: { library_id: number; name: string; start: number; length: number; strand: string; annotated: boolean; contained: boolean; variants: number }[];
     /** Ticked rows as {library_id, start}. */
     checked: { library_id: number; start: number }[];
     /** Names of rows not yet annotated. */
@@ -196,6 +196,8 @@ function detectState(panels: string[]): AppState['detect'] {
     start: Number(row.dataset.start), length: Number(row.dataset.length), strand: row.dataset.strand ?? '',
     annotated: row.classList.contains('annotated'),
     contained: (row.querySelector('.detail')?.textContent ?? '').includes(' inside '),
+    // As displayed: "+N shorter variants".
+    variants: Number(/\+(\d+) shorter variant/.exec(row.querySelector('.detail')?.textContent ?? '')?.[1] ?? 0),
   }));
   const ticked = byTestId('detect-row').map(row => (row.querySelector('input') as HTMLInputElement).checked);
   const arcs = [...document.querySelectorAll<SVGElement>('#map [data-testid="map-proposal"]')]

@@ -499,7 +499,7 @@ mod tests {
             .parent()
             .unwrap()
             .join("../genbank/pUC19_M77789.gb");
-        dnagent_app::library::import_into_library(&mut library, &[genbank], 12).unwrap();
+        dnagent_app::library::import_into_library(&mut library, &[genbank], 12, false).unwrap();
         let mut session = Session::default();
         let fasta = fixture("pUC19_M77789.dna")
             .parent()

@@ -3,7 +3,7 @@ use crate::{OutputMode, load_input, print_json};
 use clap::{Args, Subcommand};
 use dnagent_app::library::{
     DEFAULT_MIN_LENGTH, Detection, FileOutcome, LibraryImport, detect_features,
-    import_into_library, library_path,
+    import_into_library, library_path, open_library, refresh_families,
 };
 use dnagent_formats::ImportWarning;
 use dnagent_library::Library;
@@ -27,6 +27,9 @@ pub enum LibraryCommand {
         /// Skip features shorter than this many bases.
         #[arg(long, default_value_t = DEFAULT_MIN_LENGTH)]
         min_length: usize,
+        /// Re-read unchanged files too (after DNAgent's collection rules change); curated edits are kept.
+        #[arg(long)]
+        rescan: bool,
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
@@ -35,8 +38,11 @@ pub enum LibraryCommand {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
-    /// List features, most often seen first.
+    /// List variant families (one row each, with a variant count), most often seen first.
     List {
+        /// Every feature, not only family heads.
+        #[arg(long)]
+        all: bool,
         /// Case-insensitive substring of the name or any alias.
         #[arg(long)]
         search: Option<String>,
@@ -70,6 +76,12 @@ pub enum LibraryCommand {
         hide: bool,
         #[arg(long)]
         unhide: bool,
+        /// Keep out of variant families (e.g. a homology arm inside an exon).
+        #[arg(long, conflicts_with = "grouped")]
+        standalone: bool,
+        /// Allow grouping into a variant family again (the default).
+        #[arg(long)]
+        grouped: bool,
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
@@ -162,32 +174,25 @@ pub fn run_library(
         LibraryCommand::Import {
             inputs,
             min_length,
+            rescan,
             output,
         } => {
             let mut library = Library::open_or_create(&path)?;
-            let report = import_into_library(&mut library, &inputs, min_length)?;
+            let report = import_into_library(&mut library, &inputs, min_length, rescan)?;
             match output {
                 OutputMode::Json => print_json(name, &report, warnings)?,
                 OutputMode::Text => print_import_text(&report)?,
             }
         }
         LibraryCommand::Info { output } => {
-            let info = Library::open(&path)?.info()?;
+            let info = open_library(&path)?.info()?;
             match output {
                 OutputMode::Json => print_json(name, &info, warnings)?,
-                OutputMode::Text => println!(
-                    "{}\nschema {}\n{} features ({} curated, {} hidden) from {} files, {} occurrences",
-                    info.path,
-                    info.schema_version,
-                    info.features,
-                    info.curated,
-                    info.hidden,
-                    info.sources,
-                    info.occurrences
-                ),
+                OutputMode::Text => print_info_text(&info),
             }
         }
         LibraryCommand::List {
+            all,
             search,
             kind,
             include_hidden,
@@ -196,10 +201,13 @@ pub fn run_library(
         } => list(
             &path,
             name,
-            search.as_deref(),
-            kind.as_deref(),
-            include_hidden,
-            limit,
+            &Query {
+                search: search.as_deref(),
+                kind: kind.as_deref(),
+                include_hidden,
+                all,
+                limit,
+            },
             output,
             warnings,
         )?,
@@ -210,10 +218,13 @@ pub fn run_library(
         } => list(
             &path,
             name,
-            Some(&text),
-            None,
-            false,
-            limit,
+            &Query {
+                search: Some(&text),
+                kind: None,
+                include_hidden: false,
+                all: false,
+                limit,
+            },
             output,
             warnings,
         )?,
@@ -223,30 +234,30 @@ pub fn run_library(
             kind,
             hide,
             unhide,
+            standalone,
+            grouped,
             output,
         } => {
-            let hidden = (hide || unhide).then_some(hide);
-            let detail = Library::open(&path)?.edit(
-                id,
-                &dnagent_library::Edit {
-                    name: new_name,
-                    kind,
-                    hidden,
-                },
-            )?;
+            let edit = dnagent_library::Edit {
+                name: new_name,
+                kind,
+                hidden: (hide || unhide).then_some(hide),
+                standalone: (standalone || grouped).then_some(standalone),
+            };
+            let detail = apply_edit(&path, id, &edit)?;
             match output {
                 OutputMode::Json => print_json(name, &detail, warnings)?,
-                OutputMode::Text => println!(
-                    "{}\t{}\t{}\t{}",
-                    detail.summary.id,
-                    detail.summary.name,
-                    detail.summary.kind,
-                    detail.summary.status
-                ),
+                OutputMode::Text => {
+                    let s = &detail.summary;
+                    println!(
+                        "{}\t{}\t{}\t{}\t{}",
+                        s.id, s.name, s.kind, s.status, s.grouping
+                    );
+                }
             }
         }
         LibraryCommand::Show { id, output } => {
-            let detail = Library::open(&path)?.show(id)?;
+            let detail = open_library(&path)?.show(id)?;
             match output {
                 OutputMode::Json => print_json(name, &detail, warnings)?,
                 OutputMode::Text => print_show_text(&detail),
@@ -256,6 +267,31 @@ pub fn run_library(
     Ok(())
 }
 
+fn print_info_text(info: &dnagent_library::LibraryInfo) {
+    println!(
+        "{}\nschema {}\n{} features in {} families ({} curated, {} hidden) from {} files, {} occurrences",
+        info.path,
+        info.schema_version,
+        info.features,
+        info.families,
+        info.curated,
+        info.hidden,
+        info.sources,
+        info.occurrences
+    );
+}
+
+fn apply_edit(
+    path: &std::path::Path,
+    id: i64,
+    edit: &dnagent_library::Edit,
+) -> Result<dnagent_library::FeatureDetail, Box<dyn std::error::Error>> {
+    let mut library = open_library(path)?;
+    library.edit(id, edit)?;
+    refresh_families(&mut library)?;
+    Ok(library.show(id)?)
+}
+
 fn print_show_text(detail: &dnagent_library::FeatureDetail) {
     let s = &detail.summary;
     println!("{}\t{}\t{} bp\t{}", s.id, s.name, s.length, s.kind);
@@ -263,36 +299,61 @@ fn print_show_text(detail: &dnagent_library::FeatureDetail) {
         println!("also: {}", s.aliases.join(", "));
     }
     println!("{}", detail.sequence);
+    for member in &detail.family {
+        let role = if member.id == member.family_id {
+            "family head"
+        } else {
+            "variant"
+        };
+        println!(
+            "{role}\t{}\t{}\t{} bp",
+            member.id, member.name, member.length
+        );
+    }
     for seen in &detail.seen_in {
         let direction = if seen.reversed { "reverse" } else { "forward" };
         println!("{}\t{}\t{direction}", seen.source_path, seen.label);
     }
 }
 
-#[allow(clippy::too_many_arguments)] // one call per list-style subcommand
+struct Query<'a> {
+    search: Option<&'a str>,
+    kind: Option<&'a str>,
+    include_hidden: bool,
+    all: bool,
+    limit: Option<usize>,
+}
+
 fn list(
     path: &std::path::Path,
     name: &'static str,
-    search: Option<&str>,
-    kind: Option<&str>,
-    include_hidden: bool,
-    limit: Option<usize>,
+    query: &Query<'_>,
     output: OutputMode,
     warnings: &[ImportWarning],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let features = Library::open(path)?.list(search, kind, include_hidden, limit)?;
+    let library = open_library(path)?;
+    let features = if query.all {
+        library.list(query.search, query.kind, query.include_hidden, query.limit)?
+    } else {
+        library.families(query.search, query.kind, query.include_hidden, query.limit)?
+    };
     match output {
         OutputMode::Json => print_json(name, &features, warnings)?,
         OutputMode::Text => {
-            println!("id\tname\tkind\tlength\tseen\taliases");
+            println!("id\tname\tkind\tlength\tseen\tvariants\taliases");
             for f in features {
                 println!(
-                    "{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}",
                     f.id,
                     f.name,
                     f.kind,
                     f.length,
-                    f.occurrences,
+                    if query.all {
+                        f.occurrences
+                    } else {
+                        f.family_occurrences
+                    },
+                    f.variants,
                     f.aliases.join(", ")
                 );
             }
@@ -307,11 +368,24 @@ pub fn run_detect(
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json = matches!(args.output, OutputMode::Json);
-    let library = Library::open(&args.db.unwrap_or_else(library_path))?;
+    let library = open_library(&args.db.unwrap_or_else(library_path))?;
     let report = load_input(&args.input, strict, json, warnings)?;
     let mut matches = detect_features(&report.record, &library.entries()?, args.min_length)?;
     if args.new_only {
+        // Keep `superseded_by` pointing at the same match after filtering.
+        let kept: Vec<Option<usize>> = matches
+            .iter()
+            .scan(0, |next, m| {
+                Some(m.annotated_as.is_empty().then(|| {
+                    *next += 1;
+                    *next - 1
+                }))
+            })
+            .collect();
         matches.retain(|m| m.annotated_as.is_empty());
+        for m in &mut matches {
+            m.superseded_by = m.superseded_by.and_then(|i| kept[i]);
+        }
     }
     let detection = Detection {
         library: library.info()?,
@@ -323,10 +397,19 @@ pub fn run_detect(
     match args.output {
         OutputMode::Json => print_json("detect-features", &detection, warnings)?,
         OutputMode::Text => {
-            println!("start\tlength\tstrand\tname\tkind\tannotated");
+            println!("start\tlength\tstrand\tname\tkind\tannotated\tvariant of");
             for m in &detection.matches {
+                let variant_of = m
+                    .superseded_by
+                    .map(|i| {
+                        format!(
+                            "{} ({} bp)",
+                            detection.matches[i].name, detection.matches[i].length
+                        )
+                    })
+                    .unwrap_or_default();
                 println!(
-                    "{}\t{}\t{:?}\t{}\t{}\t{}",
+                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{variant_of}",
                     m.location.parts()[0].start().get(),
                     m.length,
                     m.strand,

@@ -202,11 +202,18 @@ export function siteEnzymes(value: unknown): string[] {
   return [...new Set(sitesResult(value).sites.map(site => site.enzyme))].sort(byName);
 }
 
-interface CliMatch { library_id: number; name: string; strand: string; length: number; annotated_as: string[]; location: { parts: CliRegion[] } }
+interface CliMatch { library_id: number; name: string; strand: string; length: number; annotated_as: string[]; location: { parts: CliRegion[] }; superseded_by: number | null }
 
+/** Matches the panel lists: shorter variants folded into their family's longer match. */
 function matchesOf(value: unknown): CliMatch[] {
   if (!Array.isArray(value)) throw new TransformError('expected the detect-features matches array (path "result.matches")');
-  return value as CliMatch[];
+  return (value as CliMatch[]).filter(m => m.superseded_by === null);
+}
+
+/** How many matches were folded into each listed one. */
+function variantCounts(value: unknown): Map<CliMatch, number> {
+  const all = value as CliMatch[];
+  return new Map(all.filter(m => m.superseded_by === null).map(m => [m, all.filter(v => v.superseded_by !== null && all[v.superseded_by] === m).length]));
 }
 
 const matchStart = (m: CliMatch) => m.location.parts[0].start;
@@ -220,8 +227,9 @@ function containedIn(inner: CliMatch, all: CliMatch[], moleculeLength: number): 
 /** Matches → panel rows (engine order): id, name, span, strand, annotated, nested. */
 export function detectionRows(value: unknown, moleculeLength: number) {
   const all = matchesOf(value);
+  const variants = variantCounts(value);
   return all.map(m => ({ library_id: m.library_id, name: m.name, start: matchStart(m), length: m.length, strand: m.strand,
-    annotated: m.annotated_as.length > 0, contained: containedIn(m, all, moleculeLength) }));
+    annotated: m.annotated_as.length > 0, contained: containedIn(m, all, moleculeLength), variants: variants.get(m) ?? 0 }));
 }
 
 /** Ticked by default: not annotated and not nested in a longer match → [{library_id, start}]. */

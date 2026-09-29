@@ -281,7 +281,7 @@ Transforms (`e2e/lib/transforms.ts`) are format adapters in test code only:
 | `site_cuts` | `sites` result → `{top, bottom}` cut boundaries that have a base after them |
 | `recognition_range` | one site → the half-open selection range of its recognition sequence (wrapping on circles) |
 | `fragment_parts` | `digest` fragments → top-strand `[{start, length}]` by start |
-| `detection_rows` | `detect-features` matches → panel rows `{library_id, name, start, length, strand, annotated, contained}` (contained: inside a longer match, circular-aware) |
+| `detection_rows` | `detect-features` matches → panel rows `{library_id, name, start, length, strand, annotated, contained, variants}`: superseded variants folded (counted in `variants`); contained = inside a longer listed match, circular-aware. All detection transforms list only unfolded matches. |
 | `default_detections` | matches → `[{library_id, start}]` of new, un-nested matches (the default ticks) |
 | `detection_spans_new` | matches → `[{start, length}]` of new matches, by start then longer first (the map arcs) |
 | `{name: "detection_range", label}` | matches → selection range of the first match with that name |
@@ -416,6 +416,10 @@ Seventh round, detect features (2026-09-30):
 Eighth round, delete with a warning (2026-09-30): Cancel still deletes; deletes
 without asking; Escape confirms. All caught by undo-redo-delete and
 delete-and-readd-from-library.
+
+Ninth round, variant families (2026-09-30): the desktop lists folded variants (caught by
+detect-features-variants); no length cut-off, so nested parts become variants (caught by
+the desktop-api/app unit test and check_feature_library.py).
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the

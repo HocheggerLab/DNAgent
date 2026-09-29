@@ -98,7 +98,11 @@ contained_in: string | null,
 /**
  * NCBI table and codon start from the library entry, for CDS proposals.
  */
-translate: [number, number] | null, };
+translate: [number, number] | null,
+/**
+ * Shorter variants of the same library family that also match here (not listed).
+ */
+variants: number, };
 export type DetectionResult = {
 /**
  * False when there is no library yet (see `message`).

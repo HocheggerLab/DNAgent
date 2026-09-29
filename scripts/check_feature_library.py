@@ -10,7 +10,7 @@ file names of disagreements), then:
 
 - parses every file with Biopython 1.85 and applies the documented collection rules
   (docs/feature-library.md) to its features: skip `source`, whole-molecule, shorter than
-  12 bp, unnamed/placeholder and sequence-as-name features, and any with a non-ACGT base;
+  12 bp, unnamed/placeholder (incl. no letters or digits, "(null)…") and sequence-as-name features, and any with a non-ACGT base;
   a feature's sequence is Biopython's `extract` (joins, strands, origin wrap);
 - requires the library to hold exactly those sequences (identity = the smaller of the
   sequence and its reverse complement), with the same occurrence counts and the most
@@ -62,7 +62,7 @@ def label_of(feature) -> str:
 def generic(label: str, kind: str) -> bool:
     name = label.strip().lower()
     stem = name.rstrip("0123456789 #\t")
-    return not name or name == kind.lower() or stem in GENERIC
+    return not name or not any(c.isalnum() for c in name) or name.startswith("(null)") or name == kind.lower() or stem in GENERIC
 
 
 def sniff(path: Path) -> str | None:
@@ -183,6 +183,23 @@ def brute_force(sequence: str, circular: bool, query: str) -> set[tuple[int, str
 BINARY = Path("target/debug/dnagent")
 
 
+def families(sequences: dict[int, str]) -> dict[int, int]:
+    """Documented rule: longest first; join the longest head containing the sequence (either
+    strand) when at least 80 % of its length, else head a family. No features are standalone
+    in a fresh library."""
+    heads: list[int] = []
+    head_of = {}
+    for fid in sorted(sequences, key=lambda f: (-len(sequences[f]), f)):
+        seq = sequences[fid]
+        rev = str(Seq(seq).reverse_complement())
+        head = next((h for h in heads if len(sequences[h]) > len(seq) and 5 * len(seq) >= 4 * len(sequences[h])
+                     and (seq in sequences[h] or rev in sequences[h])), None)
+        if head is None:
+            heads.append(fid)
+        head_of[fid] = head if head is not None else fid
+    return head_of
+
+
 def check(binary: Path, source: Path, private: bool) -> str:
     with tempfile.TemporaryDirectory(prefix="dnagent-library-check-") as scratch:
         db = str(Path(scratch) / "features.sqlite")
@@ -216,7 +233,15 @@ def check(binary: Path, source: Path, private: bool) -> str:
             if stored[key] != (name, len(labels)):
                 disagreements.append(f"feature {stored[key][0]!r}: stored (name, occurrences) {stored[key]}, expected {(name, len(labels))}")
         entries = [(fid, sequence, bool(stranded)) for fid, _, _, sequence, stranded, _ in rows if len(sequence) >= MIN_LENGTH]
-        scans = matches = 0
+        # Variant families, recomputed from the stored sequences.
+        cli(binary, "library", "--db", db, "info")  # brings families up to date
+        stored_heads = dict(connection.execute("SELECT id, coalesce(family_id, id) FROM features WHERE status != 'hidden'").fetchall())
+        expected_heads = families({fid: sequence for fid, _, _, sequence, _, _ in rows})
+        if stored_heads != expected_heads:
+            wrong = [fid for fid in expected_heads if stored_heads.get(fid) != expected_heads[fid]]
+            disagreements.append(f"families differ for {len(wrong)} features")
+        family_count = len(set(expected_heads.values()))
+        scans = matches = superseded = 0
         for path in imported:
             result = cli(binary, "detect-features", str(path), "--db", db)
             ours = {(m["library_id"], m["location"]["parts"][0]["start"], m["length"], m["strand"]) for m in result["matches"]}
@@ -227,6 +252,16 @@ def check(binary: Path, source: Path, private: bool) -> str:
                          for fid, query, stranded in entries for start, strand in brute_force(sequence, circular, query)}
             if ours != reference:
                 disagreements.append(f"{path.name}: detect-features differs from brute force ({len(ours - reference)} extra, {len(reference - ours)} missing)")
+            # A match is superseded by the longest match of its family whose span contains it.
+            listed = result["matches"]
+            spans = [(m["location"]["parts"][0]["start"], m["length"]) for m in listed]
+            for i, m in enumerate(listed):
+                inside = [j for j in range(len(listed)) if j != i and expected_heads[listed[j]["library_id"]] == expected_heads[m["library_id"]]
+                          and spans[j][1] > spans[i][1] and (spans[i][0] - spans[j][0]) % len(sequence) + spans[i][1] <= spans[j][1]]
+                expected = max(inside, key=lambda j: (spans[j][1], -j)) if inside else None
+                if m["superseded_by"] != expected:
+                    disagreements.append(f"{path.name}: {m['name']} at {spans[i][0]} superseded_by {m['superseded_by']}, expected {expected}")
+                superseded += expected is not None
             scans += 1
             matches += len(ours)
         if disagreements:
@@ -234,7 +269,8 @@ def check(binary: Path, source: Path, private: bool) -> str:
         where = "private collection" if private else "public fixtures"
         return (f"{where}: {len(imported)} files imported ({len(failed)} failed, as for Biopython), {len(stored)} library features "
                 f"from {sum(c for _, c in stored.values())} occurrences agree with Biopython; {scans} detect-features scans "
-                f"({matches} matches) equal an independent brute-force search")
+                f"({matches} matches) equal an independent brute-force search; {family_count} variant families and "
+                f"{superseded} folded variant matches agree with an independent grouping")
 
 
 def main() -> None:

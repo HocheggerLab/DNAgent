@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// Bump with a migration when the schema changes.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS features (
     color TEXT,
     qualifiers TEXT NOT NULL,        -- JSON [{key, value|null}, ...] of the representative occurrence
     stranded INTEGER NOT NULL DEFAULT 1, -- most occurrences have a strand (directional feature)
+    family_id INTEGER,               -- the family head (itself for heads); set by the app layer
+    grouping TEXT NOT NULL DEFAULT 'auto' CHECK (grouping IN ('auto', 'standalone')),
     status TEXT NOT NULL DEFAULT 'imported' CHECK (status IN ('imported', 'curated', 'hidden'))
 );
 CREATE TABLE IF NOT EXISTS sources (
@@ -121,6 +123,8 @@ pub struct LibraryInfo {
     pub path: String,
     pub schema_version: u32,
     pub features: u64,
+    /// Variant families among visible features (a feature without variants is its own family).
+    pub families: u64,
     pub curated: u64,
     pub hidden: u64,
     pub sources: u64,
@@ -140,6 +144,14 @@ pub struct FeatureSummary {
     pub aliases: Vec<String>,
     pub occurrences: u64,
     pub sources: u64,
+    /// The family head's id (the feature's own id for a head).
+    pub family_id: i64,
+    /// Other visible members of the family (0 for members).
+    pub variants: u64,
+    /// Occurrences of the whole family (heads; equals `occurrences` for members).
+    pub family_occurrences: u64,
+    /// `auto`, or `standalone` (never grouped into a family).
+    pub grouping: String,
 }
 
 /// Where a feature was seen.
@@ -163,6 +175,8 @@ pub struct FeatureDetail {
     pub sequence: String,
     pub qualifiers: Vec<Qualifier>,
     pub seen_in: Vec<OccurrenceView>,
+    /// The other members of its family (head first), shortest last.
+    pub family: Vec<FeatureSummary>,
 }
 
 /// What detection needs: every feature that is not hidden.
@@ -175,6 +189,8 @@ pub struct Entry {
     pub sequence: String,
     /// Directional: matches report a strand. Otherwise the strand is unknown.
     pub stranded: bool,
+    /// Family head (the entry's own id for heads).
+    pub family_id: i64,
     pub qualifiers: Vec<Qualifier>,
 }
 
@@ -185,6 +201,16 @@ pub struct Edit {
     pub name: Option<String>,
     pub kind: Option<String>,
     pub hidden: Option<bool>,
+    /// Keep out of variant families (e.g. a homology arm inside an exon).
+    pub standalone: Option<bool>,
+}
+
+/// A visible feature, for computing families.
+#[derive(Debug, Clone)]
+pub struct FamilyInput {
+    pub id: i64,
+    pub sequence: String,
+    pub standalone: bool,
 }
 
 pub struct Library {
@@ -244,7 +270,12 @@ impl Library {
                 )
                 .optional()
                 .map_err(sql)?;
-            if version.as_deref() != Some(&SCHEMA_VERSION.to_string()) {
+            if version.as_deref() == Some("1") {
+                library
+                    .connection
+                    .execute_batch(&format!("BEGIN; {MIGRATE_1_TO_2} COMMIT;"))
+                    .map_err(sql)?;
+            } else if version.as_deref() != Some(&SCHEMA_VERSION.to_string()) {
                 return Err(LibraryError::Version {
                     path: path.display().to_string(),
                     found: version.unwrap_or_else(|| "none".into()),
@@ -254,7 +285,7 @@ impl Library {
             library.connection.execute_batch(SCHEMA).map_err(sql)?;
             library
                 .connection
-                .execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?1), ('format', 'dnagent-feature-library')", params![SCHEMA_VERSION.to_string()])
+                .execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?1), ('format', 'dnagent-feature-library'), ('families', 'current')", params![SCHEMA_VERSION.to_string()])
                 .map_err(sql)?;
         } else {
             return Err(LibraryError::Version {
@@ -286,6 +317,7 @@ impl Library {
         record_name: &str,
         imported: i64,
         candidates: &[Candidate],
+        rescan: bool,
     ) -> Result<SourceOutcome, LibraryError> {
         let error_path = self.path.display().to_string();
         let sql = |source| LibraryError::Sqlite {
@@ -301,7 +333,8 @@ impl Library {
             )
             .optional()
             .map_err(sql)?;
-        if let Some(existing) = by_hash {
+        // `rescan` re-reads an unchanged file (e.g. after the collection rules changed).
+        if let Some(existing) = by_hash.filter(|existing| !(rescan && existing == path)) {
             return Ok(if existing == path {
                 SourceOutcome::Unchanged
             } else {
@@ -347,6 +380,11 @@ impl Library {
             .map_err(sql)?;
         }
         refresh(&tx).map_err(sql)?;
+        tx.execute(
+            "INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'stale')",
+            [],
+        )
+        .map_err(sql)?;
         tx.commit().map_err(sql)?;
         Ok(SourceOutcome::Imported {
             occurrences: candidates.len(),
@@ -366,6 +404,9 @@ impl Library {
             path: self.path.display().to_string(),
             schema_version: SCHEMA_VERSION,
             features: count("SELECT count(*) FROM features WHERE status != 'hidden'")?,
+            families: count(
+                "SELECT count(*) FROM features WHERE status != 'hidden' AND coalesce(family_id, id) = id",
+            )?,
             curated: count("SELECT count(*) FROM features WHERE status = 'curated'")?,
             hidden: count("SELECT count(*) FROM features WHERE status = 'hidden'")?,
             sources: count("SELECT count(*) FROM sources")?,
@@ -382,22 +423,50 @@ impl Library {
         include_hidden: bool,
         limit: Option<usize>,
     ) -> Result<Vec<FeatureSummary>, LibraryError> {
+        self.query(search, kind, include_hidden, false, limit)
+    }
+
+    /// Like [`Library::list`], one row per family (heads only), counting variants.
+    pub fn families(
+        &self,
+        search: Option<&str>,
+        kind: Option<&str>,
+        include_hidden: bool,
+        limit: Option<usize>,
+    ) -> Result<Vec<FeatureSummary>, LibraryError> {
+        self.query(search, kind, include_hidden, true, limit)
+    }
+
+    fn query(
+        &self,
+        search: Option<&str>,
+        kind: Option<&str>,
+        include_hidden: bool,
+        heads_only: bool,
+        limit: Option<usize>,
+    ) -> Result<Vec<FeatureSummary>, LibraryError> {
         let mut statement = self
             .connection
             .prepare(
                 "SELECT f.id, f.name, f.kind, f.length, f.color, f.status,
-                        count(o.id), count(DISTINCT o.source_id)
+                        count(o.id), count(DISTINCT o.source_id), coalesce(f.family_id, f.id), f.grouping,
+                        (SELECT count(*) FROM features m WHERE m.family_id = f.id AND m.id != f.id AND m.status != 'hidden'),
+                        count(o.id) + (SELECT count(*) FROM occurrences a JOIN features m ON m.id = a.feature_id
+                                        WHERE m.family_id = f.id AND m.id != f.id AND m.status != 'hidden') AS total
                    FROM features f LEFT JOIN occurrences o ON o.feature_id = f.id
                   WHERE (?1 OR f.status != 'hidden')
                     AND (?2 IS NULL OR lower(f.kind) = lower(?2))
+                    AND (NOT ?4 OR coalesce(f.family_id, f.id) = f.id)
                     AND (?3 IS NULL OR instr(lower(f.name), lower(?3)) > 0
-                         OR EXISTS (SELECT 1 FROM occurrences a WHERE a.feature_id = f.id AND instr(lower(a.label), lower(?3)) > 0))
+                         OR EXISTS (SELECT 1 FROM occurrences a WHERE a.feature_id = f.id AND instr(lower(a.label), lower(?3)) > 0)
+                         OR (?4 AND EXISTS (SELECT 1 FROM features m JOIN occurrences a ON a.feature_id = m.id
+                                             WHERE m.family_id = f.id AND instr(lower(a.label), lower(?3)) > 0)))
                   GROUP BY f.id
-                  ORDER BY count(o.id) DESC, f.name, f.id",
+                  ORDER BY (CASE WHEN ?4 THEN total ELSE count(o.id) END) DESC, f.name, f.id",
             )
             .map_err(|e| self.sql(e))?;
         let rows = statement
-            .query_map(params![include_hidden, kind, search], |r| {
+            .query_map(params![include_hidden, kind, search, heads_only], |r| {
                 Ok(FeatureSummary {
                     id: r.get(0)?,
                     name: r.get(1)?,
@@ -408,6 +477,10 @@ impl Library {
                     aliases: Vec::new(),
                     occurrences: r.get::<_, i64>(6)?.unsigned_abs(),
                     sources: r.get::<_, i64>(7)?.unsigned_abs(),
+                    family_id: r.get(8)?,
+                    grouping: r.get(9)?,
+                    variants: r.get::<_, i64>(10)?.unsigned_abs(),
+                    family_occurrences: r.get::<_, i64>(11)?.unsigned_abs(),
                 })
             })
             .map_err(|e| self.sql(e))?;
@@ -471,11 +544,23 @@ impl Library {
             .map_err(|e| self.sql(e))?
             .collect::<Result<_, _>>()
             .map_err(|e| self.sql(e))?;
+        let mut family: Vec<FeatureSummary> = self
+            .list(None, None, false, None)?
+            .into_iter()
+            .filter(|f| f.family_id == summary.family_id && f.id != id)
+            .collect();
+        family.sort_by(|a, b| {
+            (a.id != a.family_id)
+                .cmp(&(b.id != b.family_id))
+                .then(b.length.cmp(&a.length))
+                .then(a.id.cmp(&b.id))
+        });
         Ok(FeatureDetail {
             summary,
             sequence,
             qualifiers: serde_json::from_str(&qualifiers)?,
             seen_in,
+            family,
         })
     }
 
@@ -483,7 +568,7 @@ impl Library {
     pub fn entries(&self) -> Result<Vec<Entry>, LibraryError> {
         let mut statement = self
             .connection
-            .prepare("SELECT id, name, kind, color, sequence, stranded, qualifiers FROM features WHERE status != 'hidden' ORDER BY id")
+            .prepare("SELECT id, name, kind, color, sequence, stranded, qualifiers, coalesce(family_id, id) FROM features WHERE status != 'hidden' ORDER BY id")
             .map_err(|e| self.sql(e))?;
         let rows = statement
             .query_map([], |r| {
@@ -494,6 +579,7 @@ impl Library {
                     color: r.get(3)?,
                     sequence: r.get(4)?,
                     stranded: r.get(5)?,
+                    family_id: r.get(7)?,
                     qualifiers: serde_json::from_str(&r.get::<_, String>(6)?).map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             6,
@@ -524,15 +610,89 @@ impl Library {
             None if status == "hidden" => "hidden",
             Some(false) | None => "curated",
         };
+        let grouping = edit
+            .standalone
+            .map(|s| if s { "standalone" } else { "auto" });
         self.connection
             .execute(
-                "UPDATE features SET name = coalesce(?2, name), kind = coalesce(?3, kind), status = ?4 WHERE id = ?1",
-                params![id, edit.name, edit.kind, status],
+                "UPDATE features SET name = coalesce(?2, name), kind = coalesce(?3, kind), status = ?4, grouping = coalesce(?5, grouping) WHERE id = ?1",
+                params![id, edit.name, edit.kind, status, grouping],
             )
             .map_err(|e| self.sql(e))?;
+        if edit.hidden.is_some() || edit.standalone.is_some() {
+            self.connection
+                .execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'stale')",
+                    [],
+                )
+                .map_err(|e| self.sql(e))?;
+        }
         self.show(id)
     }
+
+    /// Whether families must be recomputed (after imports, hiding or grouping changes).
+    pub fn families_stale(&self) -> Result<bool, LibraryError> {
+        let value: Option<String> = self
+            .connection
+            .query_row("SELECT value FROM meta WHERE key = 'families'", [], |r| {
+                r.get(0)
+            })
+            .optional()
+            .map_err(|e| self.sql(e))?;
+        Ok(value.as_deref() != Some("current"))
+    }
+
+    /// Visible features with their sequences, for computing families.
+    pub fn family_inputs(&self) -> Result<Vec<FamilyInput>, LibraryError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT id, sequence, grouping = 'standalone' FROM features WHERE status != 'hidden' ORDER BY id")
+            .map_err(|e| self.sql(e))?;
+        let rows = statement
+            .query_map([], |r| {
+                Ok(FamilyInput {
+                    id: r.get(0)?,
+                    sequence: r.get(1)?,
+                    standalone: r.get(2)?,
+                })
+            })
+            .map_err(|e| self.sql(e))?;
+        rows.collect::<Result<_, _>>().map_err(|e| self.sql(e))
+    }
+
+    /// Store computed families as (feature, head) pairs; features not listed are their own head.
+    pub fn set_families(&mut self, heads: &[(i64, i64)]) -> Result<(), LibraryError> {
+        let error_path = self.path.display().to_string();
+        let sql = |source| LibraryError::Sqlite {
+            path: error_path.clone(),
+            source,
+        };
+        let tx = self.connection.transaction().map_err(sql)?;
+        tx.execute("UPDATE features SET family_id = id", [])
+            .map_err(sql)?;
+        for (id, head) in heads {
+            tx.execute(
+                "UPDATE features SET family_id = ?2 WHERE id = ?1",
+                params![id, head],
+            )
+            .map_err(sql)?;
+        }
+        tx.execute(
+            "INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'current')",
+            [],
+        )
+        .map_err(sql)?;
+        tx.commit().map_err(sql)
+    }
 }
+
+/// v1 → v2: variant families. Families are recomputed by the app layer (`families_stale`).
+const MIGRATE_1_TO_2: &str = "
+ALTER TABLE features ADD COLUMN family_id INTEGER;
+ALTER TABLE features ADD COLUMN grouping TEXT NOT NULL DEFAULT 'auto' CHECK (grouping IN ('auto', 'standalone'));
+UPDATE meta SET value = '2' WHERE key = 'schema_version';
+INSERT OR REPLACE INTO meta (key, value) VALUES ('families', 'stale');
+";
 
 /// SQLite integers are signed 64-bit.
 fn int(value: usize) -> i64 {
@@ -603,6 +763,7 @@ mod tests {
                 "a",
                 1,
                 &[candidate("KanR", "AACCG", "AACCG")],
+                false,
             )
             .unwrap();
         assert_eq!(
@@ -620,6 +781,7 @@ mod tests {
                 "b",
                 2,
                 &[candidate("NeoR/KanR", "CGGTT", "AACCG")],
+                false,
             )
             .unwrap();
         library
@@ -629,6 +791,7 @@ mod tests {
                 "c",
                 3,
                 &[candidate("NeoR/KanR", "CGGTT", "AACCG")],
+                false,
             )
             .unwrap();
         let features = library.list(None, None, false, None).unwrap();
@@ -644,12 +807,14 @@ mod tests {
         assert_eq!(detail.seen_in.iter().filter(|o| o.reversed).count(), 1);
         // Re-import: unchanged; copy elsewhere: duplicate; changed content: replaced.
         assert_eq!(
-            library.import_source("a.dna", "h1", "a", 4, &[]).unwrap(),
+            library
+                .import_source("a.dna", "h1", "a", 4, &[], false)
+                .unwrap(),
             SourceOutcome::Unchanged
         );
         assert_eq!(
             library
-                .import_source("copy.dna", "h1", "a", 4, &[])
+                .import_source("copy.dna", "h1", "a", 4, &[], false)
                 .unwrap(),
             SourceOutcome::Duplicate { of: "a.dna".into() }
         );
@@ -660,6 +825,7 @@ mod tests {
                 "a",
                 5,
                 &[candidate("PuroR", "GGGGA", "GGGGA")],
+                false,
             )
             .unwrap();
         assert_eq!(
@@ -708,6 +874,7 @@ mod tests {
                 "d",
                 6,
                 &[candidate("NeoR/KanR", "AACCG", "AACCG")],
+                false,
             )
             .unwrap();
         assert_eq!(library.show(kan).unwrap().summary.name, "KanR (curated)");

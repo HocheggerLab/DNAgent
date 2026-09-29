@@ -27,6 +27,8 @@ pub struct Proposal {
     pub contained_in: Option<String>,
     /// NCBI table and codon start from the library entry, for CDS proposals.
     pub translate: Option<(u32, u8)>,
+    /// Shorter variants of the same library family that also match here (not listed).
+    pub variants: u32,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -73,7 +75,19 @@ pub fn detect_with(record: &SequenceRecord, path: &Path) -> Result<DetectionResu
     }
     let library = Library::open(path).map_err(|e| failed(&e))?;
     let entries = library.entries().map_err(|e| failed(&e))?;
-    let matches = detect_features(record, &entries, DEFAULT_MIN_LENGTH).map_err(|e| failed(&e))?;
+    let all = detect_features(record, &entries, DEFAULT_MIN_LENGTH).map_err(|e| failed(&e))?;
+    // One proposal per place and family: shorter variants inside a longer match are folded in.
+    let variants_of = |index: usize| {
+        all.iter()
+            .filter(|m| m.superseded_by == Some(index))
+            .count()
+    };
+    let (matches, variant_counts): (Vec<_>, Vec<_>) = all
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.superseded_by.is_none())
+        .map(|(i, m)| (m.clone(), u32_of(variants_of(i))))
+        .unzip();
     let length = record.sequence().len();
     let spans: Vec<(usize, usize)> = matches
         .iter()
@@ -123,6 +137,7 @@ pub fn detect_with(record: &SequenceRecord, path: &Path) -> Result<DetectionResu
                 length: u32_of(spans[i].1),
                 annotated_as: m.annotated_as.clone(),
                 contained_in,
+                variants: variant_counts[i],
                 translate: m.kind.eq_ignore_ascii_case("CDS").then(|| {
                     (
                         qualifier("transl_table").unwrap_or(1),

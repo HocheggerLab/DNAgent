@@ -1,12 +1,14 @@
 //! Building the feature library from sequence files, and detecting library features in a
 //! record. Storage is `dnagent-library`; sequence identity and matching are the domain's.
 use crate::{AppError, SEQUENCE_EXTENSIONS, import_path_bytes};
-use dnagent_domain::feature_match::{Searcher, canonical, feature_sequence};
+use dnagent_domain::feature_match::{Searcher, canonical, feature_sequence, reverse_complement};
 use dnagent_domain::{
     Feature, Location, LocationOperator, Region, SequenceRecord, Strand, Topology,
 };
 use dnagent_formats::ImportWarning;
-use dnagent_library::{Candidate, Entry, Library, LibraryInfo, Qualifier, SourceOutcome};
+use dnagent_library::{
+    Candidate, Entry, FamilyInput, Library, LibraryInfo, Qualifier, SourceOutcome,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -57,6 +59,8 @@ fn generic_name(label: &str, kind: &str) -> bool {
     let name = label.trim().to_ascii_lowercase();
     let stem = name.trim_end_matches(|c: char| c.is_ascii_digit() || c.is_whitespace() || c == '#');
     name.is_empty()
+        || !name.chars().any(char::is_alphanumeric)
+        || name.starts_with("(null)")
         || name == kind.to_ascii_lowercase()
         || [
             "feature",
@@ -265,6 +269,7 @@ pub fn import_into_library(
     library: &mut Library,
     inputs: &[PathBuf],
     min_length: usize,
+    rescan: bool,
 ) -> Result<LibraryImport, AppError> {
     let mut totals = ImportTotals::default();
     let mut files = Vec::new();
@@ -294,8 +299,14 @@ pub fn import_into_library(
         let sha256 = format!("{:x}", Sha256::digest(&bytes));
         let incomplete = incomplete_features(&report.warnings);
         let (kept, skipped) = candidates(&report.record, &incomplete, min_length);
-        let outcome =
-            library.import_source(&shown, &sha256, report.record.name(), unix_seconds(), &kept)?;
+        let outcome = library.import_source(
+            &shown,
+            &sha256,
+            report.record.name(),
+            unix_seconds(),
+            &kept,
+            rescan,
+        )?;
         match &outcome {
             SourceOutcome::Imported {
                 occurrences,
@@ -323,6 +334,7 @@ pub fn import_into_library(
             },
         });
     }
+    refresh_families(library)?;
     Ok(LibraryImport {
         library: library.info()?,
         min_length,
@@ -344,6 +356,11 @@ pub struct DetectedFeature {
     /// Ids of existing features with exactly this span and a compatible strand.
     pub annotated_as: Vec<String>,
     pub qualifiers: Vec<Qualifier>,
+    /// The library family (its head's id).
+    pub family_id: i64,
+    /// Index (in `matches`) of the longest match of the same family whose span contains
+    /// this one: a shorter variant of the same part at the same place.
+    pub superseded_by: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -420,6 +437,8 @@ pub fn detect_features(
                 length: hit.length,
                 annotated_as,
                 qualifiers: entry.qualifiers.clone(),
+                family_id: entry.family_id,
+                superseded_by: None,
             });
         }
     }
@@ -431,7 +450,83 @@ pub fn detect_features(
             .then_with(|| a.name.cmp(&b.name))
             .then(a.library_id.cmp(&b.library_id))
     });
+    let spans: Vec<(usize, usize)> = found
+        .iter()
+        .map(|m| (m.location.parts()[0].start().get(), m.length))
+        .collect();
+    let length = record.sequence().len();
+    for i in 0..found.len() {
+        found[i].superseded_by = (0..found.len())
+            .filter(|&j| {
+                j != i
+                    && found[j].family_id == found[i].family_id
+                    && spans[j].1 > spans[i].1
+                    && span_within(spans[i], spans[j], length)
+            })
+            .max_by_key(|&j| (spans[j].1, std::cmp::Reverse(j)));
+    }
     Ok(found)
+}
+
+/// `inner` lies inside `outer` (start, length), wrapping on a circle of `length`.
+#[must_use]
+pub fn span_within(inner: (usize, usize), outer: (usize, usize), length: usize) -> bool {
+    ((inner.0 + length - outer.0) % length) + inner.1 <= outer.1
+}
+
+/// A shorter feature joins a family when it is at least this share of the head's length.
+pub const VARIANT_MIN_SHARE: (usize, usize) = (4, 5);
+
+/// Variant families: features by length (longest first); each joins the longest family
+/// head that contains its sequence on either strand and is at most 1.25× as long
+/// (it is ≥ 80 % of the head), else it heads its own family. Standalone features head
+/// their own. Returns (member, head) pairs for members only.
+#[must_use]
+pub fn compute_families(inputs: &[FamilyInput]) -> Vec<(i64, i64)> {
+    let mut order: Vec<&FamilyInput> = inputs.iter().collect();
+    order.sort_by(|a, b| {
+        b.sequence
+            .len()
+            .cmp(&a.sequence.len())
+            .then(a.id.cmp(&b.id))
+    });
+    let (num, den) = VARIANT_MIN_SHARE;
+    let mut heads: Vec<&FamilyInput> = Vec::new();
+    let mut members = Vec::new();
+    for feature in order {
+        let reverse = reverse_complement(&feature.sequence);
+        let head = (!feature.standalone)
+            .then(|| {
+                heads.iter().find(|h| {
+                    h.sequence.len() > feature.sequence.len()
+                        && feature.sequence.len() * den >= h.sequence.len() * num
+                        && (h.sequence.contains(&feature.sequence)
+                            || reverse.as_deref().is_some_and(|r| h.sequence.contains(r)))
+                })
+            })
+            .flatten();
+        match head {
+            Some(h) => members.push((feature.id, h.id)),
+            None => heads.push(feature),
+        }
+    }
+    members
+}
+
+/// Recompute families if imports or edits made them stale.
+pub fn refresh_families(library: &mut Library) -> Result<(), AppError> {
+    if library.families_stale()? {
+        let families = compute_families(&library.family_inputs()?);
+        library.set_families(&families)?;
+    }
+    Ok(())
+}
+
+/// Open an existing library with current families.
+pub fn open_library(path: &Path) -> Result<Library, AppError> {
+    let mut library = Library::open(path)?;
+    refresh_families(&mut library)?;
+    Ok(library)
 }
 
 #[cfg(test)]
@@ -458,6 +553,50 @@ mod tests {
         }
         assert!(sequence_name("ACGTACGTAC") && sequence_name("acgtnnacgt"));
         assert!(!sequence_name("ACGTACG") && !sequence_name("AmpR"));
+    }
+
+    #[test]
+    fn junk_names_are_generic() {
+        for name in ["\"", "--", "(null) CDS", "(null)"] {
+            assert!(generic_name(name, "CDS"), "{name:?}");
+        }
+    }
+
+    #[test]
+    fn families_group_close_nested_variants_only() {
+        let seq = |s: &str| s.to_owned();
+        let long = "ACGTTGCAAGGCTTACCGATCGATCGGATTACAGGCATTACGGATCGATTACGG"; // 54 bp
+        let inputs = [
+            FamilyInput {
+                id: 1,
+                sequence: seq(long),
+                standalone: false,
+            },
+            FamilyInput {
+                id: 2,
+                sequence: seq(&long[2..50]),
+                standalone: false,
+            }, // 48/54 = 0.89: variant
+            FamilyInput {
+                id: 3,
+                sequence: reverse_complement(&long[1..46]).unwrap(),
+                standalone: false,
+            }, // other strand, 45/54 = 0.83
+            FamilyInput {
+                id: 4,
+                sequence: seq(&long[10..30]),
+                standalone: false,
+            }, // 20/54 = 0.37: a nested part, not a variant
+            FamilyInput {
+                id: 5,
+                sequence: seq(&long[0..50]),
+                standalone: true,
+            }, // split off by hand
+        ];
+        let families = compute_families(&inputs);
+        assert_eq!(families, vec![(2, 1), (3, 1)]);
+        // Detection containment wraps on circles.
+        assert!(span_within((1, 3), (98, 6), 100) && !span_within((10, 3), (98, 6), 100));
     }
 
     #[test]
