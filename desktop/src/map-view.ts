@@ -5,12 +5,13 @@ import type { Document, Feature, Orf } from './bindings';
 import { featureColor } from './map-layout';
 import {
   angleOf, assignLanes, blockArrowPath, linearArrowPath, placeCircularLabels, placeRowLabels,
-  polar, textArcPath, textOn, ticks, type Arrow,
+  polar, textArcPath, textOn, ticks, type Arrow, type LabelRequest,
 } from './map-geometry';
 
 const NS = 'http://www.w3.org/2000/svg';
 const TAU = Math.PI * 2;
 const LABEL_FONT = '12px -apple-system, system-ui, sans-serif';
+const SITE_FONT = '11.5px -apple-system, system-ui, sans-serif';
 const PILL_HEIGHT = 20;
 const PILL_PITCH = 24;
 /** Bottom strip kept free of labels for the overlaid "labels not shown" notice. */
@@ -23,13 +24,27 @@ export interface MapOrfs {
   selectOrf: (id: string) => void;
   /** A selected base range (half-open; `end < start` wraps), drawn as a selection band. */
   range?: { start: number; end: number } | null;
+  /** Restriction sites to mark, one entry per cut position. */
+  sites?: MapSite[];
 }
+
+/** Enzymes cutting (top strand) at one position; the label reads "EcoRI, ApoI (396)". */
+export interface MapSite { cut: number; names: string[]; select: () => void }
+
+const siteText = (site: MapSite) => `${site.names.join(', ')} (${site.cut})`;
+/** Below every feature: feature labels are placed first, site labels fill the remaining room. */
+const SITE_PRIORITY = 0.5;
+/** Site labels are plain text, so they stack tighter than feature pills. */
+const SITE_HEIGHT = 15;
+const SITE_PITCH = 17;
 
 export interface MapReport {
   /** Features drawn without a map label, in source order. */
   unlabelled: string[];
   /** ORFs requested but not drawn for lack of room (still listed in the sequence view). */
   undrawnOrfs: string[];
+  /** Cut positions whose enzyme label could not be placed (the tick is still drawn). */
+  unlabelledSites: number[];
 }
 
 let measure: CanvasRenderingContext2D | null = null;
@@ -86,6 +101,20 @@ export function renderMap(svg: SVGSVGElement, doc: Document, selected: string | 
   svg.dataset.width = String(width);
   svg.dataset.height = String(height);
   return doc.circular ? circular(svg, doc, selected, select, width, height, orfs) : linear(svg, doc, selected, select, width, height, orfs);
+}
+
+function siteLabel(shape: Shape, parent: Element, site: MapSite, x: number, y: number, width: number) {
+  const group = shape('g', { class: 'map-site-label', 'data-testid': 'map-site-label', 'data-site-cut': site.cut, 'data-enzymes': site.names.join(',') }, parent);
+  shape('rect', { x, y: y - SITE_HEIGHT / 2, width, height: SITE_HEIGHT, rx: 3, class: 'map-site-hit' }, group);
+  shape('text', { x: x + width / 2, y, 'text-anchor': 'middle', 'dominant-baseline': 'central' }, group).textContent = siteText(site);
+  group.setAttribute('tabindex', '0');
+  group.setAttribute('role', 'button');
+  group.setAttribute('aria-label', `${site.names.join(', ')} site, cut at ${site.cut}`);
+  group.addEventListener('click', () => site.select());
+  group.addEventListener('keydown', event => {
+    if (['Enter', ' '].includes((event as KeyboardEvent).key)) { event.preventDefault(); site.select(); }
+  });
+  shape('title', {}, group).textContent = `${site.names.join(', ')} · top-strand cut at ${site.cut} (zero-based) · click to select the recognition site`;
 }
 
 function orfInteractive(node: Element, orf: Orf, select: (id: string, extend?: boolean) => void, shape: Shape) {
@@ -149,7 +178,7 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
   const featureLayer = shape('g', { class: 'map-features' });
   const leaderLayer = shape('g', { class: 'map-leaders' });
   const labelLayer = shape('g', { class: 'map-labels' });
-  const requests: { id: string; anchorX: number; anchorY: number; width: number; priority: number }[] = [];
+  const requests: LabelRequest[] = [];
   const anchors = new Map<string, { angle: number; mid: number }>();
 
   doc.features.forEach(feature => {
@@ -249,9 +278,30 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
     }
   }
 
+  const sites = new Map((orfs.sites ?? []).map(site => [`site:${site.cut}`, site]));
+  const siteLayer = shape('g', { class: 'map-sites' });
+  for (const [id, site] of sites) {
+    const a = angle(site.cut);
+    const [x0, y0] = polar(cx, cy, radius + 1, a);
+    const [x1, y1] = polar(cx, cy, radius + 12, a);
+    shape('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: 'map-site-tick', 'data-testid': 'map-site-tick', 'data-site-cut': site.cut }, siteLayer);
+    const [ax, ay] = polar(cx, cy, radius + 24, a);
+    requests.push({ id, anchorX: ax, anchorY: ay, width: textWidth(siteText(site), SITE_FONT) + 8, priority: SITE_PRIORITY, size: SITE_PITCH });
+  }
+
   const { placed, hidden } = placeCircularLabels(requests, cx, cy, radius + 44, 14 + PILL_HEIGHT / 2, height - NOTICE_RESERVE - PILL_HEIGHT / 2, PILL_PITCH, 8, width - 8);
   const byId = new Map(doc.features.map(feature => [feature.id, feature]));
   for (const label of placed) {
+    const site = sites.get(label.id);
+    if (site) {
+      const a = angle(site.cut);
+      const [tx, ty] = polar(cx, cy, radius + 12, a);
+      const [rx, ry] = polar(cx, cy, radius + 24, a);
+      const edge = label.right ? label.x : label.x + label.width;
+      shape('polyline', { points: `${tx.toFixed(1)},${ty.toFixed(1)} ${rx.toFixed(1)},${ry.toFixed(1)} ${edge.toFixed(1)},${label.y.toFixed(1)}`, class: 'map-leader map-site-leader' }, leaderLayer);
+      siteLabel(shape, labelLayer, site, label.x, label.y, label.width);
+      continue;
+    }
     const feature = byId.get(label.id)!;
     const anchor = anchors.get(label.id)!;
     const [fx, fy] = polar(cx, cy, anchor.mid + thickness / 2, anchor.angle);
@@ -261,7 +311,8 @@ function circular(svg: SVGSVGElement, doc: Document, selected: string | null, se
     pill(shape, labelLayer, feature, label.x, label.y, label.width, feature.id === selected, select);
   }
   const hiddenSet = new Set(hidden);
-  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs };
+  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs,
+    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut) };
 }
 
 function linear(svg: SVGSVGElement, doc: Document, selected: string | null, select: (id: string, extend?: boolean) => void, width: number, height: number, orfs: MapOrfs): MapReport {
@@ -355,14 +406,26 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
       orfBottom = Math.max(orfBottom, y + 6);
     }
   }
+  const sites = new Map((orfs.sites ?? []).map(site => [`site:${site.cut}`, site]));
+  const siteLayer = shape('g', { class: 'map-sites' });
+  for (const [id, site] of sites) {
+    shape('line', { x1: x(site.cut), y1: backbone - 5, x2: x(site.cut), y2: backbone + 12, class: 'map-site-tick', 'data-testid': 'map-site-tick', 'data-site-cut': site.cut }, siteLayer);
+    requests.push({ id, centre: x(site.cut), width: textWidth(siteText(site), SITE_FONT) + 8, priority: SITE_PRIORITY });
+  }
   const rowsTop = orfBottom + 24;
   const maxRows = Math.max(0, Math.floor((height - rowsTop - NOTICE_RESERVE) / PILL_PITCH));
   const { placed, hidden } = placeRowLabels(requests, 8, width - 8, maxRows, 8);
   const byId = new Map(doc.features.map(feature => [feature.id, feature]));
   for (const label of placed) {
+    const y = rowsTop + label.row * PILL_PITCH;
+    const site = sites.get(label.id);
+    if (site) {
+      shape('polyline', { points: `${x(site.cut).toFixed(1)},${(backbone + 12).toFixed(1)} ${(label.x + label.width / 2).toFixed(1)},${(y - PILL_HEIGHT / 2).toFixed(1)}`, class: 'map-leader map-site-leader' }, leaderLayer);
+      siteLabel(shape, labelLayer, site, label.x, y, label.width);
+      continue;
+    }
     const feature = byId.get(label.id)!;
     const [x0, x1] = spanX(longestPart(feature));
-    const y = rowsTop + label.row * PILL_PITCH;
     shape('polyline', { points: `${((x0 + x1) / 2).toFixed(1)},${(centreOf(feature) + thickness / 2).toFixed(1)} ${(label.x + label.width / 2).toFixed(1)},${(y - PILL_HEIGHT / 2).toFixed(1)}`, class: 'map-leader' }, leaderLayer);
     pill(shape, labelLayer, feature, label.x, y, label.width, feature.id === selected, select);
   }
@@ -375,5 +438,6 @@ function linear(svg: SVGSVGElement, doc: Document, selected: string | null, sele
   group.append(...svg.childNodes);
   svg.append(group);
   const hiddenSet = new Set(hidden);
-  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs: [] };
+  return { unlabelled: doc.features.filter(feature => hiddenSet.has(feature.id)).map(feature => feature.id), undrawnOrfs: [],
+    unlabelledSites: [...sites].filter(([id]) => hiddenSet.has(id)).map(([, site]) => site.cut) };
 }

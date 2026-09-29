@@ -288,6 +288,37 @@ impl Session {
         })
     }
 
+    fn record(&self, id: u32) -> Result<&dnagent_domain::SequenceRecord, Diagnostic> {
+        let open = self
+            .documents
+            .get(&id)
+            .ok_or_else(|| diagnostic("no_such_document", format!("document {id} is not open")))?;
+        Ok(&open.history[open.index].report.record)
+    }
+
+    pub fn enzyme_counts(
+        &self,
+        id: u32,
+    ) -> Result<Vec<crate::restriction::EnzymeCount>, Diagnostic> {
+        Ok(crate::restriction::counts(self.record(id)?))
+    }
+
+    pub fn find_sites(
+        &self,
+        id: u32,
+        enzymes: &[String],
+    ) -> Result<Vec<crate::restriction::Site>, Diagnostic> {
+        crate::restriction::sites(self.record(id)?, enzymes)
+    }
+
+    pub fn digest(
+        &self,
+        id: u32,
+        enzymes: &[String],
+    ) -> Result<Vec<crate::restriction::Fragment>, Diagnostic> {
+        crate::restriction::digest(self.record(id)?, enzymes)
+    }
+
     pub fn close(&mut self, id: u32) {
         self.documents.remove(&id);
     }
@@ -375,6 +406,21 @@ pub fn dispatch(
             value(Ok(poll_files(Path::new(&a.workspace), &a.open_paths)))
         }
         "default_workspace" => value(Ok(default_workspace())),
+        "enzyme_catalogue" => value(Ok(crate::restriction::catalogue_info())),
+        "enzyme_counts" => value(session.enzyme_counts(arg::<DocumentArg>(args)?.document_id)),
+        "find_sites" | "digest" => {
+            #[derive(Deserialize)]
+            struct EnzymesArg {
+                document_id: u32,
+                enzymes: Vec<String>,
+            }
+            let a: EnzymesArg = arg(args)?;
+            if command == "digest" {
+                value(session.digest(a.document_id, &a.enzymes))
+            } else {
+                value(session.find_sites(a.document_id, &a.enzymes))
+            }
+        }
         other => Err(diagnostic(
             "unknown_command",
             format!("no desktop command {other:?}"),

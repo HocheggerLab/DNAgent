@@ -136,25 +136,33 @@ export function assignLanes(features: LaneInput[], moleculeLength: number, circu
   return result;
 }
 
-export interface LabelRequest { id: string; anchorX: number; anchorY: number; width: number; priority: number }
+/** `size` is the vertical slot a label needs (default: the placement pitch). */
+export interface LabelRequest { id: string; anchorX: number; anchorY: number; width: number; priority: number; size?: number }
 export interface PlacedLabel { id: string; x: number; y: number; width: number; right: boolean }
 
 /**
  * Place outside labels in two columns around a circle of `radius` (right side for
- * anchors right of centre). Labels keep their anchor order, are pushed apart to a
- * minimum `pitch`, hug the circle horizontally, and must fit between `top` and
- * `bottom`. When a column cannot hold every label, the lowest-priority labels are
- * dropped and returned in `hidden` — never silently lost.
+ * anchors right of centre). Labels keep their anchor order, are pushed apart so
+ * neighbours are at least half their slots apart, hug the circle horizontally, and
+ * must fit between `top` and `bottom`. When a column cannot hold every label, the
+ * lowest-priority labels are dropped and returned in `hidden` — never silently lost.
  */
 export function placeCircularLabels(requests: LabelRequest[], cx: number, cy: number, radius: number,
   top: number, bottom: number, pitch: number, left = -Infinity, right = Infinity): { placed: PlacedLabel[]; hidden: string[] } {
   const placed: PlacedLabel[] = [];
   const hidden: string[] = [];
+  const size = (request: LabelRequest) => request.size ?? pitch;
   for (const onRight of [false, true]) {
     let side = requests.filter(request => (request.anchorX >= cx) === onRight);
-    const capacity = Math.max(0, Math.floor((bottom - top) / pitch) + 1);
-    if (side.length > capacity) {
-      const keep = new Set([...side].sort((a, b) => b.priority - a.priority).slice(0, capacity).map(r => r.id));
+    // A column of slots s1..sn spans sum(s) - (s1 + sn) / 2; keeping the smallest slot out is a safe bound.
+    const total = side.reduce((sum, request) => sum + size(request), 0);
+    const smallest = Math.min(...side.map(size));
+    if (side.length && total - smallest > bottom - top) {
+      const keep = new Set<string>();
+      let used = 0;
+      for (const request of [...side].sort((a, b) => b.priority - a.priority)) {
+        if (used + size(request) - smallest <= bottom - top) { keep.add(request.id); used += size(request); }
+      }
       hidden.push(...side.filter(r => !keep.has(r.id)).map(r => r.id));
       side = side.filter(r => keep.has(r.id));
     }
@@ -165,7 +173,7 @@ export function placeCircularLabels(requests: LabelRequest[], cx: number, cy: nu
       const scale = radius / Math.max(1e-9, Math.hypot(dx, dy));
       return Math.min(bottom, Math.max(top, cy + dy * scale));
     });
-    spread(ys, top, bottom, pitch);
+    spread(ys, top, bottom, sorted.map(size));
     sorted.forEach((request, i) => {
       const dy = ys[i] - cy;
       const reach = Math.sqrt(Math.max(0, radius * radius - dy * dy));
@@ -179,32 +187,40 @@ export function placeCircularLabels(requests: LabelRequest[], cx: number, cy: nu
 }
 
 /**
- * Spread sorted desired positions to a minimum `pitch` inside [top, bottom], keeping
- * each run of colliding labels centred on the mean of its desired positions (so a
- * crowded cluster grows both ways instead of drifting in one direction).
+ * Spread sorted desired centres inside [top, bottom] so neighbours i, i+1 are at least
+ * (slot_i + slot_{i+1}) / 2 apart (`pitch`: one slot for all, or one per label), keeping
+ * each run of colliding labels centred on its desired positions (so a crowded cluster
+ * grows both ways instead of drifting in one direction).
  */
-export function spread(ys: number[], top: number, bottom: number, pitch: number): void {
-  type Group = { first: number; count: number; desired: number; start: number };
+export function spread(ys: number[], top: number, bottom: number, pitch: number | number[]): void {
+  const slots = typeof pitch === 'number' ? ys.map(() => pitch) : pitch;
+  // offset[k]: centre of label k relative to label 0 when packed tightly.
+  const offset = [0];
+  for (let k = 1; k < ys.length; k++) offset.push(offset[k - 1] + (slots[k - 1] + slots[k]) / 2);
+  type Group = { first: number; last: number; shifted: number; start: number };
   const groups: Group[] = [];
   const place = (group: Group) => {
-    const span = (group.count - 1) * pitch;
-    group.start = Math.min(Math.max(group.desired / group.count - span / 2, top), Math.max(top, bottom - span));
+    const count = group.last - group.first + 1;
+    const span = offset[group.last] - offset[group.first];
+    // shifted = sum(desired - offset); the best packed start is its mean, re-based on the first label.
+    const ideal = group.shifted / count + offset[group.first];
+    group.start = Math.min(Math.max(ideal, top), Math.max(top, bottom - span));
   };
   ys.forEach((y, index) => {
-    const group: Group = { first: index, count: 1, desired: y, start: y };
+    const group: Group = { first: index, last: index, shifted: y - offset[index], start: y };
     place(group);
     groups.push(group);
     while (groups.length > 1) {
       const last = groups[groups.length - 1];
       const previous = groups[groups.length - 2];
-      if (previous.start + previous.count * pitch <= last.start + 1e-9) break;
-      previous.count += last.count;
-      previous.desired += last.desired;
+      if (previous.start + offset[last.first] - offset[previous.first] <= last.start + 1e-9) break;
+      previous.last = last.last;
+      previous.shifted += last.shifted;
       groups.pop();
       place(previous);
     }
   });
-  for (const group of groups) for (let i = 0; i < group.count; i++) ys[group.first + i] = group.start + i * pitch;
+  for (const group of groups) for (let k = group.first; k <= group.last; k++) ys[k] = group.start + offset[k] - offset[group.first];
 }
 
 export interface RowRequest { id: string; centre: number; width: number; priority: number }

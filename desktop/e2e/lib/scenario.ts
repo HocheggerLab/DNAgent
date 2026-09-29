@@ -3,6 +3,7 @@
 import { Ajv, type ErrorObject } from 'ajv';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import type { CliCommand } from './cli.ts';
 import { parsePath, PathError } from './jsonpath.ts';
 
 export const E2E_DIR = resolve(import.meta.dirname, '..');
@@ -12,10 +13,13 @@ const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
 export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
   'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases', 'fill', 'press', 'save_as', 'remember',
-  'set_workspace', 'poll_workspace', 'run_cli'] as const;
+  'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
-  | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' };
-export interface CliExpectation { command: 'inspect' | 'features' | 'primers' | 'translate' | 'orfs'; fixture?: string; saved?: boolean; file?: string; args?: string[]; path?: string; one?: string; transform?: Transform; index?: number }
+  | 'site_ticks' | 'site_enzymes' | 'site_labels' | 'site_regions' | 'site_cuts' | 'recognition_range' | 'fragment_parts'
+  | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' }
+  | { name: 'enzyme_set'; set: 'unique6' | 'unique_dual6' | 'unique_any' } | { name: 'fragment_range'; rank: number };
+export type CliArg = string | { memory: string };
+export interface CliExpectation { command: CliCommand; fixture?: string; saved?: boolean; file?: string; args?: CliArg[]; path?: string; one?: string; transform?: Transform; index?: number }
 export interface Assertion { state: string; single?: boolean; equals?: unknown; equals_cli?: CliExpectation; equals_state?: string; equals_memory?: string;
   equals_json_file?: { file: string; path?: string; one?: string }; message?: string }
 export type Step = { screenshot?: boolean; note?: string } & (
@@ -39,7 +43,9 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { remember: { state: string; as: string; single?: boolean } }
   | { set_workspace: string }
   | { poll_workspace: true }
-  | { run_cli: { args: string[] } });
+  | { run_cli: { args: string[] } }
+  | { click_site: { enzyme: string } }
+  | { choose_enzymes: { names: string[] } });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**
@@ -55,6 +61,7 @@ const BIOLOGICAL = [
   /^map\.orf_regions/,
   /^selection\.range_translation\.protein/,
   /^dialog\.protein/,
+  /^enzymes\.(shown|catalogue\.(names|count)|map\.(ticks|labels)|sequence|digest\.(fragments|enzymes))/,
 ];
 
 export class ScenarioError extends Error {}

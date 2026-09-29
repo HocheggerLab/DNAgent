@@ -34,11 +34,13 @@ Current status: working Milestone 1 vertical slice with checked domain types, re
 
 ### Restriction sites
 
-The first biological operation finds recognition sites and nominal cut positions
-for **EcoRI, BamHI, EcoRV, KpnI, BsaI and BsmBI**, including reverse orientations
-and circular-origin sites. It reports blunt/5′/3′ overhang geometry, not digest
-fragments. Ambiguous input is rejected; methylation and reaction conditions are
-not modelled. See [restriction scope, provenance and validation](docs/restriction.md).
+`sites` finds recognition sites and nominal cut positions with a built-in set of
+99 commercial enzymes, including degenerate and interrupted sites, enzymes cutting
+outside their site, reverse orientations and circular-origin sites. A complete
+REBASE catalogue can be installed locally (`python3 scripts/manage_enzymes.py
+install`); it is never committed because of its licence. `sites` reports
+blunt/5′/3′ overhang geometry, not digest fragments. Ambiguous input is rejected;
+methylation and reaction conditions are not modelled. See [restriction scope, provenance and validation](docs/restriction.md).
 
 ### Digest simulation
 

@@ -15,7 +15,9 @@
     </section>
   </header>
   <section class="workspace">
-    <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div></aside>
+    <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div>
+      <section id="digest-panel" data-testid="digest-panel"><div class="aside-head"><h2>Digest</h2><button id="digest-run" data-testid="digest-run" type="button" disabled>Digest</button></div>
+        <p id="digest-summary" data-testid="digest-summary"></p><div id="digest-fragments" data-testid="digest-fragments"></div></section></aside>
     <article>
       <nav id="doc-tabs" data-testid="doc-tabs" class="doc-tabs" aria-label="Open constructs"></nav>
       <div class="title-row"><h2 id="title" data-testid="title">No construct loaded</h2><span id="dirty" data-testid="dirty-indicator" title="Unsaved changes" hidden>● unsaved</span></div>
@@ -28,6 +30,11 @@
         <label>≥ <select id="opt-orf-min" data-testid="orf-min"><option>30</option><option>50</option><option selected>75</option><option>100</option><option>150</option><option>300</option></select> codons</label>
         <label class="sequence-only"><input type="checkbox" id="opt-frames" data-testid="toggle-frames"> Six-frame translation</label>
         <label class="sequence-only">Amino acids <select id="opt-aa" data-testid="amino-acid-mode"><option value="one">1-letter</option><option value="three">3-letter</option></select></label>
+        <span class="enzyme-controls"><label>Enzymes <select id="enzyme-set" data-testid="enzyme-set">
+          <option value="none">None</option><option value="unique6">Unique 6+ cutters</option><option value="unique_dual6">Unique &amp; dual 6+ cutters</option>
+          <option value="unique_any">All unique cutters</option><option value="common">Common cloning enzymes</option><option value="custom">Chosen enzymes</option></select></label>
+          <button id="enzyme-choose" data-testid="enzyme-choose" type="button" title="Choose enzymes">Choose…</button>
+          <span id="enzyme-summary" data-testid="enzyme-summary"></span></span>
       </div>
       <div class="selection-row"><p id="selection" data-testid="selection-summary">No feature selected</p><button id="new-feature" data-testid="new-feature" type="button" hidden>New feature…</button><button id="delete-feature" data-testid="delete-feature" type="button" hidden>Delete feature</button></div>
       <div id="range-panel" data-testid="range-panel" hidden>
@@ -78,6 +85,15 @@
     </section>
     <p id="feature-error" data-testid="feature-error" role="alert"></p>
     <menu><button type="button" id="feature-cancel" data-testid="feature-cancel">Cancel</button><button id="feature-add" data-testid="feature-add" value="add">Add feature</button></menu>
+  </form>
+</dialog>
+<dialog id="enzyme-dialog" data-testid="enzyme-dialog" aria-labelledby="enzyme-dialog-title">
+  <form method="dialog">
+    <h3 id="enzyme-dialog-title">Choose enzymes</h3>
+    <p id="enzyme-source" data-testid="enzyme-source"></p>
+    <input id="enzyme-search" data-testid="enzyme-search" placeholder="Filter by name" autocomplete="off" aria-label="Filter enzymes by name">
+    <div id="enzyme-options" data-testid="enzyme-options"></div>
+    <menu><button type="button" id="enzyme-clear" data-testid="enzyme-clear">Clear all</button><button type="button" id="enzyme-cancel" data-testid="enzyme-cancel">Cancel</button><button id="enzyme-done" data-testid="enzyme-done" value="done">Show these</button></menu>
   </form>
 </dialog>
 <script type="module" src="/src/main.ts"></script>

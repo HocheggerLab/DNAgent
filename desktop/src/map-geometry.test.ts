@@ -87,3 +87,14 @@ test('crowded labels spread both ways around their anchors and stay in bounds', 
   spread(apart, 0, 400, 20);
   assert.deepEqual(apart, [10, 200]);
 });
+
+test('labels with different slots pack to half their slots apart', () => {
+  const ys = [100, 100, 100];
+  spread(ys, 0, 400, [24, 16, 16]);
+  const start = 100 - (0 + 20 + 36) / 3; // centred on the desired position
+  assert.deepEqual(ys.map(y => +(y - start).toFixed(9)), [0, 20, 36]);
+  const requests = Array.from({ length: 5 }, (_, i) => ({ id: `s${i}`, anchorX: 150, anchorY: 100 + i, width: 20, priority: i, size: 10 }));
+  const { placed, hidden } = placeCircularLabels(requests, 100, 100, 60, 0, 40, 20);
+  assert.deepEqual(hidden, [], 'five 10-px slots fit in 40 px where 20-px slots would not');
+  assert.equal(placed.length, 5);
+});

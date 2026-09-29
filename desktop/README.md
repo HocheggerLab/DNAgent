@@ -42,7 +42,11 @@ in an **unplaced** list because binding coordinates are not retained by the impo
 Amino acids appear under every CDS (1- or 3-letter). **ORFs** (with a minimum-length
 control) show as tracks and on the map, and **Six-frame translation** adds all frames.
 Drag across bases to select a range; its translation on either strand appears above the
-view. All of these come from the Rust engine. Restriction-site tracks are deferred. Map labels
+view. **Enzymes** chooses which restriction sites to show (unique 6+ cutters by default, or a
+set of your own via **Choose…**). Sites appear as ticks and labels on the map and as a
+*sites* row with cut marks in the Sequence view; clicking one selects its recognition
+sequence. **Digest** lists the fragments; click one to select it
+([details](../docs/restriction.md#desktop-display)). All of these come from the Rust engine. Map labels
 and arrows show feature identity and each part's strand direction. Imported colours
 are retained where available. Expand the import-warning panel to review fidelity limits.
 

@@ -82,6 +82,9 @@ fn main() {
         .map_or("1431", String::as_str);
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).expect("bind 127.0.0.1");
     eprintln!("dnagent e2e server on http://127.0.0.1:{port}");
+    for warning in dnagent_app::enzymes::activate() {
+        eprintln!("warning [{}]: {}", warning.code, warning.message);
+    }
     let sessions: Sessions = Arc::default();
     for stream in listener.incoming().flatten() {
         let sessions = Arc::clone(&sessions);

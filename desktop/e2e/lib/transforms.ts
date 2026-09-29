@@ -8,6 +8,8 @@ interface CliFeature { id: string; location: CliLocation }
 export class TransformError extends Error {}
 
 function location(value: unknown): CliLocation {
+  // A single region (e.g. a restriction site's recognition) is a one-part location.
+  if (value && typeof value === 'object' && 'kind' in value) return { parts: [value as CliPart] };
   if (!value || typeof value !== 'object' || !Array.isArray((value as CliLocation).parts)) {
     throw new TransformError(`expected a CLI location with parts, got ${JSON.stringify(value)}`);
   }
@@ -110,4 +112,92 @@ export function forwardSpan(value: unknown, from: string, to: string, moleculeLe
   }
   if (as === 'range') return range;
   return [{ start: range.start, length: ((range.end - range.start + moleculeLength) % moleculeLength) || moleculeLength }];
+}
+
+type CliRegion = { kind: 'linear'; start: number; end: number } | { kind: 'circular_arc'; start: number; length: number };
+interface CliSite { enzyme: string; recognition: CliRegion; top_cut: number | null; bottom_cut: number | null }
+interface CliSites { enzymes: { name: string; recognition_sequence: string }[]; sites: CliSite[] }
+
+function sitesResult(value: unknown): CliSites {
+  const result = value as CliSites;
+  if (!Array.isArray(result?.sites) || !Array.isArray(result?.enzymes)) throw new TransformError('expected the CLI `sites` result object (path "result")');
+  return result;
+}
+
+const regionOf = (region: CliRegion) => region.kind === 'linear' ? { start: region.start, length: region.end - region.start } : { start: region.start, length: region.length };
+const byName = (a: string, b: string) => a.localeCompare(b);
+
+/**
+ * The documented display sets (docs/restriction.md), from a `sites` result over every
+ * catalogue enzyme: sites counted per enzyme; "6+" = recognition length without N.
+ */
+export function enzymeSet(value: unknown, set: 'unique6' | 'unique_dual6' | 'unique_any'): string[] {
+  const result = sitesResult(value);
+  const counts = new Map<string, number>();
+  for (const site of result.sites) counts.set(site.enzyme, (counts.get(site.enzyme) ?? 0) + 1);
+  const long = (name: string) => [...result.enzymes.find(e => e.name === name)!.recognition_sequence].filter(b => b !== 'N').length >= 6;
+  return [...counts].filter(([name, n]) => set === 'unique_any' ? n === 1 : set === 'unique6' ? n === 1 && long(name) : (n === 1 || n === 2) && long(name))
+    .map(([name]) => name).sort(byName);
+}
+
+/** Distinct top-strand cut positions, ascending. */
+export function siteTicks(value: unknown): number[] {
+  return [...new Set(sitesResult(value).sites.flatMap(site => site.top_cut ?? []))].sort((a, b) => a - b);
+}
+
+/** One label per top-strand cut position naming every enzyme cutting there (alphabetical). */
+export function siteLabels(value: unknown): { cut: number; names: string[] }[] {
+  const byCut = new Map<number, Set<string>>();
+  for (const site of sitesResult(value).sites) if (site.top_cut !== null) byCut.set(site.top_cut, (byCut.get(site.top_cut) ?? new Set()).add(site.enzyme));
+  return [...byCut].sort((a, b) => a[0] - b[0]).map(([cut, names]) => ({ cut, names: [...names].sort(byName) }));
+}
+
+/** Recognition regions {enzyme, start, length}, by start then name. */
+export function siteRegions(value: unknown): { enzyme: string; start: number; length: number }[] {
+  return sitesResult(value).sites.map(site => ({ enzyme: site.enzyme, ...regionOf(site.recognition) }))
+    .sort((a, b) => a.start - b.start || byName(a.enzyme, b.enzyme));
+}
+
+/** Cut boundaries that have a base after them (a cut at a linear molecule's end has none). */
+export function siteCuts(value: unknown, moleculeLength: number): { top: number[]; bottom: number[] } {
+  const sites = sitesResult(value).sites;
+  const cuts = (pick: (site: CliSite) => number | null) => [...new Set(sites.flatMap(site => pick(site) ?? []).filter(cut => cut < moleculeLength))].sort((a, b) => a - b);
+  return { top: cuts(site => site.top_cut), bottom: cuts(site => site.bottom_cut) };
+}
+
+/** Half-open {start, end} of `length` bases; `end` wraps only past the end of a circle. */
+function spanRange(start: number, length: number, moleculeLength: number, circular: boolean) {
+  return { start, end: circular && start + length > moleculeLength ? start + length - moleculeLength : start + length };
+}
+
+/** One site → the selection range of its recognition sequence. */
+export function recognitionRange(value: unknown, moleculeLength: number, circular: boolean) {
+  const site = value as CliSite;
+  if (!site?.recognition) throw new TransformError('recognition_range expects one CLI site');
+  const { start, length } = regionOf(site.recognition);
+  return spanRange(start, length, moleculeLength, circular);
+}
+
+interface CliFragment { top: { source_start: number; length: number } }
+
+function fragmentsOf(value: unknown): CliFragment[] {
+  if (!Array.isArray(value)) throw new TransformError('expected the CLI digest fragments array (path "result.fragments")');
+  return value as CliFragment[];
+}
+
+/** Fragments → top-strand {start, length}, by start. */
+export function fragmentParts(value: unknown): Part[] {
+  return fragmentsOf(value).map(f => ({ start: f.top.source_start, length: f.top.length })).sort((a, b) => a.start - b.start || a.length - b.length);
+}
+
+/** The fragment at `rank` in list order (longest first, then by start) → its selection range. */
+export function fragmentRange(value: unknown, rank: number, moleculeLength: number, circular: boolean) {
+  const ordered = fragmentsOf(value).map(f => f.top).sort((a, b) => b.length - a.length || a.source_start - b.source_start);
+  if (rank >= ordered.length) throw new TransformError(`fragment_range: rank ${rank} but only ${ordered.length} fragments`);
+  return spanRange(ordered[rank].source_start, ordered[rank].length, moleculeLength, circular);
+}
+
+/** Enzymes with at least one site, alphabetical. */
+export function siteEnzymes(value: unknown): string[] {
+  return [...new Set(sitesResult(value).sites.map(site => site.enzyme))].sort(byName);
 }

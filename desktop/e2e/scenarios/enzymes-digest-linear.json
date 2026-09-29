@@ -1,0 +1,218 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "enzymes-digest-linear",
+  "description": "Chosen enzymes on a linear molecule: sites and cut marks match `dnagent sites`; the digest list is exactly `dnagent digest`, and clicking a fragment selects it",
+  "fixture": "fixtures/formats/snapgene/synthetic_restriction_linear.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "choose_enzymes": {
+        "names": [
+          "EcoRI",
+          "BamHI",
+          "EcoRV",
+          "Sau3AI"
+        ]
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.set",
+          "equals": "custom"
+        },
+        {
+          "state": "enzymes.shown",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              "EcoRI,BamHI,EcoRV,Sau3AI"
+            ],
+            "path": "result",
+            "transform": "site_enzymes"
+          },
+          "message": "chosen enzymes that have a site"
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.shown",
+        "as": "shown"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.map.ticks",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_ticks"
+          }
+        },
+        {
+          "state": "enzymes.map.accounted",
+          "equals": true
+        },
+        {
+          "state": "enzymes.map.labels",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_labels"
+          }
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "digest-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.digest.enzymes",
+          "equals_state": "enzymes.shown"
+        },
+        {
+          "state": "enzymes.digest.fragments",
+          "equals_cli": {
+            "command": "digest",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result.fragments",
+            "transform": "fragment_parts"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "digest-fragment",
+        "index": 0
+      },
+      "note": "the longest fragment"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "range"
+        },
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "digest",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result.fragments",
+            "transform": {
+              "name": "fragment_range",
+              "rank": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.sequence.sites",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_regions"
+          }
+        },
+        {
+          "state": "enzymes.sequence.cuts",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_cuts"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_option": {
+        "testid": "enzyme-set",
+        "value": "none"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.set",
+          "equals": "none"
+        },
+        {
+          "state": "enzymes.digest.enzymes",
+          "equals_memory": "shown",
+          "message": "an earlier digest stays listed, labelled with its enzymes"
+        }
+      ]
+    }
+  ]
+}

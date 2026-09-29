@@ -1,11 +1,12 @@
-import type { Diagnostic, Document, DocumentState, EditState } from './bindings';
+import type { Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Site } from './bindings';
+import { enzymesInSet, loadChoice, openChooser, renderDigest, saveChoice, type EnzymeSet } from './enzymes';
 import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
 import {
-  closeDocument, defaultWorkspace, openDocument, pickConstructPath, pickSavePath, pickWorkspace, pollFiles, redo, removeFeature,
-  saveGenbank, undo, writeHandoff,
+  closeDocument, defaultWorkspace, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
+  pickWorkspace, pollFiles, redo, removeFeature, saveGenbank, undo, writeHandoff,
 } from './ipc';
-import { renderMap } from './map-view';
+import { renderMap, type MapSite } from './map-view';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
 import { initTheme } from './theme';
 import './style.css';
@@ -136,6 +137,118 @@ for (const name of ['map', 'sequence'] as const) {
   };
 }
 
+// ------------------------------------------------------------------ restriction enzymes
+
+let catalogue: EnzymeCatalogueInfo | null = null;
+const choice = loadChoice();
+/** Per document: site counts for every catalogue enzyme (sequence never changes in a session). */
+const countsByDoc = new Map<number, EnzymeCount[]>();
+const sitesCache = new Map<string, Site[]>();
+const requested = new Set<string>();
+let digestResult: { documentId: number; enzymes: string[]; fragments: Fragment[] } | null = null;
+
+/** Fetch once per key, then re-render; failures are reported, not retried in a loop. */
+function fetchOnce<T>(key: string, request: () => Promise<T>, store: (value: T) => void) {
+  if (requested.has(key)) return;
+  requested.add(key);
+  request().then(value => { store(value); render(); })
+    .catch(error => { element('status').textContent = `Restriction sites unavailable: ${errorMessage(error)}`; });
+}
+
+/** Enzymes and sites to show for the active document; null while engine results are pending. */
+function shownEnzymes(): { names: string[]; sites: Site[] } | null {
+  if (!edit || choice.set === 'none') return { names: [], sites: [] };
+  const documentId = edit.document_id;
+  const counts = countsByDoc.get(documentId);
+  if (!catalogue || !counts) {
+    fetchOnce(`counts:${documentId}`, () => enzymeCounts(documentId), value => countsByDoc.set(documentId, value));
+    return null;
+  }
+  const names = enzymesInSet(choice.set, catalogue, counts, choice.custom);
+  const key = `${documentId}|${names.join(',')}`;
+  const sites = sitesCache.get(key);
+  if (!sites) {
+    if (!names.length) return { names, sites: [] };
+    fetchOnce(`sites:${key}`, () => findSites(documentId, names), value => sitesCache.set(key, value));
+    return null;
+  }
+  return { names, sites };
+}
+
+/** Half-open range of `length` bases from `start`, wrapping only past the end of a circle. */
+function spanRange(start: number, length: number): { start: number; end: number } {
+  const size = current?.sequence.length ?? 0;
+  return { start, end: current?.circular && start + length > size ? start + length - size : start + length };
+}
+
+function selectRange(start: number, length: number) {
+  if (!current || length <= 0 || length >= current.sequence.length) return;
+  range = spanRange(start, length); selected = null; selectedOrf = null; anchor = { base: start };
+  render();
+  if (activeTab === 'sequence') revealSelection();
+}
+
+const selectSite = (site: Site) => selectRange(site.start, site.length);
+
+/** One map mark per top-strand cut position, naming every enzyme that cuts there. */
+function mapSites(sites: Site[]): MapSite[] {
+  const byCut = new Map<number, Site[]>();
+  for (const site of sites) if (site.top_cut !== null) byCut.set(site.top_cut, [...(byCut.get(site.top_cut) ?? []), site]);
+  return [...byCut].sort((a, b) => a[0] - b[0]).map(([cut, group]) => ({
+    cut, names: [...new Set(group.map(site => site.enzyme))].sort((a, b) => a.localeCompare(b)), select: () => selectSite(group[0]),
+  }));
+}
+
+function renderEnzymeControls(shown: { names: string[]; sites: Site[] } | null) {
+  const set = element<HTMLSelectElement>('enzyme-set');
+  set.value = choice.set;
+  set.title = catalogue ? `Enzymes from ${catalogue.source} ${catalogue.version} (${catalogue.enzymes.length})` : 'Loading enzymes…';
+  element('enzyme-summary').textContent = choice.set === 'none' ? '' : shown === null ? 'finding sites…'
+    : `${shown.names.length} enzyme${shown.names.length === 1 ? '' : 's'}, ${shown.sites.length} site${shown.sites.length === 1 ? '' : 's'}`;
+  const run = element<HTMLButtonElement>('digest-run');
+  run.disabled = !shown?.names.length;
+  run.title = shown?.names.length ? `Digest with ${shown.names.join(', ')}` : 'Show some enzymes first';
+  const result = digestResult && edit && digestResult.documentId === edit.document_id ? digestResult : null;
+  element('digest-summary').textContent = result
+    ? `${result.enzymes.join(' + ')}: ${result.fragments.length} fragment${result.fragments.length === 1 ? '' : 's'}`
+    : 'Digest with the enzymes shown on the map.';
+  if (result) renderDigest(element('digest-fragments'), result.fragments, fragment => selectRange(fragment.start, fragment.length));
+  else element('digest-fragments').replaceChildren();
+}
+
+async function runDigest() {
+  const shown = shownEnzymes();
+  if (!edit || !shown?.names.length) return;
+  const [documentId, enzymes] = [edit.document_id, shown.names];
+  try {
+    digestResult = { documentId, enzymes, fragments: await digest(documentId, enzymes) };
+    element('status').textContent = `Digested with ${enzymes.join(', ')}`;
+  } catch (error) {
+    digestResult = null;
+    element('status').textContent = `Digest failed: ${errorMessage(error)}`;
+  }
+  render();
+}
+
+function setEnzymeSet(set: EnzymeSet) {
+  choice.set = set; saveChoice(choice);
+  if (set === 'custom' && !choice.custom.length) chooseEnzymes(); else render();
+}
+
+function chooseEnzymes() {
+  if (!catalogue) return;
+  const counts = edit ? countsByDoc.get(edit.document_id) ?? null : null;
+  openChooser(element<HTMLDialogElement>('enzyme-dialog'), catalogue, counts, choice.custom, names => {
+    choice.custom = names; choice.set = 'custom'; saveChoice(choice); render();
+  });
+}
+
+element<HTMLSelectElement>('enzyme-set').onchange = event => setEnzymeSet((event.target as HTMLSelectElement).value as EnzymeSet);
+element('enzyme-choose').onclick = chooseEnzymes;
+element('digest-run').onclick = () => void runDigest();
+void enzymeCatalogue().then(value => { catalogue = value; render(); })
+  .catch(error => { element('status').textContent = `Enzyme catalogue unavailable: ${errorMessage(error)}`; });
+
 function render() {
   stash();
   renderDocTabs();
@@ -143,6 +256,8 @@ function render() {
   if (!current) return;
   const doc = current;
   const length = doc.sequence.length;
+  const shown = shownEnzymes();
+  renderEnzymeControls(shown);
   const active = doc.features.find(f => f.id === selected);
   const activeOrf = selectedOrf === null ? undefined : doc.orfs.find(o => o.id === selectedOrf);
   document.body.dataset.tab = activeTab;
@@ -173,16 +288,21 @@ function render() {
   element<HTMLButtonElement>('save-as').disabled = !edit;
   if (activeTab === 'map') {
     const report = renderMap(element<HTMLElement>('map') as unknown as SVGSVGElement, doc, selected, select,
-      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf, range });
+      { orfs: options.showOrfs ? doc.orfs.filter(o => o.codons >= options.orfMinCodons) : [], selectedOrf, selectOrf, range, sites: mapSites(shown?.sites ?? []) });
     unlabelled = { doc, ids: new Set(report.unlabelled) };
     const notice = element('map-notice');
     const count = unlabelled.ids.size;
     const orfCount = report.undrawnOrfs.length;
-    notice.hidden = count === 0 && orfCount === 0;
+    const siteCount = report.unlabelledSites.length;
+    notice.hidden = count === 0 && orfCount === 0 && siteCount === 0;
+    notice.dataset.unlabelled = String(count);
     notice.dataset.undrawnOrfs = String(orfCount);
+    notice.dataset.unlabelledSites = String(siteCount);
+    notice.title = siteCount ? `Enzyme sites without a label (ticks are drawn; see the Sequence view): ${report.unlabelledSites.join(', ')}` : '';
     notice.textContent = [
       count ? `${count} ${count === 1 ? 'label' : 'labels'} not shown on the map · Show in list` : '',
       orfCount ? `${orfCount} ORF${orfCount === 1 ? '' : 's'} not drawn (no room; listed in Sequence)` : '',
+      siteCount ? `${siteCount} enzyme label${siteCount === 1 ? '' : 's'} not shown (ticks drawn)` : '',
     ].filter(Boolean).join(' · ');
     notice.onclick = showUnlabelled;
   }
@@ -210,7 +330,7 @@ function render() {
   }
   list.scrollTop = listScroll;
   if (activeTab === 'sequence') {
-    baseIndex = renderSequence(element('sequence'), doc, { activeFeature: active, activeOrf, range, options, columns: sequenceColumns(), select, selectOrf });
+    baseIndex = renderSequence(element('sequence'), doc, { activeFeature: active, activeOrf, range, options, columns: sequenceColumns(), select, selectOrf, sites: shown?.sites ?? [], selectSite });
   }
 }
 
@@ -358,7 +478,7 @@ element('delete-feature').onclick = deleteSelected;
 bindFeatureDialog(message => { element('status').textContent = `Add feature failed: ${message}`; });
 document.addEventListener('keydown', event => {
   const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement;
-  if ((element<HTMLDialogElement>('feature-dialog')).open) return;
+  if ((element<HTMLDialogElement>('feature-dialog')).open || element<HTMLDialogElement>('enzyme-dialog').open) return;
   const command = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
   if (command && event.shiftKey && key === 'c') { event.preventDefault(); void handoff(); return; }
@@ -430,7 +550,9 @@ function activateDoc(index: number) {
 function clearView() {
   current = null; edit = null; selected = null; selectedOrf = null; range = null; anchor = null;
   element('title').textContent = 'No construct loaded';
-  for (const id of ['features', 'sequence', 'warnings', 'primer-list']) element(id).replaceChildren();
+  for (const id of ['features', 'sequence', 'warnings', 'primer-list', 'digest-fragments']) element(id).replaceChildren();
+  element('enzyme-summary').textContent = ''; element('digest-summary').textContent = '';
+  element<HTMLButtonElement>('digest-run').disabled = true;
   (element('map') as unknown as SVGSVGElement).replaceChildren();
   for (const id of ['new-feature', 'delete-feature', 'dirty', 'range-panel', 'map-notice']) element(id).hidden = true;
   for (const id of ['undo', 'redo', 'save', 'save-as']) element<HTMLButtonElement>(id).disabled = true;
@@ -624,6 +746,8 @@ element('browse').onclick = async () => {
 if (import.meta.env.MODE === 'e2e') {
   void import('./testing/automation').then(automation => automation.install(
     () => ({ current, edit, selected, selectedOrf, range, options, activeTab, workspace, notices, lastHandoff,
+      enzymes: { set: choice.set, catalogue, shown: current ? shownEnzymes()?.names ?? null : null,
+        digest: digestResult && edit && digestResult.documentId === edit.document_id ? digestResult : null },
       tabs: docTabs.map((tab, index) => ({ document_id: tab.edit.document_id, name: tab.current.name, path: tab.path, dirty: tab.edit.dirty, active: index === activeDoc })) }),
     { pollWorkspace }));
 }

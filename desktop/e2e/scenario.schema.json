@@ -56,7 +56,14 @@
             "orf_regions",
             "orf_parts",
             "orf_positions",
-            "lengths"
+            "lengths",
+            "site_ticks",
+            "site_labels",
+            "site_regions",
+            "site_cuts",
+            "recognition_range",
+            "fragment_parts",
+            "site_enzymes"
           ]
         },
         {
@@ -102,6 +109,45 @@
             }
           },
           "description": "Shift-click rule over CLI features (labels): forward from `from`'s first part start to the furthest part end of both, wrapping on circular molecules."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "set"
+          ],
+          "properties": {
+            "name": {
+              "const": "enzyme_set"
+            },
+            "set": {
+              "enum": [
+                "unique6",
+                "unique_dual6",
+                "unique_any"
+              ]
+            }
+          },
+          "description": "From a `sites` result for every catalogue enzyme: the enzymes of a display set (documented in docs/restriction.md), alphabetical."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "rank"
+          ],
+          "properties": {
+            "name": {
+              "const": "fragment_range"
+            },
+            "rank": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "description": "From a `digest` result: the half-open range of the fragment at this rank (longest first, then by start), as the digest list orders them."
         }
       ]
     },
@@ -130,7 +176,10 @@
             "features",
             "primers",
             "translate",
-            "orfs"
+            "orfs",
+            "sites",
+            "digest",
+            "enzymes"
           ]
         },
         "fixture": {
@@ -158,10 +207,28 @@
           "type": "array",
           "maxItems": 12,
           "items": {
-            "type": "string",
-            "minLength": 1
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "memory"
+                ],
+                "properties": {
+                  "memory": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "description": "A remembered value; arrays are joined with commas (e.g. enzyme names for --enzymes)."
+              }
+            ]
           },
-          "description": "Extra CLI arguments after the fixture, e.g. [\"--feature\", \"feature-0001\"]."
+          "description": "Extra CLI arguments after the fixture, e.g. [\"--feature\", \"feature-0001\"] or [\"--enzymes\", {\"memory\": \"shown\"}]."
         },
         "saved": {
           "type": "boolean",
@@ -745,7 +812,7 @@
                   "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.(gb|gbk|genbank)$"
                 }
               },
-              "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as\u2026."
+              "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as…."
             },
             "screenshot": {
               "type": "boolean"
@@ -800,7 +867,7 @@
             "set_workspace": {
               "type": "string",
               "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+$",
-              "description": "Choose this workspace folder through the Workspace\u2026 button (created if missing)."
+              "description": "Choose this workspace folder through the Workspace… button (created if missing)."
             },
             "screenshot": {
               "type": "boolean"
@@ -852,6 +919,67 @@
                 }
               },
               "description": "Play the agent: run the real dnagent CLI from the repository root; it must succeed."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "click_site"
+          ],
+          "properties": {
+            "click_site": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enzyme"
+              ],
+              "properties": {
+                "enzyme": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "description": "Click the enzyme's site label (Map tab) or first site track (Sequence tab)."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "choose_enzymes"
+          ],
+          "properties": {
+            "choose_enzymes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "names"
+              ],
+              "properties": {
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Open Choose…, tick exactly these enzymes and confirm."
             },
             "screenshot": {
               "type": "boolean"

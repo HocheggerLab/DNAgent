@@ -78,3 +78,41 @@ export type RangeRequest = { start: number, end: number, };
 export type HandoffItem = { document_id: number, active: boolean, selection: RangeRequest | null, selected_feature_id: string | null, };
 export type HandoffResult = { workspace: string, context_path: string, snapshots: Array<string>, prompt: string, };
 export type FileStamp = { path: string, modified_ms: number, size: number, };
+export type EnzymeInfo = { name: string,
+/**
+ * IUPAC recognition sequence (may be degenerate or interrupted).
+ */
+site: string, top_cut_offset: number, bottom_cut_offset: number,
+/**
+ * `blunt`, `five_prime` or `three_prime`.
+ */
+overhang: string, overhang_length: number, };
+export type EnzymeCatalogueInfo = { source: string, version: string, enzymes: Array<EnzymeInfo>,
+/**
+ * Enzymes the source lists but DNAgent cannot model yet (e.g. two-sided cutters).
+ */
+unsupported: number, };
+export type EnzymeCount = { name: string, sites: number, cuts: number, };
+export type Site = { enzyme: string,
+/**
+ * Recognition start and length (may wrap on circular molecules).
+ */
+start: number, length: number, strand: Direction,
+/**
+ * Top/bottom strand cut boundaries; null when outside a linear molecule.
+ */
+top_cut: number | null, bottom_cut: number | null, cleavage_available: boolean, };
+export type FragmentEndInfo = { enzymes: Array<string>,
+/**
+ * `blunt`, `five_prime` or `three_prime`.
+ */
+overhang: string, overhang_sequence: string,
+/**
+ * The molecule's original end (linear input), not a cut.
+ */
+original_terminus: boolean, };
+export type Fragment = { id: string,
+/**
+ * Top-strand start and length (may wrap on circular molecules).
+ */
+start: number, length: number, left: FragmentEndInfo | null, right: FragmentEndInfo | null, };

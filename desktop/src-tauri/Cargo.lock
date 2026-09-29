@@ -669,6 +669,7 @@ dependencies = [
 name = "dnagent-desktop"
 version = "0.1.0"
 dependencies = [
+ "dnagent-app",
  "dnagent-desktop-api",
  "tauri",
  "tauri-build",

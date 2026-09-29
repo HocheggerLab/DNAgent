@@ -1,7 +1,7 @@
 // e2e-only automation API (`window.__DNAGENT_TEST__`). Commands dispatch the same
 // DOM events a user would; `getState` reports rendered DOM plus a read-only model view.
 // Never set application state directly here, or the scenarios prove nothing.
-import type { Document, EditState } from '../bindings';
+import type { Document, EditState, EnzymeCatalogueInfo, Fragment } from '../bindings';
 import { dialogState, previewPending } from '../feature-dialog';
 import type { SequenceOptions } from '../sequence-view';
 import { pendingRequests } from '../ipc';
@@ -20,6 +20,7 @@ export interface ModelView {
   notices: { kind: string; path: string }[];
   lastHandoff: { prompt: string; context_path: string } | null;
   tabs: { document_id: number; name: string; path: string; dirty: boolean; active: boolean }[];
+  enzymes: { set: string; catalogue: EnzymeCatalogueInfo | null; shown: string[] | null; digest: { enzymes: string[]; fragments: Fragment[] } | null };
 }
 
 export interface Hooks { pollWorkspace: () => Promise<void> }
@@ -92,6 +93,29 @@ export interface AppState {
     accounted_ids: string[];
     overlapping_labels: number; labels_outside_viewport: number; labels_under_notice: number;
   };
+  /** Restriction display. Map and sequence parts are read from the DOM (null when that view is hidden). */
+  enzymes: {
+    set: string; set_shown: string;
+    catalogue: { source: string; count: number; names: string[] } | null;
+    /** Enzymes the app chose to show (model), alphabetical; null while engine results are pending. */
+    shown: string[] | null;
+    map: null | {
+      /** Cut positions with a tick, ascending. */
+      ticks: number[];
+      /** Labels as displayed: "EcoRI, ApoI (396)" read back into names and cut. */
+      labels: { cut: number; names: string[] }[];
+      unlabelled: number;
+      /** Every tick has exactly one label, or is counted in the notice. */
+      accounted: boolean;
+    };
+    sequence: null | {
+      /** Recognition regions rebuilt from the drawn site tracks. */
+      sites: { enzyme: string; start: number; length: number }[];
+      /** Cut boundaries drawn on each strand (position of the base after the cut). */
+      cuts: { top: number[]; bottom: number[] };
+    };
+    digest: { summary: string; fragments: { start: number; length: number }[]; enzymes: string[] | null };
+  };
   warnings: { present: boolean; count_shown: number; items: number; codes: string[]; open: boolean };
   primers: { count: number; summary: string };
 }
@@ -146,6 +170,56 @@ function intersects(a: DOMRect, b: DOMRect): boolean {
   return a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
 }
 
+function enzymeState(model: ModelView, panels: string[]): AppState['enzymes'] {
+  const length = model.current?.sequence.length ?? 0;
+  const set = document.getElementById('enzyme-set') as HTMLSelectElement;
+  let map: AppState['enzymes']['map'] = null;
+  if (model.current && panels.includes('map')) {
+    const ticks = [...document.querySelectorAll<SVGElement>('#map [data-testid="map-site-tick"]')].map(n => Number(n.dataset.siteCut)).sort((a, b) => a - b);
+    const labels = [...document.querySelectorAll<SVGElement>('#map [data-testid="map-site-label"]')].map(node => {
+      const match = /^(.*) \((\d+)\)$/.exec(visibleText(node));
+      return match ? { cut: Number(match[2]), names: match[1].split(', ') } : { cut: -1, names: [visibleText(node)] };
+    }).sort((a, b) => a.cut - b.cut);
+    const unlabelled = Number(document.getElementById('map-notice')!.dataset.unlabelledSites ?? 0);
+    const labelled = labels.map(label => label.cut);
+    map = { ticks, labels, unlabelled,
+      accounted: new Set(labelled).size === labelled.length && labelled.every(cut => ticks.includes(cut)) && labelled.length + unlabelled === ticks.length };
+  }
+  let sequence: AppState['enzymes']['sequence'] = null;
+  if (model.current && panels.includes('sequence')) {
+    const covered = new Map<string, { enzyme: string; set: Set<number> }>();
+    for (const block of document.querySelectorAll<HTMLElement>('#sequence .sequence-block')) {
+      const rowStart = Number(block.dataset.rowStart);
+      for (const track of block.querySelectorAll<HTMLElement>('[data-testid="site-track"]')) {
+        const key = `${track.dataset.enzyme}@${track.dataset.siteStart}`;
+        const entry = covered.get(key) ?? { enzyme: track.dataset.enzyme!, set: new Set<number>() };
+        const [from, to] = track.style.gridColumn.split('/').map(v => Number(v.trim()) - 1);
+        for (let column = from; column < to; column++) entry.set.add(rowStart + column);
+        covered.set(key, entry);
+      }
+    }
+    const sites = [...covered.values()].map(({ enzyme, set: bases }) => ({
+      enzyme, start: [...bases].find(p => !bases.has((p - 1 + length) % length)) ?? 0, length: bases.size,
+    })).sort((a, b) => a.start - b.start || a.enzyme.localeCompare(b.enzyme));
+    const cutsOf = (strand: string) => [...document.querySelectorAll<HTMLElement>(`#sequence [data-strand="${strand}"] .cut-before`)]
+      .map(base => Number(base.dataset.position)).sort((a, b) => a - b);
+    sequence = { sites, cuts: { top: cutsOf('forward'), bottom: cutsOf('complement') } };
+  }
+  const catalogue = model.enzymes.catalogue;
+  return {
+    set: model.enzymes.set, set_shown: set.value,
+    catalogue: catalogue && { source: catalogue.source, count: catalogue.enzymes.length, names: catalogue.enzymes.map(e => e.name) },
+    shown: model.enzymes.shown,
+    map, sequence,
+    digest: {
+      summary: document.getElementById('digest-summary')!.textContent ?? '',
+      fragments: byTestId('digest-fragment').map(node => ({ start: Number(node.dataset.start), length: Number(node.dataset.length) }))
+        .sort((a, b) => a.start - b.start || a.length - b.length),
+      enzymes: model.enzymes.digest?.enzymes ?? null,
+    },
+  };
+}
+
 function mapState(current: Document): AppState['map'] {
   const svg = document.getElementById('map')!;
   const panel = document.getElementById('panel-map')!;
@@ -158,10 +232,11 @@ function mapState(current: Document): AppState['map'] {
   const badged = [...document.querySelectorAll<HTMLElement>('[data-testid="feature-item"]')]
     .filter(item => item.querySelector('[data-testid="feature-unlabelled"]')).map(item => item.dataset.featureId!);
   const notice = document.getElementById('map-notice')!;
-  const pills = labelNodes.filter(node => node.dataset.labelMode === 'outside').map(node => node.getBoundingClientRect());
+  const siteLabels = [...svg.querySelectorAll<SVGElement>('[data-testid="map-site-label"]')];
+  const pills = [...labelNodes.filter(node => node.dataset.labelMode === 'outside'), ...siteLabels].map(node => node.getBoundingClientRect());
   let overlapping = 0;
   pills.forEach((a, i) => pills.slice(i + 1).forEach(b => { if (intersects(a, b)) overlapping++; }));
-  const outside = labelNodes.map(node => node.getBoundingClientRect())
+  const outside = [...labelNodes, ...siteLabels].map(node => node.getBoundingClientRect())
     .filter(r => r.left < box.left - 0.5 || r.right > box.right + 0.5 || r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5).length;
   const names = new Map(current.features.map(f => [f.id, f.label || f.kind]));
   return {
@@ -174,13 +249,13 @@ function mapState(current: Document): AppState['map'] {
       && Math.abs(Number(svg.dataset.height) - Math.max(160, svg.clientHeight)) <= 1,
     drawn_ids: drawn, labels,
     unlabelled_ids: unlabelled, unlabelled_names: unlabelled.map(id => names.get(id) ?? id), unlabelled_count: unlabelled.length,
-    badged_ids: badged, notice_count: notice.hidden ? 0 : Number.parseInt(notice.textContent ?? '', 10),
+    badged_ids: badged, notice_count: notice.hidden ? 0 : Number(notice.dataset.unlabelled ?? 0),
     accounted_ids: drawn.filter(id => {
       const count = labels.filter(label => label.id === id).length;
       return count === 1 || (count === 0 && badged.includes(id));
     }),
     overlapping_labels: overlapping, labels_outside_viewport: outside,
-    labels_under_notice: notice.hidden ? 0 : labelNodes.filter(node => intersects(node.getBoundingClientRect(), notice.getBoundingClientRect())).length,
+    labels_under_notice: notice.hidden ? 0 : [...labelNodes, ...siteLabels].filter(node => intersects(node.getBoundingClientRect(), notice.getBoundingClientRect())).length,
   };
 }
 
@@ -343,6 +418,7 @@ export function getState(model: ModelView): AppState {
       codes: byTestId('warning-item').map(item => (item.textContent ?? '').trim().split(':')[0]),
       open: details?.open ?? false,
     },
+    enzymes: enzymeState(model, panels),
     primers: { count: byTestId('primer-item').length, summary: document.getElementById('primer-summary')!.textContent ?? '' },
   };
 }
@@ -359,6 +435,10 @@ export interface AutomationApi {
   selectTab(name: 'map' | 'sequence'): void;
   clickSequenceBase(index: number): void;
   selectOrf(orfId: string): void;
+  /** Click the map label (Map tab) or the first site track (Sequence tab) of `enzyme`. */
+  clickSite(enzyme: string): void;
+  /** Tick exactly these enzymes in the chooser and confirm (opens it via Choose…). */
+  chooseEnzymes(names: string[]): void;
   getState(): AppState;
 }
 
@@ -404,6 +484,24 @@ export function install(model: () => ModelView, hooks: Hooks) {
         .find(item => item.dataset.orfId === orfId && item.getClientRects().length > 0);
       if (!node) throw new Error(`e2e: ORF ${orfId} is not drawn (are ORFs shown, and long enough?)`);
       node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    },
+    clickSite(enzyme: string) {
+      const node = [...document.querySelectorAll<HTMLElement | SVGElement>('#map [data-testid="map-site-label"], #sequence [data-testid="site-track"]')]
+        .find(item => item.getClientRects().length > 0 && (item.dataset.enzymes ?? item.dataset.enzyme ?? '').split(',').includes(enzyme));
+      if (!node) throw new Error(`e2e: no visible site label or track for ${enzyme}`);
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    },
+    chooseEnzymes(names: string[]) {
+      required(byTestId('enzyme-choose')[0], 'Choose… button').click();
+      const dialog = document.getElementById('enzyme-dialog') as HTMLDialogElement;
+      if (!dialog.open) throw new Error('e2e: enzyme chooser did not open (catalogue not loaded?)');
+      const options = byTestId('enzyme-option', dialog);
+      for (const name of names) if (!options.some(o => o.dataset.enzyme === name)) throw new Error(`e2e: ${name} is not in the enzyme catalogue`);
+      for (const option of options) {
+        const box = option.querySelector('input')!;
+        if (box.checked !== names.includes(option.dataset.enzyme!)) box.click();
+      }
+      required(byTestId('enzyme-done', dialog)[0], 'Show these button').click();
     },
     getState: () => getState(model()),
   };

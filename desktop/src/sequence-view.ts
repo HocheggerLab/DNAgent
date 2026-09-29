@@ -1,6 +1,6 @@
 // Duplex sequence view. Amino acids, frames and ORFs are engine output (bindings.ts);
 // this module only places them: a codon's letter sits under its middle base.
-import type { Document, Feature, FeatureTranslation, FrameTranslation, Orf } from './bindings';
+import type { Document, Feature, FeatureTranslation, FrameTranslation, Orf, Site } from './bindings';
 import { contains, featureColor } from './map-layout';
 import { textOn } from './map-geometry';
 import { rowSpans } from './sequence-layout';
@@ -20,6 +20,9 @@ export interface SequenceContext {
   columns: number;
   select: (id: string, extend?: boolean) => void;
   selectOrf: (id: string) => void;
+  /** Restriction sites of the shown enzymes (engine output). */
+  sites: Site[];
+  selectSite: (site: Site) => void;
 }
 
 // Display names only; the genetic code itself lives in Rust.
@@ -69,6 +72,9 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
   const letters = new Map(doc.translations.map(t => [t.feature_id, translationLetters(t)]));
   const frames = options.showFrames ? doc.frames.map(frame => ({ frame, letters: frameLetters(frame) })) : [];
   const bases: HTMLElement[][] = Array.from({ length }, () => []);
+  // Cut boundaries are drawn on the base just after the cut; a cut at a linear end has no such base.
+  const topCuts = new Set(context.sites.flatMap(site => site.top_cut ?? []));
+  const bottomCuts = new Set(context.sites.flatMap(site => site.bottom_cut ?? []));
 
   for (let start = 0; start < length; start += columns) {
     const end = Math.min(start + columns, length);
@@ -105,10 +111,26 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
       const grid = line(`frame +${frame.offset + 1}`, 'frame-line'); grid.dataset.testid = 'frame-row'; grid.dataset.frame = `+${frame.offset + 1}`;
       aminoRow(grid, frameItems, 'amino');
     }
+    const rowSites = context.sites.flatMap(site => rowSpans({ start: site.start, length: site.length }, start, end, length).map(span => ({ site, span })));
+    if (rowSites.length) {
+      const grid = line('sites', 'site-line');
+      for (const { site, span } of rowSites) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = 'site-track'; button.dataset.testid = 'site-track';
+        button.dataset.enzyme = site.enzyme; button.dataset.siteStart = String(site.start); button.dataset.siteLength = String(site.length);
+        button.style.gridColumn = `${span.start + 1} / ${span.end + 1}`; // auto rows: overlapping sites stack
+        button.textContent = site.enzyme;
+        button.title = `${site.enzyme} · ${site.strand} · recognition [${site.start}, ${site.start + site.length}) · cuts top ${site.top_cut ?? '—'}, bottom ${site.bottom_cut ?? '—'}`;
+        button.onclick = () => context.selectSite(site);
+        grid.append(button);
+      }
+    }
     for (const [label, sequence, strand] of [['5′ → 3′', doc.sequence, 'forward'], ['3′ → 5′', doc.aligned_complement_3to5, 'complement']]) {
       const grid = line(label, 'strand-line'); grid.dataset.strand = strand;
+      const cuts = strand === 'forward' ? topCuts : bottomCuts;
       for (let pos = start; pos < end; pos++) {
         const base = document.createElement(highlighted(pos) ? 'mark' : 'span');
+        if (cuts.has(pos)) base.classList.add('cut-before');
         base.dataset.position = String(pos); base.textContent = sequence[pos];
         base.title = `Reference position ${pos}`; grid.append(base); bases[pos].push(base);
       }

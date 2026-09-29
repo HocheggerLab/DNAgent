@@ -1,0 +1,157 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "enzymes-origin-site",
+  "description": "A recognition site spanning the origin of a circular molecule is one site track across the origin, its cut marks match the engine, and clicking it selects the wrapped range",
+  "fixture": "fixtures/formats/snapgene/synthetic_restriction_circular.dna",
+  "steps": [
+    {
+      "open": {}
+    },
+    {
+      "select_option": {
+        "testid": "enzyme-set",
+        "value": "unique_any"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.catalogue.names",
+          "equals_cli": {
+            "command": "enzymes",
+            "path": "result[*].name"
+          }
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.catalogue.names",
+        "as": "all"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.shown",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "all"
+              }
+            ],
+            "path": "result",
+            "transform": {
+              "name": "enzyme_set",
+              "set": "unique_any"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.shown",
+        "as": "shown"
+      }
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.sequence.sites",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_regions"
+          }
+        },
+        {
+          "state": "enzymes.sequence.cuts",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_cuts"
+          }
+        }
+      ]
+    },
+    {
+      "click_site": {
+        "enzyme": "EcoRI"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[0]",
+            "transform": "recognition_range"
+          }
+        },
+        {
+          "state": "selection.sequence.highlighted_positions",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[0].recognition",
+            "transform": "positions"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "digest-run"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.digest.fragments",
+          "equals_cli": {
+            "command": "digest",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result.fragments",
+            "transform": "fragment_parts"
+          }
+        }
+      ]
+    }
+  ]
+}

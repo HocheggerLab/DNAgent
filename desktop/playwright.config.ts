@@ -26,6 +26,8 @@ export default defineConfig({
       command: `cargo run -q -p dnagent-desktop-api --example e2e_server -- --port ${serverPort}`,
       cwd: '..',
       url: `http://127.0.0.1:${serverPort}/health`,
+      // The built-in enzyme set, like the CLI oracle: a locally installed REBASE must not change results.
+      env: { DNAGENT_ENZYMES: 'builtin' },
       reuseExistingServer: false,
       timeout: 300_000,
     },

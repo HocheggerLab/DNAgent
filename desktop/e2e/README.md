@@ -66,6 +66,8 @@ Every command dispatches the same event a user would. None of them sets app stat
 | `selectFeature(id)` | Clicks that feature-list button. |
 | `selectTab('map' \| 'sequence')` | Clicks the tab. |
 | `clickSequenceBase(i)` | Clicks forward-strand base `i` (Sequence tab only). |
+| `clickSite(enzyme)` | Clicks the enzyme's map label or first sequence site box. |
+| `chooseEnzymes(names)` | Opens **Choose…**, ticks exactly `names`, confirms. |
 | `getState()` | JSON snapshot (below). |
 
 `getState()` fields (see `AppState` in `src/testing/automation.ts`):
@@ -117,6 +119,15 @@ Every command dispatches the same event a user would. None of them sets app stat
 - `features[*].unlabelled`: the item carries the "not labelled on map" badge.
 - `warnings`: `{present, count_shown, items, codes, open}`; all counts are 0 when no panel is rendered.
 - `primers`: `{count, summary}`.
+- `enzymes`: `set` (model) and `set_shown` (the toolbar control); `catalogue` `{source,
+  count, names}`; `shown`, the enzymes the app chose to show (null while engine results
+  are pending); `map` (Map tab only): `ticks` (cut positions), `labels` (`{cut, names}`
+  **parsed from the label text**), `unlabelled` (count in the notice) and `accounted`
+  (every tick has exactly one label, or is counted); `sequence` (Sequence tab only):
+  `sites` (`{enzyme, start, length}` rebuilt from the drawn boxes' columns) and `cuts`
+  (`{top, bottom}` positions carrying a cut mark); `digest`: `{summary, fragments:
+  [{start, length}] by start, enzymes}`. Site labels count in the map's overlap,
+  viewport and notice checks, and `map.notice_count` counts features only.
 
 All coordinates are zero-based and half-open, matching the JSON contract.
 
@@ -172,6 +183,8 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `set_workspace: path` | Choose the workspace through **Workspace…** (a folder under `desktop/e2e/artifacts/`, emptied first). |
 | `poll_workspace: true` | Run the app's workspace poll now (the function its timer runs). |
 | `run_cli: {args}` | Play the agent: run the real `dnagent` CLI from the repository root; it must succeed. |
+| `click_site: {enzyme}` | Click the enzyme's site label (Map) or first site box (Sequence). |
+| `choose_enzymes: {names}` | Open **Choose…**, tick exactly these enzymes and confirm. |
 
 `select_feature` also takes `extend: true` (shift-click), `click` takes
 `modifiers: ["Shift"]`, and `open` takes `saved: true` or `file: <path under
@@ -187,7 +200,8 @@ Useful `data-testid`s: `feature-item`, `feature-name`, `tab-map`, `tab-sequence`
 `map-feature`, `map-selection-part`, `sequence-track`, `warnings-summary`,
 `warnings-panel`, `warning-item`, `primer-item`, `path-input`, `open-form`, `browse`,
 `map-label` (pills and on-arc labels), `map-hidden-notice`, `feature-unlabelled`,
-`toggle-features`, `theme-select`. Click map pills rather than `map-feature` arcs:
+`toggle-features`, `theme-select`, `enzyme-set`, `enzyme-choose`, `map-site-tick`,
+`map-site-label`, `site-track`, `digest-run`, `digest-fragment`. Click map pills rather than `map-feature` arcs:
 Playwright clicks an element's bounding-box centre, which for an arc lies off the shape.
 
 ### Map invariants
@@ -206,9 +220,13 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
 
 - `equals_cli: {command, args?, path | one, transform?, index?, fixture?}`: runs
   `dnagent <command> <fixture> <args…> --output json`. `fixture` defaults to the most
-  recently opened one. `command` is `inspect`, `features`, `primers`, `translate` or
-  `orfs`. `args` are extra CLI arguments, e.g. `["--feature", "feature-0001"]` or
-  `["--min-codons", "30"]`.
+  recently opened one. `command` is `inspect`, `features`, `primers`, `translate`,
+  `orfs`, `sites`, `digest` or `enzymes` (no input file). `args` are extra CLI
+  arguments, e.g. `["--feature", "feature-0001"]` or `["--min-codons", "30"]`; an
+  argument `{"memory": name}` inserts a remembered value (arrays joined with commas),
+  e.g. `["--enzymes", {"memory": "shown"}]` for the enzymes the GUI chose to show.
+  The CLI, `run_cli` and the e2e server all run with `DNAGENT_ENZYMES=builtin`, so a
+  locally installed REBASE does not change results.
 - `equals_memory: <name>`: a value stored by an earlier `remember` step.
 - `equals_cli.saved: true` runs the CLI on the file written by the last `save_as`, and
   `equals_cli.file` on any file under `desktop/e2e/artifacts` (snapshots, agent products).
@@ -218,7 +236,9 @@ they are geometry checks, not biology. Keep these invariants when redesigning.
   and compares it unwrapped, e.g. `selection.sequence.frames[?(@.frame=='+1')].protein`.
 - `equals_state: <path>`: another path in the same snapshot.
 - `equals: <literal>`: **rejected on biological paths** (`document.*`, `features*`,
-  `selection.map*`, `selection.sequence*`, `warnings` counts and codes, `primers.count`).
+  `selection.map*`, `selection.sequence*`, `warnings` counts and codes, `primers.count`,
+  `enzymes.shown`, `enzymes.catalogue.names|count`, `enzymes.map.ticks|labels`,
+  `enzymes.sequence*`, `enzymes.digest.fragments|enzymes`).
   `null` is allowed for `document`, `selection.feature_id`, `selection.map` and
   `selection.sequence`. Literals are otherwise for UI state: `idle`, `active_tab`,
   `warnings.open`, `warnings.present`, `path_input`.
@@ -242,6 +262,14 @@ Transforms (`e2e/lib/transforms.ts`) are format adapters in test code only:
 | `lengths` | array of arrays or strings → their lengths |
 | `{name: "forward_span", from, to, as?}` | the documented shift-click rule over CLI features (by label): forward from `from`'s first part start to the furthest part end of both, wrapping on circles; `as: "parts"` gives `[{start, length}]`. |
 | `{name: "ids_covering", base}` | features array → ids covering `base`, in source order. Use `index` to pick the expected cycle position. |
+| `{name: "enzyme_set", set}` | `sites` result over every catalogue enzyme → the display set's enzymes (`unique6`, `unique_dual6`, `unique_any`; rule in `docs/restriction.md`), alphabetical |
+| `site_enzymes` | `sites` result → enzymes with at least one site, alphabetical |
+| `site_ticks` / `site_labels` | `sites` result → distinct top-strand cuts / `[{cut, names}]` per cut |
+| `site_regions` | `sites` result → `[{enzyme, start, length}]` recognition regions |
+| `site_cuts` | `sites` result → `{top, bottom}` cut boundaries that have a base after them |
+| `recognition_range` | one site → the half-open selection range of its recognition sequence (wrapping on circles) |
+| `fragment_parts` | `digest` fragments → top-strand `[{start, length}]` by start |
+| `{name: "fragment_range", rank}` | `digest` fragments → selection range of the fragment at `rank` in list order (longest first) |
 
 ## Adding a scenario
 
@@ -345,6 +373,20 @@ Fifth round, tabs and agent handoff (2026-09-29):
 | Reopening an open file adds a duplicate tab | tabs-isolation (after replacing a tautological check with `tab_count`) |
 | Handoff sends the active tab's selection for every tab | agent-handoff-product |
 | The test server lacks a command | desktop-api dispatch test (added after this happened for real), agent-handoff-product, workspace-reload |
+
+Sixth round, restriction enzymes (2026-09-29):
+
+| Injected bug | Caught by |
+| --- | --- |
+| Sequence cut marks one base late | enzymes-unique-sites, enzymes-digest-linear, enzymes-origin-site |
+| A map label names only one of the enzymes cutting there | enzymes-unique-sites, enzymes-digest-linear |
+| Clicking a site selects one base too few | enzymes-unique-sites, enzymes-origin-site |
+| The digest list drops a fragment | enzymes-digest-linear, enzymes-origin-site |
+| "6+ cutter" counts N positions | unit test `specificity ignores N` only: no fixture has a unique N-containing enzyme with fewer than 6 specified bases |
+
+The first run also caught a real layout problem: pUC19's crowded polylinker hid 12 of 25
+site labels at 1440×900. Site labels now use a tighter 17 px slot, which cuts that to 8.
+The scenario checks accounting at that size and the full label list at 1920×1200.
 
 Harness lesson: a first pass showed `orfs-sequence-and-map` "catching" unrelated GUI bugs.
 The injection script had restored the engine source but not rebuilt the CLI, so the

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 use dnagent_desktop_api::Diagnostic;
+use dnagent_desktop_api::restriction::{EnzymeCatalogueInfo, EnzymeCount, Fragment, Site};
 use dnagent_desktop_api::session::{
     DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session,
 };
@@ -85,13 +86,36 @@ fn default_workspace() -> String {
     dnagent_desktop_api::session::default_workspace()
 }
 
+#[tauri::command]
+fn enzyme_catalogue() -> EnzymeCatalogueInfo {
+    dnagent_desktop_api::restriction::catalogue_info()
+}
+
+#[tauri::command]
+async fn enzyme_counts(state: State<'_, AppSession>, document_id: u32) -> Result<Vec<EnzymeCount>, Diagnostic> {
+    with_session(state, move |s| s.enzyme_counts(document_id)).await
+}
+
+#[tauri::command]
+async fn find_sites(state: State<'_, AppSession>, document_id: u32, enzymes: Vec<String>) -> Result<Vec<Site>, Diagnostic> {
+    with_session(state, move |s| s.find_sites(document_id, &enzymes)).await
+}
+
+#[tauri::command]
+async fn digest(state: State<'_, AppSession>, document_id: u32, enzymes: Vec<String>) -> Result<Vec<Fragment>, Diagnostic> {
+    with_session(state, move |s| s.digest(document_id, &enzymes)).await
+}
+
 fn main() {
+    for warning in dnagent_app::enzymes::activate() {
+        eprintln!("warning [{}]: {}", warning.code, warning.message);
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppSession::default())
         .invoke_handler(tauri::generate_handler![
             open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
-            close_document, write_handoff, poll_files, default_workspace
+            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest
         ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

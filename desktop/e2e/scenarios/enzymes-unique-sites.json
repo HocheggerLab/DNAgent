@@ -1,0 +1,387 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "enzymes-unique-sites",
+  "description": "Unique 6+ cutters (the default set) are exactly the engine's; ticks, labels, sequence site tracks and cut marks match `dnagent sites`, and clicking a site (including one spanning the origin) selects its recognition sequence",
+  "fixture": "fixtures/formats/snapgene/pUC19_M77789.dna",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.set",
+          "equals": "unique6"
+        },
+        {
+          "state": "enzymes.set_shown",
+          "equals": "unique6"
+        },
+        {
+          "state": "enzymes.catalogue.names",
+          "equals_cli": {
+            "command": "enzymes",
+            "path": "result[*].name"
+          },
+          "message": "the GUI's catalogue is the CLI's"
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.catalogue.names",
+        "as": "all"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.shown",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "all"
+              }
+            ],
+            "path": "result",
+            "transform": {
+              "name": "enzyme_set",
+              "set": "unique6"
+            }
+          },
+          "message": "unique 6+ cutters over the whole catalogue"
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.shown",
+        "as": "shown"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.map.ticks",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_ticks"
+          }
+        },
+        {
+          "state": "enzymes.map.accounted",
+          "equals": true,
+          "message": "at 1440×900 some labels in the crowded polylinker are hidden: every tick has one label or is counted in the notice"
+        },
+        {
+          "state": "map.accounted_ids",
+          "equals_cli": {
+            "command": "features",
+            "path": "result[*].id"
+          },
+          "message": "features stay accounted for"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "set_viewport": {
+        "width": 1920,
+        "height": 1200
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.map.unlabelled",
+          "equals": 0
+        },
+        {
+          "state": "enzymes.map.labels",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_labels"
+          },
+          "message": "labels name every enzyme at each cut"
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        }
+      ],
+      "screenshot": true,
+      "note": "with room, every site is labelled"
+    },
+    {
+      "click_site": {
+        "enzyme": "EcoRI"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.kind",
+          "equals": "range"
+        },
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[?(@.enzyme=='EcoRI')]",
+            "transform": "recognition_range"
+          }
+        }
+      ]
+    },
+    {
+      "click_site": {
+        "enzyme": "SapI"
+      },
+      "note": "SapI's site spans the origin of pUC19"
+    },
+    {
+      "expect": [
+        {
+          "state": "selection.range",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[?(@.enzyme=='SapI')]",
+            "transform": "recognition_range"
+          }
+        },
+        {
+          "state": "selection.map.parts",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[?(@.enzyme=='SapI')].recognition",
+            "transform": "parts"
+          }
+        }
+      ]
+    },
+    {
+      "select_tab": "sequence"
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.sequence.sites",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_regions"
+          },
+          "message": "one track per recognition site, wrapping at the origin"
+        },
+        {
+          "state": "enzymes.sequence.cuts",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "path": "result",
+            "transform": "site_cuts"
+          }
+        },
+        {
+          "state": "selection.sequence.highlighted_positions",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "shown"
+              }
+            ],
+            "one": "result.sites[?(@.enzyme=='SapI')].recognition",
+            "transform": "positions"
+          }
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_tab": "map"
+    },
+    {
+      "select_option": {
+        "testid": "enzyme-set",
+        "value": "unique_dual6"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.shown",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "all"
+              }
+            ],
+            "path": "result",
+            "transform": {
+              "name": "enzyme_set",
+              "set": "unique_dual6"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "remember": {
+        "state": "enzymes.shown",
+        "as": "dual"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.map.ticks",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "dual"
+              }
+            ],
+            "path": "result",
+            "transform": "site_ticks"
+          }
+        },
+        {
+          "state": "enzymes.map.accounted",
+          "equals": true
+        },
+        {
+          "state": "map.overlapping_labels",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_outside_viewport",
+          "equals": 0
+        },
+        {
+          "state": "map.labels_under_notice",
+          "equals": 0
+        }
+      ],
+      "screenshot": true
+    },
+    {
+      "select_option": {
+        "testid": "enzyme-set",
+        "value": "unique_any"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.shown",
+          "equals_cli": {
+            "command": "sites",
+            "args": [
+              "--enzymes",
+              {
+                "memory": "all"
+              }
+            ],
+            "path": "result",
+            "transform": {
+              "name": "enzyme_set",
+              "set": "unique_any"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "reload": true,
+      "note": "the chosen set is remembered"
+    },
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "enzymes.set",
+          "equals": "unique_any"
+        },
+        {
+          "state": "enzymes.set_shown",
+          "equals": "unique_any"
+        }
+      ]
+    }
+  ]
+}
