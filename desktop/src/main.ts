@@ -1,7 +1,10 @@
 import type { Diagnostic, Document, DocumentState, EditState } from './bindings';
 import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
-import { openDocument, pickConstructPath, pickSavePath, redo, removeFeature, saveGenbank, undo } from './ipc';
+import {
+  closeDocument, defaultWorkspace, openDocument, pickConstructPath, pickSavePath, pickWorkspace, pollFiles, redo, removeFeature,
+  saveGenbank, undo, writeHandoff,
+} from './ipc';
 import { renderMap } from './map-view';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
 import { initTheme } from './theme';
@@ -12,6 +15,20 @@ let current: Document | null = null;
 let edit: EditState | null = null;
 /** Where a shift-click extends from: the last plainly selected feature, or a range start. */
 let anchor: { feature: string } | { base: number } | null = null;
+
+/** One open construct. The globals above always mirror the active tab. */
+interface DocTab {
+  current: Document; edit: EditState; path: string;
+  selected: string | null; selectedOrf: string | null; range: { start: number; end: number } | null;
+  anchor: { feature: string } | { base: number } | null;
+}
+const docTabs: DocTab[] = [];
+let activeDoc = -1;
+
+function stash() {
+  const tab = docTabs[activeDoc];
+  if (tab && current && edit) Object.assign(tab, { current, edit, selected, selectedOrf, range, anchor });
+}
 let selected: string | null = null;
 /** At most one of selected / selectedOrf / range is set. */
 let selectedOrf: string | null = null;
@@ -120,6 +137,9 @@ for (const name of ['map', 'sequence'] as const) {
 }
 
 function render() {
+  stash();
+  renderDocTabs();
+  element<HTMLButtonElement>('handoff').disabled = docTabs.length === 0;
   if (!current) return;
   const doc = current;
   const length = doc.sequence.length;
@@ -305,6 +325,7 @@ async function save(as: boolean) {
   try {
     const result = await saveGenbank(edit.document_id, path);
     applyState(result.state);
+    rememberStamp(path);
     const notes = result.warnings.map(w => `${w.code}: ${w.message}`).join('; ');
     element('status').textContent = `Saved GenBank to ${path}${notes ? ` — ${notes}` : ''}`;
   } catch (error) {
@@ -340,51 +361,257 @@ document.addEventListener('keydown', event => {
   if ((element<HTMLDialogElement>('feature-dialog')).open) return;
   const command = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
+  if (command && event.shiftKey && key === 'c') { event.preventDefault(); void handoff(); return; }
+  if (command && /^[1-9]$/.test(event.key)) { event.preventDefault(); activateDoc(Number(event.key) - 1); return; }
   if (command && key === 'z') { event.preventDefault(); (event.shiftKey ? element('redo') : element('undo')).click(); }
   else if (command && key === 'y') { event.preventDefault(); element('redo').click(); }
   else if (command && key === 's') { event.preventDefault(); void save(event.shiftKey); }
   else if (!typing && !command && (event.key === 'Delete' || event.key === 'Backspace')) deleteSelected();
 });
 
+function renderDocumentChrome(doc: Document) {
+  element('primer-summary').textContent = `Imported primers: ${doc.unplaced_primers.length} (unplaced)`;
+  element('primer-list').replaceChildren();
+  for (const primer of doc.unplaced_primers) {
+    const item = document.createElement('div'); item.className = 'primer-item'; item.dataset.testid = 'primer-item';
+    const name = document.createElement('strong'); name.textContent = primer.name;
+    const sequence = document.createElement('code'); sequence.textContent = primer.sequence_5to3;
+    const description = document.createElement('p'); description.textContent = primer.description ?? '';
+    item.append(name, sequence, description); element('primer-list').append(item);
+  }
+  element('warnings').replaceChildren();
+  if (doc.warnings.length) {
+    const details = document.createElement('details'); details.dataset.testid = 'warnings-panel';
+    const summary = document.createElement('summary'); summary.dataset.testid = 'warnings-summary';
+    summary.textContent = `${doc.warnings.length} import-fidelity warnings — review details`;
+    const explanation = document.createElement('p');
+    explanation.textContent = 'Some source content is not interpreted by DNAgent. These warnings do not by themselves indicate a sequence error. Retained packets are carried into saved GenBank but are not shown in this viewer.';
+    const messages = document.createElement('pre');
+    doc.warnings.forEach((w, index) => {
+      const line = document.createElement('span'); line.dataset.testid = 'warning-item';
+      line.textContent = `${index ? '\n' : ''}${w.code}: ${w.message}`; messages.append(line);
+    });
+    details.append(summary, explanation, messages); element('warnings').append(details);
+  }
+}
+
+function renderDocTabs() {
+  const bar = element('doc-tabs');
+  bar.replaceChildren(...docTabs.map((tab, index) => {
+    const item = document.createElement('div');
+    item.className = `doc-tab${index === activeDoc ? ' active' : ''}`;
+    item.dataset.testid = 'doc-tab'; item.dataset.documentId = String(tab.edit.document_id);
+    item.setAttribute('role', 'tab'); item.setAttribute('aria-selected', String(index === activeDoc));
+    item.title = tab.path;
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = tab.current.name;
+    item.append(name);
+    if (tab.edit.dirty) { const dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '●'; item.append(dot); }
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.dataset.testid = 'doc-tab-close';
+    close.textContent = '×'; close.title = `Close ${tab.current.name}`;
+    close.onclick = event => { event.stopPropagation(); void closeDoc(index); };
+    item.append(close);
+    item.onclick = () => activateDoc(index);
+    return item;
+  }));
+  bar.hidden = docTabs.length === 0;
+}
+
+function activateDoc(index: number) {
+  if (index < 0 || index >= docTabs.length) return;
+  stash();
+  activeDoc = index;
+  const tab = docTabs[index];
+  ({ current, edit, selected, selectedOrf, range, anchor } = tab);
+  element<HTMLInputElement>('path').value = tab.path;
+  renderDocumentChrome(tab.current);
+  render();
+}
+
+function clearView() {
+  current = null; edit = null; selected = null; selectedOrf = null; range = null; anchor = null;
+  element('title').textContent = 'No construct loaded';
+  for (const id of ['features', 'sequence', 'warnings', 'primer-list']) element(id).replaceChildren();
+  (element('map') as unknown as SVGSVGElement).replaceChildren();
+  for (const id of ['new-feature', 'delete-feature', 'dirty', 'range-panel', 'map-notice']) element(id).hidden = true;
+  for (const id of ['undo', 'redo', 'save', 'save-as']) element<HTMLButtonElement>(id).disabled = true;
+  element('selection').textContent = 'Open a construct.';
+  renderDocTabs();
+  element<HTMLButtonElement>('handoff').disabled = true;
+}
+
+async function closeDoc(index: number) {
+  const tab = docTabs[index];
+  if (!tab) return;
+  if (index === activeDoc) stash();
+  if (tab.edit.dirty && !window.confirm(`Discard unsaved changes to ${tab.current.name}?`)) return;
+  try { await closeDocument(tab.edit.document_id); } catch { /* already gone */ }
+  docTabs.splice(index, 1);
+  if (docTabs.length === 0) { activeDoc = -1; clearView(); return; }
+  activeDoc = -1;
+  activateDoc(Math.min(index, docTabs.length - 1));
+}
+
 async function load(path: string) {
-  if (edit?.dirty && !window.confirm('Discard unsaved changes to the current construct?')) return;
+  const existing = docTabs.findIndex(tab => tab.path === path);
+  if (existing >= 0) { activateDoc(existing); element('status').textContent = `${docTabs[existing].current.name} is already open`; return; }
   const request = ++revision;
   element('status').textContent = 'Loading…';
   try {
     const state = await openDocument(path);
-    if (request !== revision) return;
-    const result = state.document;
-    current = result; edit = state.edit; selected = null; selectedOrf = null; range = null; anchor = null;
-    element('primer-summary').textContent = `Imported primers: ${result.unplaced_primers.length} (unplaced)`;
-    element('primer-list').replaceChildren();
-    for (const primer of result.unplaced_primers) {
-      const item = document.createElement('div'); item.className = 'primer-item'; item.dataset.testid = 'primer-item';
-      const name = document.createElement('strong'); name.textContent = primer.name;
-      const sequence = document.createElement('code'); sequence.textContent = primer.sequence_5to3;
-      const description = document.createElement('p'); description.textContent = primer.description ?? '';
-      item.append(name,sequence,description); element('primer-list').append(item);
-    }
-    element('warnings').replaceChildren();
-    if (result.warnings.length) {
-      const details = document.createElement('details'); details.dataset.testid = 'warnings-panel';
-      const summary = document.createElement('summary'); summary.dataset.testid = 'warnings-summary';
-      summary.textContent = `${result.warnings.length} import-fidelity warnings — review details`;
-      const explanation = document.createElement('p');
-      explanation.textContent = 'Some source content is not interpreted by DNAgent. These warnings do not by themselves indicate a sequence error. Retained packets are not exposed in this viewer or guaranteed to survive derived exports.';
-      const messages = document.createElement('pre');
-      result.warnings.forEach((w, index) => {
-        const line = document.createElement('span'); line.dataset.testid = 'warning-item';
-        line.textContent = `${index ? '\n' : ''}${w.code}: ${w.message}`; messages.append(line);
-      });
-      details.append(summary,explanation,messages); element('warnings').append(details);
-    }
-    element('status').textContent = 'Click a feature, shift-click another to select the span between, or drag across bases · New feature… adds an annotation · Save writes GenBank.';
-    render();
+    if (request !== revision) { void closeDocument(state.edit.document_id).catch(() => undefined); return; }
+    stash();
+    docTabs.push({ current: state.document, edit: state.edit, path, selected: null, selectedOrf: null, range: null, anchor: null });
+    activeDoc = -1;
+    activateDoc(docTabs.length - 1);
+    rememberStamp(path);
+    element('status').textContent = 'Click a feature, shift-click another to select the span between, or drag across bases · New feature… adds an annotation · Save writes GenBank · Hand off to agent shares all tabs.';
   } catch (error) {
     if (request !== revision) return;
     element('status').textContent = `Open failed: ${errorMessage(error)}. Previous document remains unchanged.`;
   }
 }
+
+// ------------------------------------------------------------------ agent handoff and workspace
+
+const WORKSPACE_KEY = 'dnagent.workspace';
+let workspace = '';
+try { workspace = localStorage.getItem(WORKSPACE_KEY) ?? ''; } catch { /* default below */ }
+let lastHandoff: { prompt: string; context_path: string } | null = null;
+type Notice = { kind: 'new' | 'changed' | 'conflict'; path: string };
+let notices: Notice[] = [];
+/** Last seen stamp per watched path; null until the workspace baseline is taken. */
+let stamps: Map<string, string> | null = null;
+
+function workspaceLabel() {
+  element('workspace').textContent = `Workspace: ${workspace.replace(/^\/Users\/[^/]+/, '~') || '…'}`;
+  element('workspace').title = `Workspace folder shared with the agent: ${workspace}`;
+}
+
+async function ensureWorkspace() {
+  if (!workspace) {
+    try { workspace = await defaultWorkspace(); } catch (error) { element('status').textContent = `No workspace folder: ${errorMessage(error)}`; }
+  }
+  workspaceLabel();
+}
+
+function setWorkspace(path: string) {
+  workspace = path; stamps = null; notices = []; renderNotices();
+  try { localStorage.setItem(WORKSPACE_KEY, path); } catch { /* not persisted */ }
+  workspaceLabel();
+  void pollWorkspace();
+}
+
+const stampKey = (s: { modified_ms: number; size: number }) => `${s.modified_ms}:${s.size}`;
+
+/** Forget a path's stamp so our own write does not look like an outside change. */
+function rememberStamp(path: string) {
+  void pollFiles(workspace || '.', [path]).then(found => {
+    const mine = found.find(s => s.path === path);
+    if (mine && stamps) stamps.set(path, stampKey(mine));
+  }).catch(() => undefined);
+}
+
+function renderNotices() {
+  const box = element('file-notices');
+  box.replaceChildren(...notices.map(notice => {
+    const row = document.createElement('div');
+    row.className = `file-notice ${notice.kind}`; row.dataset.testid = 'file-notice'; row.dataset.kind = notice.kind; row.dataset.path = notice.path;
+    const text = document.createElement('span');
+    const name = notice.path.split('/').pop();
+    text.textContent = notice.kind === 'conflict'
+      ? `${name} changed on disk, but its tab has unsaved edits.`
+      : notice.kind === 'new' ? `New in workspace: ${name}` : `Changed in workspace: ${name}`;
+    const button = (label: string, testid: string, action: () => void) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.dataset.testid = testid; b.onclick = action; return b;
+    };
+    const dismiss = () => { notices = notices.filter(n => n !== notice); renderNotices(); };
+    if (notice.kind === 'conflict') {
+      row.append(text, button('Reload (discard my edits)', 'notice-reload', () => { dismiss(); void reloadTab(notice.path); }),
+        button('Keep mine', 'notice-dismiss', dismiss));
+    } else {
+      row.append(text, button('Open', 'notice-open', () => { dismiss(); void load(notice.path); }), button('Dismiss', 'notice-dismiss', dismiss));
+    }
+    return row;
+  }));
+}
+
+async function reloadTab(path: string) {
+  const index = docTabs.findIndex(tab => tab.path === path);
+  if (index < 0) return;
+  try {
+    const state = await openDocument(path);
+    const old = docTabs[index];
+    void closeDocument(old.edit.document_id).catch(() => undefined);
+    const keep = (id: string | null) => (id && state.document.features.some(f => f.id === id) ? id : null);
+    if (index === activeDoc) stash();
+    Object.assign(docTabs[index], { current: state.document, edit: state.edit, selected: keep(old.selected), selectedOrf: null });
+    if (index === activeDoc) { activeDoc = -1; activateDoc(index); } else renderDocTabs();
+    element('status').textContent = `Reloaded ${state.document.name} (changed on disk)`;
+  } catch (error) {
+    element('status').textContent = `Reload failed: ${errorMessage(error)}`;
+  }
+}
+
+/** Compare workspace and open-file stamps with the last poll; offer or reload changes. */
+async function pollWorkspace() {
+  await ensureWorkspace();
+  stash();
+  let found;
+  try { found = await pollFiles(workspace, docTabs.map(tab => tab.path)); } catch { return; }
+  const first = stamps === null;
+  const seen = stamps ?? new Map<string, string>();
+  for (const file of found) {
+    const key = stampKey(file);
+    const before = seen.get(file.path);
+    seen.set(file.path, key);
+    if (first || before === key) continue;
+    const tab = docTabs.find(t => t.path === file.path);
+    if (notices.some(n => n.path === file.path)) continue;
+    if (tab) {
+      if (tab.edit.dirty) notices.push({ kind: 'conflict', path: file.path });
+      else await reloadTab(file.path);
+    } else {
+      notices.push({ kind: before === undefined ? 'new' : 'changed', path: file.path });
+    }
+  }
+  stamps = seen;
+  renderNotices();
+}
+
+async function handoff() {
+  if (!docTabs.length) return;
+  await ensureWorkspace();
+  stash();
+  try {
+    const result = await writeHandoff(workspace, docTabs.map((tab, index) => ({
+      document_id: tab.edit.document_id, active: index === activeDoc, selection: tab.range, selected_feature_id: tab.selected,
+    })));
+    lastHandoff = result;
+    element('handoff-panel').hidden = false;
+    element<HTMLTextAreaElement>('handoff-prompt').value = result.prompt;
+    let copied = false;
+    try { await navigator.clipboard.writeText(result.prompt); copied = true; } catch { /* shown for manual copy */ }
+    element('handoff-note').textContent = `${result.snapshots.length} snapshot${result.snapshots.length === 1 ? '' : 's'} + context.json in ${result.context_path.replace(/\/context\.json$/, '')}${copied ? ' · prompt copied' : ''}`;
+    element('status').textContent = `Handed off ${result.snapshots.length} construct${result.snapshots.length === 1 ? '' : 's'} to the agent.`;
+  } catch (error) {
+    element('status').textContent = `Handoff failed: ${errorMessage(error)}`;
+  }
+}
+
+element('handoff').onclick = () => void handoff();
+element('handoff-close').onclick = () => { element('handoff-panel').hidden = true; };
+element('handoff-copy').onclick = async () => {
+  const text = element<HTMLTextAreaElement>('handoff-prompt');
+  try { await navigator.clipboard.writeText(text.value); } catch { text.select(); document.execCommand('copy'); }
+  element('handoff-note').textContent += ' · copied';
+};
+element('workspace').onclick = async () => {
+  await ensureWorkspace();
+  const path = await pickWorkspace(workspace).catch(() => null);
+  if (path) setWorkspace(path);
+};
+void ensureWorkspace().then(() => pollWorkspace());
+window.setInterval(() => { if (document.visibilityState === 'visible') void pollWorkspace(); }, import.meta.env.MODE === 'e2e' ? 3_600_000 : 2_000);
 
 element('open').onsubmit = event => { event.preventDefault(); void load(element<HTMLInputElement>('path').value); };
 element('browse').onclick = async () => {
@@ -395,5 +622,8 @@ element('browse').onclick = async () => {
 };
 
 if (import.meta.env.MODE === 'e2e') {
-  void import('./testing/automation').then(automation => automation.install(() => ({current, edit, selected, selectedOrf, range, options, activeTab})));
+  void import('./testing/automation').then(automation => automation.install(
+    () => ({ current, edit, selected, selectedOrf, range, options, activeTab, workspace, notices, lastHandoff,
+      tabs: docTabs.map((tab, index) => ({ document_id: tab.edit.document_id, name: tab.current.name, path: tab.path, dirty: tab.edit.dirty, active: index === activeDoc })) }),
+    { pollWorkspace }));
 }

@@ -394,6 +394,30 @@ pub fn assembly_genbank(
     Ok(dnagent_formats::assembly::genbank(assembly, name)?)
 }
 
+/// Current UTC time as RFC 3339, e.g. `2026-09-29T18:04:05Z`.
+#[must_use]
+pub fn utc_timestamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let (days, seconds) = (now / 86_400, now % 86_400);
+    let z = i64::try_from(days).unwrap_or(0) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        seconds / 3600,
+        seconds % 3600 / 60,
+        seconds % 60
+    )
+}
+
 /// Today's date in GenBank LOCUS form (UTC), e.g. `29-SEP-2026`.
 #[must_use]
 pub fn genbank_date_today() -> String {

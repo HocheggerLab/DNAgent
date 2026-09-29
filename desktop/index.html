@@ -4,13 +4,20 @@
 <body>
 <main>
   <header>
-    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
+    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><span class="agent-controls"><button id="handoff" data-testid="handoff" type="button" title="Snapshot all tabs into the workspace and copy a prompt for the agent (⇧⌘C)" disabled>Hand off to agent</button><button id="workspace" data-testid="workspace-button" type="button" title="Workspace folder shared with the agent">Workspace…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
     <p id="status" data-testid="status" role="status">DNAgent: open a construct. Saving writes GenBank; .dna files are never modified.</p>
     <div id="warnings" data-testid="warnings"></div>
+    <div id="file-notices" data-testid="file-notices"></div>
+    <section id="handoff-panel" data-testid="handoff-panel" hidden>
+      <div class="handoff-head"><strong>Agent handoff</strong><span id="handoff-note" data-testid="handoff-note"></span>
+        <button id="handoff-copy" data-testid="handoff-copy" type="button">Copy prompt</button><button id="handoff-close" data-testid="handoff-close" type="button">Close</button></div>
+      <textarea id="handoff-prompt" data-testid="handoff-prompt" readonly rows="3"></textarea>
+    </section>
   </header>
   <section class="workspace">
     <aside id="feature-panel"><div class="aside-head"><h2>Features</h2><button id="toggle-features" data-testid="toggle-features" type="button" aria-expanded="true" aria-controls="features" title="Hide feature list">‹</button></div><div id="features" data-testid="feature-list"></div></aside>
     <article>
+      <nav id="doc-tabs" data-testid="doc-tabs" class="doc-tabs" aria-label="Open constructs"></nav>
       <div class="title-row"><h2 id="title" data-testid="title">No construct loaded</h2><span id="dirty" data-testid="dirty-indicator" title="Unsaved changes" hidden>● unsaved</span></div>
       <nav role="tablist" aria-label="Construct views">
         <button id="tab-map" data-testid="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>

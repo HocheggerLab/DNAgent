@@ -74,3 +74,7 @@ export type FeaturePreview = { length: number, parts: Array<Segment>,
  */
 protein: string | null, warnings: Array<Diagnostic>, };
 export type SaveResult = { state: DocumentState, warnings: Array<Diagnostic>, };
+export type RangeRequest = { start: number, end: number, };
+export type HandoffItem = { document_id: number, active: boolean, selection: RangeRequest | null, selected_feature_id: string | null, };
+export type HandoffResult = { workspace: string, context_path: string, snapshots: Array<string>, prompt: string, };
+export type FileStamp = { path: string, modified_ms: number, size: number, };

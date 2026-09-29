@@ -16,7 +16,13 @@ export interface ModelView {
   range: { start: number; end: number } | null;
   options: SequenceOptions;
   activeTab: 'map' | 'sequence';
+  workspace: string;
+  notices: { kind: string; path: string }[];
+  lastHandoff: { prompt: string; context_path: string } | null;
+  tabs: { document_id: number; name: string; path: string; dirty: boolean; active: boolean }[];
 }
+
+export interface Hooks { pollWorkspace: () => Promise<void> }
 
 export interface Region { strand: string; start: number; length: number }
 
@@ -36,6 +42,13 @@ export interface AppState {
   edit: null | {
     revision: number; can_undo: boolean; can_redo: boolean; dirty: boolean; added_feature_ids: string[]; saved_path: string | null;
     shown: { dirty: boolean; undo: boolean; redo: boolean; new_feature: boolean; delete_feature: boolean };
+  };
+  /** Open construct tabs (model) and what the tab bar shows. */
+  tabs: { document_id: number; name: string; path: string; dirty: boolean; active: boolean; shown_dirty: boolean }[];
+  workspace: {
+    path: string; shown: string;
+    notices: { kind: string; path: string }[];
+    handoff: { open: boolean; prompt: string; context_path: string | null };
   };
   dialog: { open: boolean; summary: string; protein: string; warnings: string[]; error: string; inputs: { label: string; kind: string; strand: string; translate: boolean } };
   /** View options as shown in the toolbar controls. */
@@ -299,6 +312,20 @@ export function getState(model: ModelView): AppState {
       },
     },
     dialog: dialogState(),
+    tabs: model.tabs.map(tab => {
+      const node = [...document.querySelectorAll<HTMLElement>('[data-testid="doc-tab"]')].find(n => n.dataset.documentId === String(tab.document_id));
+      return { ...tab, shown_dirty: node?.querySelector('.dot') !== null && node !== undefined };
+    }),
+    workspace: {
+      path: model.workspace,
+      shown: document.getElementById('workspace')!.textContent ?? '',
+      notices: [...document.querySelectorAll<HTMLElement>('[data-testid="file-notice"]')].map(n => ({ kind: n.dataset.kind ?? '', path: n.dataset.path ?? '' })),
+      handoff: {
+        open: !document.getElementById('handoff-panel')!.hidden,
+        prompt: (document.getElementById('handoff-prompt') as HTMLTextAreaElement).value,
+        context_path: model.lastHandoff?.context_path ?? null,
+      },
+    },
     theme: { preference: themeState().preference, resolved: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' },
     layout: {
       feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false',
@@ -322,13 +349,17 @@ export interface AutomationApi {
   browse(path: string | null): void;
   selectFeature(featureId: string, extend?: boolean): void;
   saveAs(path: string | null): void;
+  /** Choose the workspace through the Workspace… button (queued folder picker answer). */
+  chooseWorkspace(path: string): void;
+  /** Run the same workspace poll the timer runs. */
+  pollWorkspace(): Promise<void>;
   selectTab(name: 'map' | 'sequence'): void;
   clickSequenceBase(index: number): void;
   selectOrf(orfId: string): void;
   getState(): AppState;
 }
 
-export function install(model: () => ModelView) {
+export function install(model: () => ModelView, hooks: Hooks) {
   const api: AutomationApi = {
     /** Type a path and submit the open form, as a user would. */
     open(path: string, options: { delayMs?: number } = {}) {
@@ -346,6 +377,11 @@ export function install(model: () => ModelView) {
       const item = byTestId('feature-item').find(button => button.dataset.featureId === featureId);
       required(item, `feature list item ${featureId}`).dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: extend }));
     },
+    chooseWorkspace(path: string) {
+      queuePick(path);
+      required(byTestId('workspace-button')[0], 'Workspace button').click();
+    },
+    pollWorkspace: () => hooks.pollWorkspace(),
     /** Queue the save dialog's answer, then click Save as…. */
     saveAs(path: string | null) {
       queueSave(path);

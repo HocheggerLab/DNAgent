@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 use dnagent_desktop_api::Diagnostic;
-use dnagent_desktop_api::session::{DocumentState, FeaturePreview, FeatureRequest, SaveResult, Session};
+use dnagent_desktop_api::session::{
+    DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session,
+};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -57,11 +59,40 @@ async fn save_genbank(state: State<'_, AppSession>, document_id: u32, path: Stri
     with_session(state, move |s| s.save_genbank(document_id, &PathBuf::from(path))).await
 }
 
+#[tauri::command]
+async fn close_document(state: State<'_, AppSession>, document_id: u32) -> Result<(), Diagnostic> {
+    with_session(state, move |s| {
+        s.close(document_id);
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn write_handoff(state: State<'_, AppSession>, workspace: String, items: Vec<HandoffItem>) -> Result<HandoffResult, Diagnostic> {
+    with_session(state, move |s| s.write_handoff(&PathBuf::from(workspace), &items)).await
+}
+
+#[tauri::command]
+async fn poll_files(workspace: String, open_paths: Vec<String>) -> Result<Vec<FileStamp>, Diagnostic> {
+    tauri::async_runtime::spawn_blocking(move || dnagent_desktop_api::session::poll_files(&PathBuf::from(workspace), &open_paths))
+        .await
+        .map_err(|error| Diagnostic { code: "task_failed".into(), message: error.to_string() })
+}
+
+#[tauri::command]
+fn default_workspace() -> String {
+    dnagent_desktop_api::session::default_workspace()
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppSession::default())
-        .invoke_handler(tauri::generate_handler![open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank])
+        .invoke_handler(tauri::generate_handler![
+            open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
+            close_document, write_handoff, poll_files, default_workspace
+        ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");
 }
