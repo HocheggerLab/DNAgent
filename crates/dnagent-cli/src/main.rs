@@ -105,10 +105,16 @@ enum Command {
         plan: PathBuf,
         #[arg(long, value_enum, default_value_t = OutputMode::Json)]
         output: OutputMode,
+        #[command(flatten)]
+        product: ProductArgs,
     },
     /// Optimise PCR-tail primers under explicit Tm and sequence-screen constraints (JSON).
     #[command(alias = "gibson-optimize")]
-    GibsonOptimise { plan: PathBuf },
+    GibsonOptimise {
+        plan: PathBuf,
+        #[command(flatten)]
+        product: ProductArgs,
+    },
     /// Design offline amplification primers against declared positive/negative templates (JSON).
     PrimerDesign { plan: PathBuf },
     /// Assemble declared existing overlaps; export JSON, FASTA or conservative GenBank.
@@ -548,8 +554,14 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::CompatibleEnds(args) => run_compatibility(&args, strict, warnings)?,
         Command::Fragments(args) => run_fragments(&args, strict, warnings)?,
         Command::Ligate { plan, output } => run_ligation(&plan, output, strict, warnings)?,
-        Command::Gibson { plan, output } => run_gibson(&plan, output, strict, warnings)?,
-        Command::GibsonOptimise { plan } => run_gibson_optimise(&plan, strict, warnings)?,
+        Command::Gibson {
+            plan,
+            output,
+            product,
+        } => run_gibson(&plan, output, &product, strict, warnings)?,
+        Command::GibsonOptimise { plan, product } => {
+            run_gibson_optimise(&plan, &product, strict, warnings)?;
+        }
         Command::PrimerDesign { plan } => {
             let result = dnagent_app::amplification::run(&plan, strict, warnings)?;
             print_json("primer-design", &result, warnings)?;
@@ -629,15 +641,27 @@ fn run_map(
 
 fn run_gibson_optimise(
     path: &Path,
+    product_args: &ProductArgs,
     strict: bool,
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use dnagent_app::gibson_extensions as operations;
     let plan = operations::load_optimisation(path)?;
     let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
+    let result = operations::optimise(&records, &plan)?;
+    // The product carries the optimiser's chosen primers, not the fixed-length ones.
+    let primers: Vec<_> = result
+        .pairs
+        .iter()
+        .map(|p| (p.forward.primer.clone(), p.reverse.primer.clone()))
+        .collect();
+    let saved = write_gibson_product(&result.design, &primers, product_args, strict, warnings)?;
     print_json(
         "gibson-optimise",
-        &operations::optimise(&records, &plan)?,
+        &WithProduct {
+            result: &result,
+            product_genbank: saved,
+        },
         warnings,
     )?;
     Ok(())
@@ -718,9 +742,87 @@ fn load_gibson_source(
     Ok(report)
 }
 
+/// Write the predicted product as annotated DNAgent GenBank (`--out`).
+#[derive(Debug, Args)]
+struct ProductArgs {
+    /// Write the predicted product as DNAgent GenBank: carried-over source features,
+    /// primers at their binding sites and junction overlaps.
+    #[arg(long)]
+    out: Option<PathBuf>,
+    /// Record name for the product (default: the output file name).
+    #[arg(long, requires = "out")]
+    name: Option<String>,
+}
+
+/// Where the product was written and what it carries.
+#[derive(Debug, Serialize)]
+struct SavedProduct {
+    path: String,
+    length: usize,
+    features: usize,
+    primers: usize,
+    /// Source features cut by a core boundary and left out (see warnings).
+    features_left_out: usize,
+}
+
+#[derive(Serialize)]
+struct WithProduct<T: Serialize> {
+    #[serde(flatten)]
+    result: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    product_genbank: Option<SavedProduct>,
+}
+
+fn write_gibson_product(
+    report: &dnagent_domain::gibson::GibsonReport,
+    primers: &[(
+        dnagent_domain::gibson::PrimerCandidate,
+        dnagent_domain::gibson::PrimerCandidate,
+    )],
+    args: &ProductArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<Option<SavedProduct>, Box<dyn std::error::Error>> {
+    let Some(out) = &args.out else {
+        return Ok(None);
+    };
+    dnagent_app::require_genbank_path(out)?;
+    let name = args.name.clone().unwrap_or_else(|| {
+        out.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("gibson_product")
+            .to_owned()
+    });
+    let (product, product_warnings) =
+        dnagent_app::gibson_product::product_record(report, primers, &name)?;
+    let left_out = product_warnings
+        .iter()
+        .filter(|w| w.code == "gibson_feature_clipped")
+        .count();
+    warnings.extend(product_warnings.iter().cloned());
+    // Strict rejection happens before any file is written.
+    if strict && !product_warnings.is_empty() {
+        return Err(Box::new(AppError::ImportWarnings {
+            count: product_warnings.len(),
+        }));
+    }
+    let (text, write_warnings) =
+        dnagent_app::genbank_text(&product, &dnagent_app::genbank_date_today());
+    warnings.extend(write_warnings);
+    dnagent_app::write_atomic(out, &text)?;
+    Ok(Some(SavedProduct {
+        path: out.display().to_string(),
+        length: product.record.sequence().len(),
+        features: product.record.features().len(),
+        primers: product.record.primers().len(),
+        features_left_out: left_out,
+    }))
+}
+
 fn run_gibson(
     path: &Path,
     output: OutputMode,
+    product_args: &ProductArgs,
     strict: bool,
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -733,8 +835,21 @@ fn run_gibson(
         );
     }
     let view = dnagent_app::gibson::simulate(&records, &plan)?;
+    let primers: Vec<_> = view
+        .components
+        .iter()
+        .map(|c| (c.forward_primer.clone(), c.reverse_primer.clone()))
+        .collect();
+    let saved = write_gibson_product(&view, &primers, product_args, strict, warnings)?;
     match output {
-        OutputMode::Json => print_json("gibson", &view, warnings)?,
+        OutputMode::Json => print_json(
+            "gibson",
+            &WithProduct {
+                result: &view,
+                product_genbank: saved,
+            },
+            warnings,
+        )?,
         OutputMode::Text => {
             println!(
                 "Gibson PCR-tail candidate: {:?}, {} bases",
@@ -754,8 +869,17 @@ fn run_gibson(
                     component.reverse_primer.sequence_5to3
                 );
             }
-            for assumption in view.assumptions {
+            for assumption in &view.assumptions {
                 println!("Assumption: {assumption}");
+            }
+            if let Some(saved) = &saved {
+                println!(
+                    "Product GenBank: {} ({} features, {} primers, {} source features left out)",
+                    saved.path, saved.features, saved.primers, saved.features_left_out
+                );
+            }
+            for warning in warnings.iter().filter(|w| w.code.starts_with("gibson_")) {
+                eprintln!("warning [{}]: {}", warning.code, warning.message);
             }
         }
     }

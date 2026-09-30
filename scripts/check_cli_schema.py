@@ -208,6 +208,24 @@ def main():
             if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
                 raise ValueError(f"unexpected response for {args}")
             checked.append(body)
+        # Gibson product GenBank (--out): written only on success; strict refusal writes nothing.
+        cdna_plan = str(ROOT / "fixtures/plans/synthetic-cdna-into-puc19.json")
+        product = Path(scratch) / "product.gb"
+        for args, success, written in [
+            (["gibson", cdna_plan, "--out", str(product), "--output", "json"], True, True),
+            (["gibson-optimise", str(ROOT / "fixtures/plans/synthetic-gibson-optimisation.json"), "--out", str(Path(scratch) / "optimised.gb")], True, True),
+            (["gibson", cdna_plan, "--out", str(Path(scratch) / "strict.gb"), "--strict", "--output", "json"], False, False),
+            (["gibson", cdna_plan, "--out", str(Path(scratch) / "bad.dna"), "--output", "json"], False, False),
+        ]:
+            target = Path(args[args.index("--out") + 1])
+            proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=60)
+            body = json.loads(proc.stdout)
+            validator.validate(body)
+            if (proc.returncode == 0) != success or body["ok"] != success or target.exists() != written:
+                raise ValueError(f"unexpected Gibson product response for {args}")
+            checked.append(body)
+        checked.append(json.loads(subprocess.run([str(binary), "features", str(product), "--output", "json"], capture_output=True, text=True).stdout))
+        validator.validate(checked[-1])
         # Feature library: built from the public fixtures into a scratch database.
         db = ["--db", str(Path(scratch) / "features.sqlite")]
         missing = ["--db", str(Path(scratch) / "missing.sqlite")]

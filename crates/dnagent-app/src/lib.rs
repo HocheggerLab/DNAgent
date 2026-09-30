@@ -5,6 +5,7 @@ pub mod editing;
 pub mod enzymes;
 pub mod gibson;
 pub mod gibson_extensions;
+pub mod gibson_product;
 pub mod library;
 pub mod ligation;
 pub mod translation;

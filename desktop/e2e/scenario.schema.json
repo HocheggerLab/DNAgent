@@ -36,7 +36,7 @@
   "definitions": {
     "fixture": {
       "type": "string",
-      "pattern": "^fixtures/formats/[a-z]+/[A-Za-z0-9_]+\\.(dna|fasta)$",
+      "pattern": "^fixtures/formats/[a-z]+/[A-Za-z0-9_]+\\.(dna|fasta|gb)$",
       "description": "Repository-relative public fixture path."
     },
     "state_path": {

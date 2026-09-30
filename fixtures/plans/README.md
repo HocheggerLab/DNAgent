@@ -12,6 +12,11 @@
 - `synthetic-gibson-mixed.json`: a selected EcoRI digest strand, literal ordered
   bridge and ideal tailed PCR product assembled circularly; exercises mixed source
   loading, primer retention and product materialisation.
+- `synthetic-cdna-into-puc19.json`: the 600 bp CDS of `../formats/genbank/synthetic_cdna.gb`
+  cloned into public pUC19 (M77789.2) in place of its polylinker (backbone core through
+  the origin); the Gibson product GenBank and desktop agent scenario use it.
+- `synthetic-cdna-into-puc19-optimised.json`: the same design with Tm-constrained primer
+  search (`gibson-optimise`); the `gibson-cloning` skill's worked example.
 
 The ligation plans reference existing public synthetic format fixtures. The Gibson
 source is a deterministic synthetic original, with no imported biological sequence;

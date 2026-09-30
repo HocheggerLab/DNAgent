@@ -1,0 +1,29 @@
+LOCUS       synthetic_cdna            750 bp    mRNA    linear   SYN 30-SEP-2026
+DEFINITION  Synthetic cDNA for DNAgent Gibson cloning tests.
+FEATURES             Location/Qualifiers
+     5'UTR           1..60
+                     /label=5' UTR
+     CDS             61..660
+                     /label=synthetic ORF
+                     /codon_start=1
+                     /transl_table=1
+                     /product="synthetic protein"
+     3'UTR           661..750
+                     /label=3' UTR
+     polyA_signal    701..706
+                     /label=polyA signal
+ORIGIN
+        1 ccgaacttac tgtgcacagc tggcatgctc cgaatggagt tcccagcgat gcgagtgatt
+       61 atgcatcttc actttgagta tcgcgtcata ggccacacac caggcgcacc tcatcccgtt
+      121 ccagagataa agccgataca tcctcggttc attaacgtgc tgtcgtgtcg tatcactcgg
+      181 cgaaaaaggt gttcgaaatt gtcaacttgg agatctcagt tgctcgacga aatccgacta
+      241 gcgtgccctt gtagtaacgg cgactgctgt aatccgggat gtgacacggg gcatgtatca
+      301 gccgctaatc ctactcttaa atttggcagt gtgtatgaca atgggaaacc acgaagaata
+      361 accgaggtaa atatttggag taacacagca ctttctagtc gggaggtcga tcgcttattc
+      421 tatgagagtc atggaaccta ctcaacacta gaatccccca acgcgcatgc gtggcaaggc
+      481 ctagtcctaa cgcgtttatt ctccacgcca cttcataggg gccggcatga tctaacctgc
+      541 ctccctaagg gtcgcccgat gtccagaggc cggcttgatg atcttctaaa gacttccact
+      601 gatgctcttc ttgaggctac tcaaactacg cgtaatatgc ctcgtcacca catcgcctaa
+      661 cccactgagc gctagctgcg tacagattag acagttagtt aataaagggt acagaaagaa
+      721 aacgatatgt gtcaagactt ccaggctcct
+//

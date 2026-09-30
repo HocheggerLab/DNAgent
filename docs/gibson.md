@@ -81,6 +81,34 @@ overlap sequence, and its zero-based start in the final product. Closing overlap
 starts at product zero. Product topology is always explicit; single-core linear
 plans predict PCR only, while single-core circular plans model PCR-assisted reclosure.
 
+## Product GenBank (`--out`)
+
+```bash
+dnagent gibson plan.json --out product.gb --output json
+dnagent gibson-optimise plan.json --out product.gb [--name "pUC19-ORF"]
+```
+
+Writes the predicted product as DNAgent GenBank (the path must end in `.gb`, `.gbk` or
+`.genbank`), which opens in the desktop app with everything annotated:
+
+- **carried features**: every source feature lying wholly inside a core, at its product
+  position, strand-flipped for reverse cores, with its type, name, colour and qualifiers,
+  plus a `/note` naming its source. A feature only partly inside a core is **left out**
+  with a `gibson_feature_clipped` warning (per core), never clipped silently;
+- **primer sites**: `primer_bind` "Gibson F<n>" / "Gibson R<n>" over the whole oligo as it
+  reads on the product (a reverse primer's tail runs into the next core; the last one
+  may cross the origin). `gibson-optimise` uses the optimiser's chosen primers. The file's
+  primer list holds the full oligos (candidates, not validated). A primer that does not
+  read as one stretch is listed but not annotated (`gibson_primer_not_placed`);
+- **junctions**: "Gibson overlap a-b" over each overlap.
+
+The JSON result gains `product_genbank` (path, length, feature, primer and left-out
+counts); the JSON remains the design record. `--strict` refuses before writing if the
+product would carry any warning. `scripts/check_gibson_product.py` checks the written
+records independently (Biopython: sequence = oriented cores, carried and left-out
+features from the core intervals, primer and overlap bases). The desktop scenario
+`gibson-agent-cdna-into-vector` plays the agent after a handoff and opens the product.
+
 ## Exact-match checks and conservative limits
 
 - Every primer annealing sequence must have exactly one exact binding-site locus

@@ -46,6 +46,7 @@ uv run scripts/check_translation.py --binary target/debug/dnagent
 uv run scripts/check_genbank.py --binary target/debug/dnagent
 uv run scripts/check_enzymes.py --binary target/debug/dnagent
 uv run scripts/check_feature_library.py --binary target/debug/dnagent
+uv run scripts/check_gibson_product.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
 (cd desktop && npm test && npm run e2e)  # GUI scenarios checked against the CLI
 ```
