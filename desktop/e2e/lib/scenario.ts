@@ -13,10 +13,12 @@ const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
 export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
   'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases', 'fill', 'press', 'save_as', 'remember',
-  'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes', 'toggle_detection', 'select_detection'] as const;
+  'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes', 'toggle_detection', 'select_detection',
+  'select_isoform', 'drag_exons', 'double_click_exon', 'export_svg'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
   | 'site_ticks' | 'site_enzymes' | 'site_labels' | 'site_regions' | 'site_cuts' | 'recognition_range' | 'fragment_parts'
-  | 'detection_rows' | 'default_detections' | 'detection_spans_new' | { name: 'detection_range'; label: string }
+  | 'detection_rows' | 'default_detections' | 'detection_spans_new' | 'spans' | 'isoform_displays' | 'codon_marks'
+  | { name: 'detection_range'; label: string } | { name: 'cell_means'; transcript: string }
   | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' }
   | { name: 'enzyme_set'; set: 'unique6' | 'unique_dual6' | 'unique_any' } | { name: 'fragment_range'; rank: number };
 export type CliArg = string | { memory: string };
@@ -27,7 +29,7 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { open: { fixture?: string; saved?: boolean; file?: string; delay_ms?: number; wait?: boolean; expect_error?: boolean } }
   | { browse: { fixture?: string } }
   | { select_feature: ({ id: string } | { label: string }) & { extend?: boolean } }
-  | { select_tab: 'map' | 'sequence' }
+  | { select_tab: 'map' | 'sequence' | 'isoforms' }
   | { click_sequence_base: number }
   | { click: { testid: string; index?: number; modifiers?: ('Shift' | 'Alt' | 'Control' | 'Meta')[] } }
   | { wait_idle: true }
@@ -48,7 +50,11 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { click_site: { enzyme: string } }
   | { choose_enzymes: { names: string[] } }
   | { toggle_detection: { name: string } }
-  | { select_detection: { name: string } });
+  | { select_detection: { name: string } }
+  | { select_isoform: { transcript: string } }
+  | { drag_exons: { transcript: string; from: number; to: number } }
+  | { double_click_exon: { transcript: string; exon: number } }
+  | { export_svg: { view: 'map' | 'isoforms'; path: string } });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**
@@ -65,6 +71,7 @@ const BIOLOGICAL = [
   /^selection\.range_translation\.protein/,
   /^dialog\.protein/,
   /^detect\.(rows|checked|new_names|unticked_new_names|map)/,
+  /^isoforms\.(rows|drawn_ids|highlighted_exons|range|tick_labels|detail\.(cells|display|transcript))/,
   /^enzymes\.(shown|catalogue\.(names|count)|map\.(ticks|labels)|sequence|digest\.(fragments|enzymes))/,
 ];
 

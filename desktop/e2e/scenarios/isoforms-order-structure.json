@@ -1,0 +1,389 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "isoforms-order-structure",
+  "description": "A gene locus opens with an Isoforms tab (other documents do not offer it); rows follow `dnagent isoforms` for the chosen quantifier, and every exon, coding box, codon mark and evidence colour matches it, on both strands and with introns compressed",
+  "fixture": "fixtures/formats/locus/synthetic_locus.locus.json",
+  "steps": [
+    {
+      "set_viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/snapgene/synthetic_linear.dna"
+      }
+    },
+    {
+      "expect": [
+        {
+          "state": "isoforms",
+          "equals": null,
+          "message": "no locus, no isoform view"
+        }
+      ]
+    },
+    {
+      "open": {}
+    },
+    {
+      "expect": [
+        {
+          "state": "isoforms.tab_shown",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "select_tab": "isoforms",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "active_tab",
+          "equals": "isoforms"
+        },
+        {
+          "state": "isoforms.quantifier",
+          "equals_cli": {
+            "command": "isoforms",
+            "one": "result.quantifier"
+          },
+          "message": "default quantifier"
+        },
+        {
+          "state": "isoforms.rows[*].transcript",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "rows in the CLI order"
+        },
+        {
+          "state": "isoforms.drawn_ids",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "every isoform drawn, none twice"
+        },
+        {
+          "state": "isoforms.rows[*].display",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": "isoform_displays"
+          },
+          "message": "evidence colour state per row"
+        },
+        {
+          "state": "isoforms.rows[*].feature_id",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].mrna_feature_id"
+          }
+        },
+        {
+          "state": "isoforms.rows[*].exons",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].exons",
+            "transform": "spans"
+          },
+          "message": "exon boxes rebuilt from the drawing"
+        },
+        {
+          "state": "isoforms.rows[*].cds",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].cds",
+            "transform": "spans"
+          },
+          "message": "thick (coding) boxes"
+        },
+        {
+          "state": "isoforms.rows[*].codons",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": "codon_marks"
+          },
+          "message": "red start/stop marks, three bases each (split codons included)"
+        }
+      ]
+    },
+    {
+      "select_option": {
+        "testid": "isoform-quantifier",
+        "value": "NanoCount_lr"
+      },
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "isoforms.rows[*].transcript",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "rows in the CLI order for NanoCount_lr"
+        },
+        {
+          "state": "isoforms.drawn_ids",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "every isoform drawn, none twice"
+        },
+        {
+          "state": "isoforms.rows[*].display",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result",
+            "transform": "isoform_displays"
+          },
+          "message": "evidence colour state per row"
+        },
+        {
+          "state": "isoforms.rows[*].feature_id",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].mrna_feature_id"
+          }
+        },
+        {
+          "state": "isoforms.rows[*].exons",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].exons",
+            "transform": "spans"
+          },
+          "message": "exon boxes rebuilt from the drawing"
+        },
+        {
+          "state": "isoforms.rows[*].cds",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].cds",
+            "transform": "spans"
+          },
+          "message": "thick (coding) boxes"
+        },
+        {
+          "state": "isoforms.rows[*].codons",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result",
+            "transform": "codon_marks"
+          },
+          "message": "red start/stop marks, three bases each (split codons included)"
+        }
+      ]
+    },
+    {
+      "click": {
+        "testid": "isoform-compress"
+      },
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "isoforms.compress",
+          "equals": true
+        },
+        {
+          "state": "isoforms.rows[*].transcript",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "rows in the CLI order (compressed)"
+        },
+        {
+          "state": "isoforms.drawn_ids",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "every isoform drawn, none twice"
+        },
+        {
+          "state": "isoforms.rows[*].display",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result",
+            "transform": "isoform_displays"
+          },
+          "message": "evidence colour state per row"
+        },
+        {
+          "state": "isoforms.rows[*].feature_id",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].mrna_feature_id"
+          }
+        },
+        {
+          "state": "isoforms.rows[*].exons",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].exons",
+            "transform": "spans"
+          },
+          "message": "exon boxes rebuilt from the drawing"
+        },
+        {
+          "state": "isoforms.rows[*].cds",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result.isoforms[*].cds",
+            "transform": "spans"
+          },
+          "message": "thick (coding) boxes"
+        },
+        {
+          "state": "isoforms.rows[*].codons",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result",
+            "transform": "codon_marks"
+          },
+          "message": "red start/stop marks, three bases each (split codons included)"
+        }
+      ]
+    },
+    {
+      "open": {
+        "fixture": "fixtures/formats/locus/synthetic_minus.locus.json"
+      }
+    },
+    {
+      "select_tab": "isoforms",
+      "screenshot": true
+    },
+    {
+      "expect": [
+        {
+          "state": "isoforms.rows[*].transcript",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "rows in the CLI order (minus strand)"
+        },
+        {
+          "state": "isoforms.drawn_ids",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].transcript_id"
+          },
+          "message": "every isoform drawn, none twice"
+        },
+        {
+          "state": "isoforms.rows[*].display",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": "isoform_displays"
+          },
+          "message": "evidence colour state per row"
+        },
+        {
+          "state": "isoforms.rows[*].feature_id",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].mrna_feature_id"
+          }
+        },
+        {
+          "state": "isoforms.rows[*].exons",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].exons",
+            "transform": "spans"
+          },
+          "message": "exon boxes rebuilt from the drawing"
+        },
+        {
+          "state": "isoforms.rows[*].cds",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result.isoforms[*].cds",
+            "transform": "spans"
+          },
+          "message": "thick (coding) boxes"
+        },
+        {
+          "state": "isoforms.rows[*].codons",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": "codon_marks"
+          },
+          "message": "red start/stop marks, three bases each (split codons included)"
+        }
+      ]
+    }
+  ]
+}

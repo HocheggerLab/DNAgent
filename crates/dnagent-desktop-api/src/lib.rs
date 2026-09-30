@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::Path;
 use ts_rs::TS;
 
-#[derive(Debug, Serialize, TS)]
+#[derive(Debug, Clone, Copy, Serialize, TS)]
 pub struct Segment {
     pub start: u32,
     pub length: u32,
@@ -100,6 +100,11 @@ pub struct Document {
     /// ORFs of at least `orf_min_codons`; the GUI may filter to longer ones.
     pub orfs: Vec<Orf>,
     pub orf_min_codons: u32,
+    /// Isoforms, evidence and expression when the document is a gene locus.
+    pub locus: Option<isoforms::LocusView>,
+    /// Set for records over 100,000 bases (only gene loci open at that size): `frames` and
+    /// `orfs` are empty, and the Sequence view shows at most this many bases around the selection.
+    pub sequence_window: Option<u32>,
 }
 
 /// Lower bound for ORFs sent to the GUI (which filters upwards, default 75).
@@ -118,8 +123,14 @@ fn u32_of(value: usize) -> u32 {
 
 /// Prototype limit bounds frontend rendering; not a biological restriction.
 const MAX_BASES: usize = 100_000;
+/// Gene loci may be larger (the longest human genes are ~2.5 Mb with flanks): frames and
+/// ORFs are then not computed and the Sequence view shows a window around the selection.
+const LOCUS_MAX_BASES: usize = 3_000_000;
+/// Most bases the Sequence view renders at once for a record over [`MAX_BASES`].
+const SEQUENCE_WINDOW: usize = 50_000;
 
 pub mod detection;
+pub mod isoforms;
 pub mod restriction;
 pub mod session;
 
@@ -136,12 +147,23 @@ pub fn document_from_report(
     report: &dnagent_formats::ImportReport,
 ) -> Result<Document, Diagnostic> {
     let record = &report.record;
-    if record.sequence().len() > MAX_BASES {
+    let length = record.sequence().len();
+    let locus = report.preserved_metadata.locus.is_some();
+    if length > MAX_BASES && !(locus && length <= LOCUS_MAX_BASES) {
         return Err(Diagnostic {
             code: "prototype_size_limit".into(),
-            message: "The prototype viewer supports at most 100,000 bases".into(),
+            message: if locus {
+                format!(
+                    "The prototype viewer opens gene loci up to {LOCUS_MAX_BASES} bases (this one has {length}); use the CLI"
+                )
+            } else {
+                format!(
+                    "The prototype viewer supports at most {MAX_BASES} bases (gene loci up to {LOCUS_MAX_BASES})"
+                )
+            },
         });
     }
+    let large = length > MAX_BASES;
     let features = record
         .features()
         .iter()
@@ -167,8 +189,11 @@ pub fn document_from_report(
         })
         .collect();
     let (translations, translation_skipped) = translation_dtos(record);
-    let frames = frame_dtos(record);
-    let orfs = orf_dtos(record);
+    let (frames, orfs) = if large {
+        (Vec::new(), Vec::new())
+    } else {
+        (frame_dtos(record), orf_dtos(record))
+    };
     Ok(Document {
         name: record.name().into(),
         sequence: record.sequence().as_str().into(),
@@ -197,6 +222,8 @@ pub fn document_from_report(
         frames,
         orfs,
         orf_min_codons: u32_of(ORF_MIN_CODONS),
+        locus: isoforms::locus_view(report),
+        sequence_window: large.then(|| u32_of(SEQUENCE_WINDOW)),
     })
 }
 
@@ -297,6 +324,13 @@ fn orf_dtos(record: &dnagent_domain::SequenceRecord) -> Vec<Orf> {
 pub fn typescript() -> String {
     let declarations = [
         Segment::decl(),
+        isoforms::CodonMark::decl(),
+        isoforms::CellValue::decl(),
+        isoforms::IsoformExpression::decl(),
+        isoforms::MappingInfo::decl(),
+        isoforms::Isoform::decl(),
+        isoforms::QuantifierPanel::decl(),
+        isoforms::LocusView::decl(),
         Direction::decl(),
         Feature::decl(),
         Diagnostic::decl(),

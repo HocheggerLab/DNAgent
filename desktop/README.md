@@ -32,7 +32,7 @@ See [`../docs/agent-handoff.md`](../docs/agent-handoff.md).
 Appearance follows macOS light/dark mode; override it with the **Appearance** menu.
 The feature list collapses with **‹** so the map can use the whole window.
 
-Use **Browse…** or enter an absolute path to a `.dna` or single-record `.fasta` file. Try the repository's
+Use **Browse…** or enter an absolute path to a `.dna`, GenBank, single-record `.fasta` or `.locus.json` file. Try the repository's
 `fixtures/formats/snapgene/synthetic_linear.dna` and
 `synthetic_multipart_origin.dna`. Select a feature in the list or map; click sequence
 bases to select features (repeated clicks cycle overlapping annotations). **Map** and
@@ -52,6 +52,15 @@ sequence. **Digest** lists the fragments; click one to select it
 **Add** them in one undoable step ([details](../docs/feature-library.md#in-the-desktop-app)). All of these come from the Rust engine. Map labels
 and arrows show feature identity and each part's strand direction. Imported colours
 are retained where available. Expand the import-warning panel to review fidelity limits.
+
+**Isoforms:** a gene locus (`.locus.json` from `degron-db locus`) gets an **Isoforms** tab:
+one row per transcript, coloured by long-read evidence and ordered by mean expression across
+the cell-line panel (**Order by** picks the quantifier). Click a row for its expression per
+cell line; drag across exons or double-click one to mark it, then **Show in Sequence**.
+**Compress introns**, zoom and **Export SVG…** (also on the Map) are in the toolbar
+([details](../docs/isoform-viewer.md)). Gene loci may be up to 3 Mb (other records 100 kb);
+over 100 kb introns start compressed and the Sequence view shows a window around the
+selection ([large loci](../docs/isoform-viewer.md#large-loci)).
 
 A plain `npm run dev` serves only the frontend: native imports require the Tauri window.
 

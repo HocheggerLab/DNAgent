@@ -50,6 +50,9 @@ struct DataBlock {
     snapgene_packets: Vec<PacketData>,
     #[serde(default)]
     source_warnings: Vec<WarningData>,
+    /// Locus bundle metadata (isoforms, evidence, expression), when the record came from one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    locus: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -345,6 +348,7 @@ fn data_block(report: &ImportReport) -> DataBlock {
                 packet_type: w.packet_type,
             })
             .collect(),
+        locus: report.preserved_metadata.locus.clone(),
     }
 }
 
@@ -896,6 +900,7 @@ fn apply_data_block(
     preserved: &mut FormatExtensions,
     warnings: &mut Vec<ImportWarning>,
 ) -> Result<(String, Vec<ImportedPrimer>), ImportError> {
+    preserved.locus = block.locus;
     for packet in block.snapgene_packets {
         let payload = base64_decode(&packet.base64)
             .ok_or_else(|| invalid("invalid base64 in DNAgent data block"))?;

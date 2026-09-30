@@ -8,6 +8,7 @@ pub mod gibson_extensions;
 pub mod gibson_product;
 pub mod library;
 pub mod ligation;
+pub mod locus;
 pub mod translation;
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
@@ -33,7 +34,7 @@ pub enum AppError {
         source: std::io::Error,
     },
     #[error(
-        "unsupported input extension for {0}; accepted sequence files are .dna, .gb, .gbk, .genbank, .fa, .fasta and .fna"
+        "unsupported input extension for {0}; accepted sequence files are .dna, .gb, .gbk, .genbank, .fa, .fasta, .fna and DNAgent locus bundles (.json)"
     )]
     UnsupportedExtension(String),
     #[error("{path} is not a sequence file: it contains {content}")]
@@ -42,6 +43,10 @@ pub enum AppError {
         "{0} has a .dna extension but no SnapGene header; it may be an older or different binary format"
     )]
     NotSnapGene(String),
+    #[error(
+        "{0} is not a locus document (open a `degron-db locus` bundle, or GenBank saved from one)"
+    )]
+    NotLocus(String),
     #[error("invalid FASTA input: {0}")]
     Fasta(&'static str),
     #[error(transparent)]
@@ -108,10 +113,11 @@ pub fn open_path(path: &Path) -> Result<ImportReport, AppError> {
         .extension()
         .and_then(|s| s.to_str())
         .map(str::to_ascii_lowercase);
-    if !matches!(
-        extension.as_deref(),
-        Some("dna" | "fa" | "fasta" | "fna" | "gb" | "gbk" | "genbank")
-    ) {
+    if extension
+        .as_deref()
+        .and_then(SequenceFormat::from_extension)
+        .is_none()
+    {
         return Err(AppError::UnsupportedExtension(path.display().to_string()));
     }
     let bytes = std::fs::read(path).map_err(|source| AppError::Read {
@@ -130,6 +136,8 @@ pub enum SequenceFormat {
     SnapGene,
     GenBank,
     Fasta,
+    /// A DNAgent locus bundle (`degron-db locus`): a gene locus with its isoforms.
+    Locus,
 }
 
 impl SequenceFormat {
@@ -138,6 +146,7 @@ impl SequenceFormat {
             Self::SnapGene => "SnapGene",
             Self::GenBank => "GenBank",
             Self::Fasta => "FASTA",
+            Self::Locus => "a DNAgent locus bundle",
         }
     }
 
@@ -146,6 +155,7 @@ impl SequenceFormat {
             "dna" => Some(Self::SnapGene),
             "fa" | "fasta" | "fna" => Some(Self::Fasta),
             "gb" | "gbk" | "genbank" => Some(Self::GenBank),
+            "json" => Some(Self::Locus),
             _ => None,
         }
     }
@@ -197,6 +207,9 @@ pub fn sniff(bytes: &[u8]) -> Sniffed {
     if text.starts_with(b">") {
         return Sniffed::Sequence(SequenceFormat::Fasta);
     }
+    if text.starts_with(b"{") && dnagent_formats::locus::is_locus(bytes) {
+        return Sniffed::Sequence(SequenceFormat::Locus);
+    }
     MAGIC
         .iter()
         .find(|(magic, _)| bytes.starts_with(magic))
@@ -241,6 +254,7 @@ pub fn import_path_bytes(path: &Path, bytes: &[u8]) -> Result<ImportReport, AppE
         SequenceFormat::SnapGene => dnagent_format_snapgene::import_bytes(bytes, fallback_name)?,
         SequenceFormat::Fasta => import_single_fasta(bytes, fallback_name)?,
         SequenceFormat::GenBank => dnagent_formats::genbank_record::read(bytes, fallback_name)?,
+        SequenceFormat::Locus => dnagent_formats::locus::read(bytes, fallback_name)?,
     };
     if format != named {
         report.warnings.insert(

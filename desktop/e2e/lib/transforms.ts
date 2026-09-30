@@ -250,3 +250,50 @@ export function detectionRange(value: unknown, label: string, moleculeLength: nu
   if (!match) throw new TransformError(`detection_range: no match named ${JSON.stringify(label)}`);
   return spanRange(matchStart(match), match.length, moleculeLength, circular);
 }
+
+// ------------------------------------------------------------------ isoforms (from `dnagent isoforms`)
+
+interface CliSpan { start: number; length: number }
+interface CliIsoform {
+  transcript_id: string; exons: CliSpan[]; start_codon: { position: number } | null; stop_codon: { position: number } | null;
+  expression: { quantifier: string; display: string; cells: { cell_line: string; mean: number }[] }[];
+}
+interface CliIsoforms { quantifier: string; quantifiers: { quantifier: string; cell_lines: string[] }[]; isoforms: CliIsoform[] }
+
+function isSpan(value: unknown): value is CliSpan {
+  return !!value && typeof value === 'object' && typeof (value as CliSpan).start === 'number' && typeof (value as CliSpan).length === 'number';
+}
+
+/** {start,length} (or arrays, nested) → {start,end}. */
+export function spans(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(spans);
+  if (isSpan(value)) return { start: value.start, end: value.start + value.length };
+  throw new TransformError(`spans expects {start,length} values, got ${JSON.stringify(value)}`);
+}
+
+function isoformsResult(value: unknown): CliIsoforms {
+  if (!value || typeof value !== 'object' || !Array.isArray((value as CliIsoforms).isoforms)) throw new TransformError('expected the CLI isoforms result object');
+  return value as CliIsoforms;
+}
+
+/** Each isoform's display state under the result's quantifier, in result order. */
+export function isoformDisplays(value: unknown): (string | null)[] {
+  const result = isoformsResult(value);
+  return result.isoforms.map(i => i.expression.find(e => e.quantifier === result.quantifier)?.display ?? null);
+}
+
+/** Per isoform (result order): its start and stop codon marks as {kind, position, bases: 3}. */
+export function codonMarks(value: unknown): { kind: string; position: number; bases: number }[][] {
+  return isoformsResult(value).isoforms.map(i => [['start', i.start_codon], ['stop', i.stop_codon]] as const)
+    .map(marks => marks.filter(([, c]) => c !== null).map(([kind, c]) => ({ kind, position: c!.position, bases: 3 })));
+}
+
+/** One transcript's cell-line means under the result's quantifier: panel cell lines first, then any others. */
+export function cellMeans(value: unknown, transcript: string): { cell_line: string; mean: number | null }[] {
+  const result = isoformsResult(value);
+  const isoform = result.isoforms.find(i => i.transcript_id === transcript);
+  if (!isoform) throw new TransformError(`no isoform ${transcript} in the CLI result`);
+  const panel = result.quantifiers.find(q => q.quantifier === result.quantifier)?.cell_lines ?? [];
+  const cells = new Map((isoform.expression.find(e => e.quantifier === result.quantifier)?.cells ?? []).map(c => [c.cell_line, c.mean]));
+  return [...new Set([...panel, ...cells.keys()])].map(cell_line => ({ cell_line, mean: cells.get(cell_line) ?? null }));
+}

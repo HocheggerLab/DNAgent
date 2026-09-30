@@ -23,6 +23,8 @@ export interface SequenceContext {
   /** Restriction sites of the shown enzymes (engine output). */
   sites: Site[];
   selectSite: (site: Site) => void;
+  /** Render only rows overlapping this half-open window (large records); the whole record otherwise. */
+  window?: { start: number; end: number };
 }
 
 // Display names only; the genetic code itself lives in Rust.
@@ -71,12 +73,15 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
   const byFeature = new Map(doc.translations.map(t => [t.feature_id, t]));
   const letters = new Map(doc.translations.map(t => [t.feature_id, translationLetters(t)]));
   const frames = options.showFrames ? doc.frames.map(frame => ({ frame, letters: frameLetters(frame) })) : [];
-  const bases: HTMLElement[][] = Array.from({ length }, () => []);
+  // Sparse: a windowed view of a large record fills only the rendered positions.
+  const bases: HTMLElement[][] = [];
   // Cut boundaries are drawn on the base just after the cut; a cut at a linear end has no such base.
   const topCuts = new Set(context.sites.flatMap(site => site.top_cut ?? []));
   const bottomCuts = new Set(context.sites.flatMap(site => site.bottom_cut ?? []));
 
-  for (let start = 0; start < length; start += columns) {
+  const first = context.window ? Math.floor(context.window.start / columns) * columns : 0;
+  const last = context.window ? Math.min(length, context.window.end) : length;
+  for (let start = first; start < last; start += columns) {
     const end = Math.min(start + columns, length);
     const block = document.createElement('section'); block.className = 'sequence-block'; block.dataset.rowStart = String(start);
     const line = (label: string, className: string, title = '') => {
@@ -132,7 +137,7 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
         const base = document.createElement(highlighted(pos) ? 'mark' : 'span');
         if (cuts.has(pos)) base.classList.add('cut-before');
         base.dataset.position = String(pos); base.textContent = sequence[pos];
-        base.title = `Reference position ${pos}`; grid.append(base); bases[pos].push(base);
+        base.title = `Reference position ${pos}`; grid.append(base); (bases[pos] ??= []).push(base);
       }
     }
     for (const { frame, letters: frameItems } of frames.filter(f => f.frame.strand === 'reverse')) {

@@ -69,6 +69,13 @@ Every command dispatches the same event a user would. None of them sets app stat
 | `clickSite(enzyme)` | Clicks the enzyme's map label or first sequence site box. |
 | `chooseEnzymes(names)` | Opens **Choose…**, ticks exactly `names`, confirms. |
 | `toggleDetection(name)` / `selectDetection(name)` | Clicks a **Detected** row's tick box / label. |
+| `selectTab('isoforms')` | Isoforms tab (only offered for a gene locus; throws otherwise). |
+| `selectIsoform(transcript)` | Clicks an isoform row. |
+| `dragExons(t, from, to)` / `doubleClickExon(t, exon)` | Synthetic drag / double-click on drawn exons (the runner uses real pointer input via `exonBox`). |
+| `exonBox(t, exon, 'start' \| 'end')` | Client rectangle of the drawn piece at an exon's start or end. |
+| `isoformButton(name)` | `zoom-in`, `zoom-out`, `zoom-fit`, `zoom-selection`, `show-sequence`. |
+| `setIsoformQuantifier(q)` / `setCompressIntrons(on)` | Isoform toolbar controls. |
+| `exportSvg('map' \| 'isoforms', path)` | Queues the save dialog answer and clicks **Export SVG…**. |
 | `getState()` | JSON snapshot (below). |
 
 `getState()` fields (see `AppState` in `src/testing/automation.ts`):
@@ -173,7 +180,7 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `open: {fixture?, delay_ms?, wait?, expect_error?}` | Open the scenario fixture, or another one. By default it waits for idle and fails if the status says "Open failed" (inverted by `expect_error`). `wait: false` returns immediately. |
 | `browse: {fixture?}` | Open through the Browse… button with a queued picker result. |
 | `select_feature: {id} \| {label}` | A label is resolved to an id through CLI `features` and must match exactly one feature. Waits until that list item is rendered. |
-| `select_tab: "map" \| "sequence"` | |
+| `select_tab: "map" \| "sequence" \| "isoforms"` | |
 | `click_sequence_base: n` | |
 | `click: {testid, index?}` | A real Playwright pointer click on the nth `data-testid` element. |
 | `wait_idle: true` | Wait until no request is pending. |
@@ -195,6 +202,10 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `choose_enzymes: {names}` | Open **Choose…**, tick exactly these enzymes and confirm. |
 | `toggle_detection: {name}` | Click the tick box of the first **Detected** row with this name. |
 | `select_detection: {name}` | Click the first **Detected** row with this name (selects its span). |
+| `select_isoform: {transcript}` | Click an isoform row (Isoforms tab). |
+| `drag_exons: {transcript, from, to}` | Real mouse drag from the start of exon `from` to the end of exon `to` (zero-based, locus order). |
+| `double_click_exon: {transcript, exon}` | Real double-click on that exon. |
+| `export_svg: {view, path}` | Export the map or isoform view to `path` (under `desktop/e2e/artifacts/`); the file must be standalone SVG with theme colours resolved and name every drawn isoform (or the document). |
 
 `select_feature` also takes `extend: true` (shift-click), `click` takes
 `modifiers: ["Shift"]`, and `open` takes `saved: true` or `file: <path under
@@ -223,6 +234,21 @@ or reported (`accounted_ids` = CLI ids, `badged_ids` = `unlabelled_ids`, `notice
 = `unlabelled_count`), no overlapping, clipped or notice-covered labels, and a layout
 that fills and matches the canvas. Literal zeros and booleans are allowed there because
 they are geometry checks, not biology. Keep these invariants when redesigning.
+
+### Isoform invariants
+
+`isoforms-order-structure` and `isoforms-select-zoom-sequence` compare the drawing with
+`dnagent isoforms` on the synthetic locus fixtures: rows in the CLI order for each
+quantifier, every isoform drawn once (`isoforms.drawn_ids`), exon and coding boxes and
+codon marks rebuilt from the drawing (`isoforms.rows[*].exons/cds/codons`), display states,
+the selected transcript's exon bands and the per-cell-line means in the expression panel.
+Transforms `spans`, `isoform_displays`, `codon_marks` and `cell_means` adapt the CLI JSON.
+`isoforms-large-locus` opens a 1.2 Mb locus that global setup generates into
+`desktop/e2e/artifacts/synthetic_large.locus.json` (open it with `open: {file}` and point CLI
+expectations at it with `equals_cli.file`): every feature drawn on the map, introns compressed
+by default, ORF controls off (`layout.orf_controls_enabled`), nothing rendered without a
+selection (`layout.sequence_rendered`), and a window that covers a marked exon
+(`layout.sequence_shows_range`).
 
 ### Assertions
 

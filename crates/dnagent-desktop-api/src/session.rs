@@ -440,6 +440,7 @@ pub fn dispatch(
             value(Ok(poll_files(Path::new(&a.workspace), &a.open_paths)))
         }
         "default_workspace" => value(Ok(default_workspace())),
+        "write_svg" => value(write_svg_command(args)),
         "enzyme_catalogue" => value(Ok(crate::restriction::catalogue_info())),
         "enzyme_counts" => value(session.enzyme_counts(arg::<DocumentArg>(args)?.document_id)),
         "find_sites" | "digest" => {
@@ -735,6 +736,53 @@ pub struct FileStamp {
 pub const HANDOFF_DIR: &str = "handoff";
 const SEQUENCE_EXTENSIONS: [&str; 7] = ["dna", "gb", "gbk", "genbank", "fa", "fasta", "fna"];
 
+/// Locus bundles (`dnagent-locus` JSON) are offered by name; other JSON files are not.
+const LOCUS_SUFFIX: &str = ".locus.json";
+
+/// Write an exported SVG drawing to `path` (must end in `.svg`), replacing it atomically.
+///
+/// # Errors
+/// `export_failed` for a non-SVG path or payload, or when the file cannot be written.
+pub fn write_svg(path: &Path, svg: &str) -> Result<(), Diagnostic> {
+    let is_svg = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
+    if !is_svg {
+        return Err(diagnostic(
+            "export_failed",
+            format!("{} is not an .svg path", path.display()),
+        ));
+    }
+    let head = svg.trim_start();
+    if !(head.starts_with("<svg") || head.starts_with("<?xml")) {
+        return Err(diagnostic(
+            "export_failed",
+            "the exported drawing is not SVG",
+        ));
+    }
+    let temporary = path.with_extension("svg.dnagent-tmp");
+    std::fs::write(&temporary, svg)
+        .and_then(|()| std::fs::rename(&temporary, path))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&temporary);
+            diagnostic(
+                "export_failed",
+                format!("cannot write {}: {e}", path.display()),
+            )
+        })
+}
+
+fn write_svg_command(args: &serde_json::Value) -> Result<(), Diagnostic> {
+    #[derive(Deserialize)]
+    struct SvgArg {
+        path: String,
+        svg: String,
+    }
+    let a: SvgArg = arg(args)?;
+    write_svg(Path::new(&a.path), &a.svg)
+}
+
 /// `~/DNAgent`, the default workspace.
 #[must_use]
 pub fn default_workspace() -> String {
@@ -802,6 +850,7 @@ pub fn poll_files(workspace: &Path, open_paths: &[String]) -> Vec<FileStamp> {
                 .extension()
                 .and_then(|e| e.to_str())
                 .is_some_and(|e| SEQUENCE_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+                || name.to_ascii_lowercase().ends_with(LOCUS_SUFFIX)
             {
                 out.extend(stamp(&path));
             }
@@ -1096,5 +1145,119 @@ mod dispatch_tests {
                 "{command} is not dispatched"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod locus_tests {
+    use super::*;
+
+    fn locus(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/formats/locus")
+            .join(name)
+    }
+
+    #[test]
+    fn a_locus_document_carries_its_isoform_view() {
+        let mut session = Session::default();
+        let state = session
+            .open(&locus("synthetic_locus.locus.json"))
+            .expect("opens");
+        let view = state.document.locus.expect("locus view");
+        assert_eq!(view.symbol, "SYNLOC");
+        assert_eq!(view.isoforms.len(), 5);
+        assert!(
+            view.quantifiers
+                .iter()
+                .any(|q| q.quantifier == "bambu_lr" && q.reports_zeros)
+        );
+        let construct = session
+            .open(
+                &Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../fixtures/formats/snapgene/synthetic_linear.dna"),
+            )
+            .expect("opens");
+        assert!(construct.document.locus.is_none());
+    }
+
+    /// The synthetic locus padded with a long 3′ flank to `length` bases.
+    fn padded_locus(length: usize) -> Vec<u8> {
+        let mut bundle: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(locus("synthetic_locus.locus.json")).expect("fixture"),
+        )
+        .expect("json");
+        let mut sequence = bundle["sequence"].as_str().expect("sequence").to_owned();
+        sequence.extend(std::iter::repeat_n("ACGT", (length - sequence.len()) / 4));
+        bundle["genomic_end"] =
+            (bundle["genomic_start"].as_u64().expect("start") + sequence.len() as u64 - 1).into();
+        bundle["sequence"] = sequence.into();
+        serde_json::to_vec(&bundle).expect("json")
+    }
+
+    #[test]
+    fn large_loci_open_without_frames_or_orfs_and_other_large_records_do_not() {
+        let report =
+            dnagent_app::import_path_bytes(Path::new("big.locus.json"), &padded_locus(400_000))
+                .expect("reads");
+        let document = crate::document_from_report(&report).expect("a large locus opens");
+        assert_eq!(document.sequence.len(), 400_000);
+        assert!(
+            document.frames.is_empty() && document.orfs.is_empty(),
+            "not computed at this size"
+        );
+        assert_eq!(document.sequence_window, Some(50_000));
+        assert_eq!(document.locus.expect("locus").isoforms.len(), 5);
+        let mut plain = report.clone();
+        plain.preserved_metadata.locus = None;
+        let refused = crate::document_from_report(&plain).expect_err("only loci may exceed 100 kb");
+        assert_eq!(refused.code, "prototype_size_limit");
+        let small = dnagent_app::open_path(&locus("synthetic_locus.locus.json")).expect("opens");
+        let document = crate::document_from_report(&small).expect("opens");
+        assert!(document.sequence_window.is_none() && !document.frames.is_empty());
+    }
+
+    #[test]
+    fn loci_over_the_desktop_limit_point_to_the_cli() {
+        let report =
+            dnagent_app::import_path_bytes(Path::new("huge.locus.json"), &padded_locus(3_000_004))
+                .expect("reads");
+        let refused = crate::document_from_report(&report).expect_err("over 3 Mb");
+        assert!(
+            refused.message.contains("use the CLI"),
+            "{}",
+            refused.message
+        );
+    }
+
+    #[test]
+    fn workspace_offers_locus_bundles_but_not_other_json() {
+        let dir = std::env::temp_dir().join(format!("dnagent-locus-poll-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::copy(
+            locus("synthetic_locus.locus.json"),
+            dir.join("GENE.locus.json"),
+        )
+        .expect("copy");
+        std::fs::write(dir.join("notes.json"), "{}").expect("write");
+        let found: Vec<_> = poll_files(&dir, &[]).into_iter().map(|s| s.path).collect();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(found, [dir.join("GENE.locus.json").display().to_string()]);
+    }
+
+    #[test]
+    fn svg_export_writes_only_svg() {
+        let dir = std::env::temp_dir().join(format!("dnagent-svg-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let svg = "<?xml version=\"1.0\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n";
+        write_svg(&dir.join("view.svg"), svg).expect("writes");
+        let written = std::fs::read_to_string(dir.join("view.svg")).expect("reads");
+        let wrong_path = write_svg(&dir.join("view.gb"), svg);
+        let wrong_payload = write_svg(&dir.join("other.svg"), "LOCUS x");
+        let leftovers = std::fs::read_dir(&dir).expect("dir").count();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(written, svg);
+        assert!(wrong_path.is_err() && wrong_payload.is_err());
+        assert_eq!(leftovers, 1, "no temporary or refused files left behind");
     }
 }

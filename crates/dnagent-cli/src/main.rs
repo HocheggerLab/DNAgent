@@ -70,6 +70,8 @@ enum Command {
     },
     /// Report the active enzyme catalogue: source, release, hash and unsupported enzymes (JSON).
     EnzymeCatalogue,
+    /// Isoforms of a locus document, ordered by mean expression across the cell-line panel.
+    Isoforms(IsoformsArgs),
     /// The feature library: build it from sequence files and query it.
     Library(library_cmd::LibraryArgs),
     /// Find library features in a sequence (exact matches, both strands, across the origin).
@@ -299,6 +301,7 @@ impl Command {
             Self::Enzymes { .. } => "enzymes",
             Self::EnzymeCatalogue => "enzyme-catalogue",
             Self::Library(args) => args.name(),
+            Self::Isoforms(_) => "isoforms",
             Self::DetectFeatures(_) => "detect-features",
             Self::Sites { .. } => "sites",
             Self::Digest { .. } => "digest",
@@ -331,6 +334,7 @@ impl Command {
             Self::Translate(args) => matches!(args.output, OutputMode::Json),
             Self::Library(args) => args.requests_json(),
             Self::DetectFeatures(args) => matches!(args.output, OutputMode::Json),
+            Self::Isoforms(args) => matches!(args.output, OutputMode::Json),
             Self::CompatibleEnds(args) => matches!(args.output, OutputMode::Json),
             Self::Fragments(args) => matches!(args.output, FragmentOutput::Json),
             Self::GibsonOptimise { .. } | Self::PrimerDesign { .. } => true,
@@ -540,6 +544,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Enzymes { output } => print_enzymes(output, warnings)?,
         Command::EnzymeCatalogue => print_enzyme_catalogue(warnings)?,
         Command::Library(args) => library_cmd::run_library(args, warnings)?,
+        Command::Isoforms(args) => run_isoforms(&args, strict, warnings)?,
         Command::DetectFeatures(args) => library_cmd::run_detect(args, strict, warnings)?,
         Command::Sites {
             input,
@@ -578,6 +583,103 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
     }
     Ok(())
+}
+
+/// The isoform view for one quantifier: rows in that quantifier's order.
+#[derive(Serialize)]
+struct IsoformsResult {
+    quantifier: Option<String>,
+    #[serde(flatten)]
+    view: dnagent_app::locus::IsoformView,
+}
+
+#[derive(Debug, clap::Args)]
+struct IsoformsArgs {
+    input: PathBuf,
+    /// Quantifier for ordering and display (default: bambu_lr when present).
+    #[arg(long)]
+    quantifier: Option<String>,
+    #[arg(long, value_enum, default_value_t = OutputMode::Text)]
+    output: OutputMode,
+}
+
+fn run_isoforms(
+    args: &IsoformsArgs,
+    strict: bool,
+    warnings: &mut Vec<ImportWarning>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (input, quantifier, output) = (
+        args.input.as_path(),
+        args.quantifier.as_deref(),
+        args.output,
+    );
+    let report = load_input(input, strict, matches!(output, OutputMode::Json), warnings)?;
+    let mut view = dnagent_app::locus::isoform_view(&report)
+        .ok_or_else(|| AppError::NotLocus(input.display().to_string()))?;
+    let chosen = quantifier
+        .map(str::to_owned)
+        .or_else(|| view.default_quantifier.clone());
+    if let Some(q) = &chosen {
+        let Some(panel) = view.quantifiers.iter().find(|p| &p.quantifier == q) else {
+            let known: Vec<_> = view
+                .quantifiers
+                .iter()
+                .map(|p| p.quantifier.as_str())
+                .collect();
+            return Err(format!(
+                "no quantifier {q:?} in this locus (have: {})",
+                known.join(", ")
+            )
+            .into());
+        };
+        let order = panel.order.clone();
+        view.isoforms
+            .sort_by_key(|i| order.iter().position(|id| id == &i.transcript_id));
+    }
+    match output {
+        OutputMode::Json => print_json(
+            "isoforms",
+            &IsoformsResult {
+                quantifier: chosen,
+                view,
+            },
+            warnings,
+        )?,
+        OutputMode::Text => print_isoforms_text(&view, chosen.as_deref()),
+    }
+    Ok(())
+}
+
+fn print_isoforms_text(view: &dnagent_app::locus::IsoformView, quantifier: Option<&str>) {
+    println!(
+        "{} ({} {}), ordered by mean {} across the panel",
+        view.symbol,
+        view.chrom,
+        view.strand,
+        quantifier.unwrap_or("-")
+    );
+    println!("transcript\tevidence\tdisplay\tpanel_mean\tMANE\texons\tcds_bp");
+    for isoform in &view.isoforms {
+        let expression = isoform
+            .expression
+            .iter()
+            .find(|e| Some(e.quantifier.as_str()) == quantifier);
+        let display = expression
+            .and_then(|e| serde_json::to_value(e.display).ok())
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "-".into());
+        let mean = expression
+            .and_then(|e| e.panel_mean)
+            .map_or_else(|| "-".into(), |m| format!("{m:.2}"));
+        println!(
+            "{}\t{}\t{display}\t{mean}\t{}\t{}\t{}",
+            isoform.transcript_id,
+            isoform.evidence_state,
+            if isoform.is_mane_select { "yes" } else { "" },
+            isoform.exons.len(),
+            isoform.cds.iter().map(|s| s.length).sum::<usize>(),
+        );
+    }
 }
 
 fn run_features(

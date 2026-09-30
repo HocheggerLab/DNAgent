@@ -36,8 +36,8 @@
   "definitions": {
     "fixture": {
       "type": "string",
-      "pattern": "^fixtures/formats/[a-z]+/[A-Za-z0-9_]+\\.(dna|fasta|gb)$",
-      "description": "Repository-relative public fixture path."
+      "pattern": "^fixtures/formats/[a-z]+/[A-Za-z0-9_]+(\\.(dna|fasta|gb)|\\.locus\\.json)$",
+      "description": "Repository-relative public fixture path (.dna, .fasta, .gb or a .locus.json gene locus bundle)."
     },
     "state_path": {
       "type": "string",
@@ -66,7 +66,10 @@
             "site_enzymes",
             "detection_rows",
             "default_detections",
-            "detection_spans_new"
+            "detection_spans_new",
+            "spans",
+            "isoform_displays",
+            "codon_marks"
           ]
         },
         {
@@ -168,6 +171,24 @@
             }
           },
           "description": "From detect-features matches: the selection range of the first match with this name."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "transcript"
+          ],
+          "properties": {
+            "name": {
+              "const": "cell_means"
+            },
+            "transcript": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "From an `isoforms` result: [{cell_line, mean}] for one transcript under the result's quantifier, every panel cell line first (mean null where the quantifier has no value)."
         }
       ]
     },
@@ -200,7 +221,8 @@
             "sites",
             "digest",
             "enzymes",
-            "detect-features"
+            "detect-features",
+            "isoforms"
           ]
         },
         "fixture": {
@@ -478,7 +500,8 @@
             "select_tab": {
               "enum": [
                 "map",
-                "sequence"
+                "sequence",
+                "isoforms"
               ]
             },
             "screenshot": {
@@ -1067,6 +1090,144 @@
               "type": "string"
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "select_isoform"
+          ],
+          "properties": {
+            "select_isoform": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "transcript"
+              ],
+              "properties": {
+                "transcript": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "Click an isoform row (Isoforms tab)."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drag_exons"
+          ],
+          "properties": {
+            "drag_exons": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "transcript",
+                "from",
+                "to"
+              ],
+              "properties": {
+                "transcript": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "to": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "Real mouse drag from the start of exon `from` to the end of exon `to` (zero-based, locus order) of an isoform."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "double_click_exon"
+          ],
+          "properties": {
+            "double_click_exon": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "transcript",
+                "exon"
+              ],
+              "properties": {
+                "transcript": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "exon": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "Real double-click on exon `exon` (zero-based, locus order) of an isoform."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "export_svg"
+          ],
+          "properties": {
+            "export_svg": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "view",
+                "path"
+              ],
+              "properties": {
+                "view": {
+                  "enum": [
+                    "map",
+                    "isoforms"
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.svg$"
+                }
+              }
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "Queue the save dialog answer and click Export SVG…; the written file must be standalone SVG (styles resolved) naming every drawn isoform or the document."
         }
       ]
     }

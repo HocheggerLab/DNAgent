@@ -9,7 +9,7 @@ import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
 import {
-  codes, codonMiddles, count, defaultDetections, detectionRange, detectionRows, detectionSpansNew, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
+  cellMeans, codes, codonMarks, codonMiddles, count, isoformDisplays, spans, defaultDetections, detectionRange, detectionRows, detectionSpansNew, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
   positions, recognitionRange, siteCuts, siteEnzymes, siteLabels, siteRegions, siteTicks,
 } from './transforms.ts';
 
@@ -50,6 +50,10 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string, 
   else if (transform === 'detection_rows') value = detectionRows(value, moleculeLength());
   else if (transform === 'default_detections') value = defaultDetections(value, moleculeLength());
   else if (transform === 'detection_spans_new') value = detectionSpansNew(value);
+  else if (transform === 'spans') value = spans(value);
+  else if (transform === 'isoform_displays') value = isoformDisplays(value);
+  else if (transform === 'codon_marks') value = codonMarks(value);
+  else if (transform?.name === 'cell_means') value = cellMeans(value, transform.transcript);
   else if (transform?.name === 'detection_range') value = detectionRange(value, transform.label, moleculeLength(), circular());
   else if (transform?.name === 'enzyme_set') value = enzymeSet(value, transform.set);
   else if (transform?.name === 'fragment_range') value = fragmentRange(value, transform.rank, moleculeLength(), circular());
@@ -193,6 +197,42 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       } catch (error) {
         throw new Error(`agent command failed: dnagent ${step.run_cli.args.join(' ')}\n${String((error as { stdout?: string }).stdout ?? error)}`);
       }
+    } else if ('select_isoform' in step) {
+      await page.evaluate(transcript => window.__DNAGENT_TEST__!.selectIsoform(transcript), step.select_isoform.transcript);
+      await settle();
+    } else if ('drag_exons' in step || 'double_click_exon' in step) {
+      // Real pointer input on the drawn exon boxes.
+      const box = (transcript: string, exon: number, edge: 'start' | 'end') => page.evaluate(([t, e, g]) =>
+        window.__DNAGENT_TEST__!.exonBox(t as string, e as number, g as 'start' | 'end'), [transcript, exon, edge] as const);
+      if ('drag_exons' in step) {
+        const { transcript, from, to } = step.drag_exons;
+        const [a, b] = [await box(transcript, from, 'start'), await box(transcript, to, 'end')];
+        const y = a.top + a.height / 2;
+        await page.mouse.move(a.left + 1, y);
+        await page.mouse.down();
+        await page.mouse.move((a.left + b.right) / 2, y, { steps: 4 });
+        await page.mouse.move(b.right - 1, y, { steps: 2 });
+        await page.mouse.up();
+      } else {
+        const a = await box(step.double_click_exon.transcript, step.double_click_exon.exon, 'start');
+        await page.mouse.dblclick(a.left + Math.min(3, a.width / 2), a.top + a.height / 2);
+      }
+      await settle();
+    } else if ('export_svg' in step) {
+      rmSync(resolve(REPO_ROOT, step.export_svg.path), { force: true });
+      await page.evaluate(([view, path]) => window.__DNAGENT_TEST__!.exportSvg(view as 'map' | 'isoforms', path), [step.export_svg.view, step.export_svg.path] as const);
+      await waitIdle();
+      const snapshot = await state();
+      const text = readFileSync(resolve(REPO_ROOT, step.export_svg.path), 'utf8');
+      const problems = [
+        text.startsWith('<?xml') && text.includes('<svg') && text.trimEnd().endsWith('</svg>') ? '' : 'not a standalone SVG document',
+        text.includes('var(--') ? 'unresolved theme variables (var(--…))' : '',
+        text.includes('data-testid') ? 'interactive test attributes left in' : '',
+        ...(step.export_svg.view === 'isoforms' ? (snapshot.isoforms?.rows ?? []).map(r => text.includes(`>${r.transcript}<`) ? '' : `isoform ${r.transcript} missing`)
+          : [text.includes(snapshot.document?.name ?? '\u0000') ? '' : 'document name missing']),
+      ].filter(Boolean);
+      if (!snapshot.status.startsWith('Exported')) problems.push(`status: ${snapshot.status}`);
+      if (problems.length) throw new Error(`exported SVG ${step.export_svg.path}: ${problems.join('; ')}`);
     } else if ('toggle_detection' in step) {
       await page.evaluate(name => window.__DNAGENT_TEST__!.toggleDetection(name), step.toggle_detection.name);
     } else if ('select_detection' in step) {

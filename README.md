@@ -130,6 +130,15 @@ provenance). `dnagent detect-features <file>` finds library parts in any constru
 [feature library](docs/feature-library.md). Files are read by content, so GenBank saved
 as `.dna` opens too.
 
+### Isoform viewer
+
+A gene locus exported from degron-db (`degron-db locus <SYMBOL>` → `<SYMBOL>.locus.json`)
+opens as a linear record with one mRNA and CDS feature per transcript. The desktop
+**Isoforms** tab draws every transcript (exons, introns, start/stop codons) coloured by
+long-read evidence and ordered by mean expression across the cell-line panel; click one
+for its expression per cell line. `dnagent isoforms <file>` gives the same view as JSON.
+See [isoform viewer](docs/isoform-viewer.md).
+
 ### Translation and ORFs
 
 `dnagent translate` translates a feature (honouring joins, origin crossings, `codon_start`

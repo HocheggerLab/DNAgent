@@ -253,6 +253,23 @@ def main():
             if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
                 raise ValueError(f"unexpected response for {args}")
             checked.append(body)
+        # Gene locus bundles: both strands, a second quantifier, and the two refusals.
+        locus = str(ROOT / "fixtures/formats/locus/synthetic_locus.locus.json")
+        for args, success in [
+            (["isoforms", locus, "--output", "json"], True),
+            (["isoforms", locus, "--quantifier", "NanoCount_lr", "--output", "json"], True),
+            (["isoforms", str(ROOT / "fixtures/formats/locus/synthetic_minus.locus.json"), "--output", "json"], True),
+            (["isoforms", locus, "--quantifier", "no_such", "--output", "json"], False),
+            (["isoforms", puc19, "--output", "json"], False),
+            (["features", locus, "--output", "json"], True),
+            (["inspect", locus, "--output", "json"], True),
+        ]:
+            proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=30)
+            body = json.loads(proc.stdout)
+            validator.validate(body)
+            if (proc.returncode == 0) != success or body["ok"] != success or proc.stderr:
+                raise ValueError(f"unexpected response for {args}")
+            checked.append(body)
     for command, filename, schema_file in [
         ("primer-design", "synthetic-primer-design.json", "primer-design-plan-1.schema.json"),
         (

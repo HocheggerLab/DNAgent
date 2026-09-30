@@ -38,12 +38,13 @@ export const addFeatures = (documentId: number, requests: FeatureRequest[]) => c
 export const enzymeCatalogue = () => call<EnzymeCatalogueInfo>('enzyme_catalogue', {});
 export const enzymeCounts = (documentId: number) => call<EnzymeCount[]>('enzyme_counts', { documentId });
 export const findSites = (documentId: number, enzymes: string[]) => call<Site[]>('find_sites', { documentId, enzymes });
+export const writeSvg = (path: string, svg: string) => call<null>('write_svg', { path, svg });
 export const digest = (documentId: number, enzymes: string[]) => call<Fragment[]>('digest', { documentId, enzymes });
 
 export function pickConstructPath(): Promise<string | null> {
   return tracked(async () => {
     if (stub) return (await stub).pickConstructPath();
-    const path = await open({multiple:false,directory:false,filters:[{name:'DNA constructs',extensions:['dna','gb','gbk','genbank','fa','fasta','fna']}]});
+    const path = await open({multiple:false,directory:false,filters:[{name:'DNA constructs',extensions:['dna','gb','gbk','genbank','fa','fasta','fna','json']}]});
     return typeof path === 'string' ? path : null;
   });
 }
@@ -52,6 +53,14 @@ export function pickSavePath(defaultPath: string): Promise<string | null> {
   return tracked(async () => {
     if (stub) return (await stub).pickSavePath();
     const path = await save({ defaultPath, filters: [{ name: 'GenBank', extensions: ['gb', 'gbk', 'genbank'] }] });
+    return path ?? null;
+  });
+}
+
+export function pickSvgPath(defaultPath: string): Promise<string | null> {
+  return tracked(async () => {
+    if (stub) return (await stub).pickSavePath();
+    const path = await save({ defaultPath, filters: [{ name: 'SVG drawing', extensions: ['svg'] }] });
     return path ?? null;
   });
 }

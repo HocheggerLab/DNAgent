@@ -15,7 +15,10 @@ export interface ModelView {
   selectedOrf: string | null;
   range: { start: number; end: number } | null;
   options: SequenceOptions;
-  activeTab: 'map' | 'sequence';
+  activeTab: 'map' | 'sequence' | 'isoforms';
+  /** Transcript ids in the order the last isoform render drew them. */
+  isoformsDrawn: string[];
+  isoformUi: { start: number; end: number; compress: boolean; quantifier: string | null } | null;
   workspace: string;
   notices: { kind: string; path: string }[];
   lastHandoff: { prompt: string; context_path: string } | null;
@@ -35,7 +38,7 @@ export interface AppState {
   idle: boolean;
   status: string;
   path_input: string;
-  active_tab: 'map' | 'sequence' | 'inconsistent';
+  active_tab: 'map' | 'sequence' | 'isoforms' | 'inconsistent';
   visible_panels: string[];
   /** Parsed from the displayed title, so display bugs are caught; null before any load. */
   document: null | { name: string | null; length: number | null; topology: string | null; title: string };
@@ -79,7 +82,15 @@ export interface AppState {
   /** No panel is rendered for warning-free documents: counts are then 0 and `present` false. */
   theme: { preference: string; resolved: 'light' | 'dark' };
   /** Sequence layout is null unless the Sequence tab is visible. */
-  layout: { feature_list_collapsed: boolean; sequence_columns: number | null; sequence_fits_width: boolean | null };
+  layout: {
+    feature_list_collapsed: boolean; sequence_columns: number | null; sequence_fits_width: boolean | null;
+    /** Rendered base span [first, last + 1) in the Sequence view (null when hidden or empty), and its notice for large records. */
+    sequence_rendered: { start: number; end: number } | null; sequence_window_note: string;
+    /** Every base of the selected range is rendered (null without a range or when the view is hidden). */
+    sequence_shows_range: boolean | null;
+    /** ORF and six-frame controls are usable (false for records over 100 kb). */
+    orf_controls_enabled: boolean;
+  };
   /** Rendered map accounting and geometry checks; null unless the Map tab is visible. */
   map: null | {
     width: number; height: number; radius: number; fills_panel: boolean;
@@ -136,6 +147,22 @@ export interface AppState {
     map_checked: { start: number; length: number }[] | null;
   };
   warnings: { present: boolean; count_shown: number; items: number; codes: string[]; open: boolean };
+  /** Isoform view; null unless the document is a gene locus. Rows are read from the DOM (empty while the tab is hidden). */
+  isoforms: null | {
+    tab_shown: boolean; quantifier: string; compress: boolean;
+    window: { start: number; end: number } | null;
+    /** Model order of the last render and the rows as drawn, top to bottom. */
+    drawn_ids: string[];
+    /** Exons and coding stretches rebuilt from the drawn boxes; codon marks with the bases they cover. */
+    rows: { transcript: string; display: string; feature_id: string; selected: boolean; exons: { start: number; end: number }[]; cds: { start: number; end: number }[]; codons: { kind: string; position: number; bases: number }[] }[];
+    highlighted_exons: { start: number; end: number }[];
+    range: { start: number; end: number } | null;
+    /** Tick labels (genomic coordinates) as displayed, left to right. */
+    tick_labels: number[];
+    notice: string;
+    detail: null | { transcript: string; display: string; text: string; cells: { cell_line: string; mean: number | null }[]; cells_shown: string[] };
+    buttons: { zoom_selection: boolean; show_sequence: boolean };
+  };
   primers: { count: number; summary: string };
 }
 
@@ -147,6 +174,61 @@ function required<T extends Element>(node: T | null | undefined, what: string): 
 }
 
 const visible = (id: string) => !document.getElementById(id)!.hidden;
+
+function isoformState(model: ModelView, panels: string[]): AppState['isoforms'] {
+  if (!model.current?.locus) return null;
+  const shown = panels.includes('isoforms');
+  const svg = document.getElementById('isoforms')!;
+  const span = (n: Element) => ({ start: Number((n as SVGElement).dataset.start), end: Number((n as SVGElement).dataset.end) });
+  // Abutting drawn pieces form one exon (or one coding stretch).
+  const merge = (pieces: { start: number; end: number }[]) => pieces.sort((a, b) => a.start - b.start)
+    .reduce<{ start: number; end: number }[]>((out, p) => {
+      const last = out[out.length - 1];
+      if (last && last.end === p.start) last.end = p.end; else out.push({ ...p });
+      return out;
+    }, []);
+  const rows = shown ? [...svg.querySelectorAll<SVGElement>('[data-testid="isoform-row"]')].map(row => {
+    const pieces = [...row.querySelectorAll<SVGElement>('[data-testid="isoform-exon"]')];
+    const marks = [...row.querySelectorAll<SVGElement>('[data-testid="isoform-codon"]')];
+    return {
+      transcript: row.dataset.transcript!, display: row.dataset.display!, feature_id: row.dataset.featureId!,
+      selected: row.getAttribute('aria-pressed') === 'true',
+      exons: merge(pieces.map(span)),
+      cds: merge(pieces.filter(n => n.dataset.coding === 'true').map(span)),
+      codons: ['start', 'stop'].flatMap(kind => {
+        const blocks = marks.filter(n => n.dataset.kind === kind);
+        return blocks.length ? [{ kind, position: Number(blocks[0].dataset.position), bases: blocks.reduce((sum, n) => sum + span(n).end - span(n).start, 0) }] : [];
+      }),
+    };
+  }) : [];
+  const band = svg.querySelector('[data-testid="isoform-range"]');
+  const detail = document.getElementById('isoform-detail')!;
+  return {
+    tab_shown: !document.getElementById('tab-isoforms')!.hidden,
+    quantifier: (document.getElementById('iso-quantifier') as HTMLSelectElement).value,
+    compress: (document.getElementById('iso-compress') as HTMLInputElement).checked,
+    window: model.isoformUi && { start: model.isoformUi.start, end: model.isoformUi.end },
+    drawn_ids: model.isoformsDrawn,
+    rows,
+    highlighted_exons: shown ? [...svg.querySelectorAll('[data-testid="isoform-exon-highlight"]')].map(span) : [],
+    range: shown && band ? span(band) : null,
+    tick_labels: shown ? [...svg.querySelectorAll('.iso-tick-label')].map(n => Number((n.textContent ?? '').replace(/\D/g, ''))) : [],
+    notice: document.getElementById('iso-notice')!.hidden ? '' : document.getElementById('iso-notice')!.textContent ?? '',
+    detail: !shown || detail.hidden ? null : {
+      transcript: detail.dataset.transcript ?? '',
+      display: detail.querySelector<HTMLElement>('[data-testid="isoform-detail-state"]')?.dataset.display ?? '',
+      text: detail.textContent ?? '',
+      cells: [...detail.querySelectorAll<HTMLElement>('[data-testid="isoform-cell"]')].map(row => ({
+        cell_line: row.dataset.cellLine!, mean: row.dataset.mean ? Number(row.dataset.mean) : null,
+      })),
+      cells_shown: [...detail.querySelectorAll<HTMLElement>('[data-testid="isoform-cell"] .iso-value')].map(n => n.textContent ?? ''),
+    },
+    buttons: {
+      zoom_selection: !(document.getElementById('iso-zoom-selection') as HTMLButtonElement).disabled,
+      show_sequence: !(document.getElementById('iso-show-sequence') as HTMLButtonElement).disabled,
+    },
+  };
+}
 
 function positionsOf(grid: Element): number[] {
   return [...grid.querySelectorAll<HTMLElement>('mark[data-position]')].map(m => Number(m.dataset.position));
@@ -357,8 +439,8 @@ const sortRegions = (regions: Region[]) => regions.sort((a, b) =>
 
 export function getState(model: ModelView): AppState {
   const { current, selected } = model;
-  const tabs = (['map', 'sequence'] as const).filter(name => document.getElementById(`tab-${name}`)!.getAttribute('aria-selected') === 'true');
-  const panels = ['map', 'sequence'].filter(name => visible(`panel-${name}`));
+  const tabs = (['map', 'sequence', 'isoforms'] as const).filter(name => document.getElementById(`tab-${name}`)!.getAttribute('aria-selected') === 'true');
+  const panels = ['map', 'sequence', 'isoforms'].filter(name => visible(`panel-${name}`));
   const consistent = tabs.length === 1 && panels.length === 1 && tabs[0] === panels[0] && tabs[0] === model.activeTab;
   const details = document.querySelector<HTMLDetailsElement>('[data-testid="warnings-panel"]');
   let sequence: AppState['selection']['sequence'] = null;
@@ -455,6 +537,19 @@ export function getState(model: ModelView): AppState {
       feature_list_collapsed: document.getElementById('toggle-features')!.getAttribute('aria-expanded') === 'false',
       sequence_columns: sequence ? Number(document.getElementById('sequence')!.style.getPropertyValue('--columns')) : null,
       sequence_fits_width: sequence ? (panel => panel.scrollWidth <= panel.clientWidth + 1)(document.getElementById('panel-sequence')!) : null,
+      ...(() => {
+        const rendered = panels.includes('sequence')
+          ? [...document.querySelectorAll<HTMLElement>('#sequence [data-strand="forward"] [data-position]')].map(n => Number(n.dataset.position)) : [];
+        // reduce, not spread: a whole 100 kb record would exceed the argument limit.
+        const span = rendered.length ? { start: rendered.reduce((a, b) => Math.min(a, b)), end: rendered.reduce((a, b) => Math.max(a, b)) + 1 } : null;
+        const r = model.range;
+        return {
+          sequence_rendered: span,
+          sequence_window_note: document.getElementById('sequence-window')!.hidden ? '' : document.getElementById('sequence-window')!.textContent ?? '',
+          sequence_shows_range: !panels.includes('sequence') || !r ? null : span !== null && r.start < r.end && span.start <= r.start && span.end >= r.end,
+        };
+      })(),
+      orf_controls_enabled: !(document.getElementById('opt-orfs') as HTMLInputElement).disabled && !(document.getElementById('opt-frames') as HTMLInputElement).disabled,
     },
     map: current && panels.includes('map') ? mapState(current) : null,
     warnings: {
@@ -465,6 +560,7 @@ export function getState(model: ModelView): AppState {
       open: details?.open ?? false,
     },
     enzymes: enzymeState(model, panels),
+    isoforms: isoformState(model, panels),
     detect: detectState(panels),
     confirm: {
       open: (document.getElementById('confirm-dialog') as HTMLDialogElement).open,
@@ -485,7 +581,22 @@ export interface AutomationApi {
   chooseWorkspace(path: string): void;
   /** Run the same workspace poll the timer runs. */
   pollWorkspace(): Promise<void>;
-  selectTab(name: 'map' | 'sequence'): void;
+  selectTab(name: 'map' | 'sequence' | 'isoforms'): void;
+  /** Click an isoform row (Isoforms tab). */
+  selectIsoform(transcript: string): void;
+  /** Double-click exon `exon` (zero-based, locus order) of an isoform. */
+  doubleClickExon(transcript: string, exon: number): void;
+  /** Drag from the left edge of exon `from` to the right edge of exon `to` of an isoform. */
+  dragExons(transcript: string, from: number, to: number): void;
+  /** Client rectangle of the drawn piece at the start or end of an isoform's exon (for real pointer input). */
+  exonBox(transcript: string, exon: number, edge: 'start' | 'end'): { left: number; right: number; top: number; height: number; width: number };
+  /** Click an isoform toolbar button: zoom-in, zoom-out, zoom-fit, zoom-selection, show-sequence. */
+  isoformButton(name: string): void;
+  /** Choose the ordering quantifier / toggle intron compression through the toolbar controls. */
+  setIsoformQuantifier(quantifier: string): void;
+  setCompressIntrons(on: boolean): void;
+  /** Queue the save dialog's answer, then click Export SVG… on the map or isoform view. */
+  exportSvg(view: 'map' | 'isoforms', path: string | null): void;
   clickSequenceBase(index: number): void;
   selectOrf(orfId: string): void;
   /** Click the map label (Map tab) or the first site track (Sequence tab) of `enzyme`. */
@@ -497,6 +608,27 @@ export interface AutomationApi {
   /** Tick exactly these enzymes in the chooser and confirm (opens it via Choose…). */
   chooseEnzymes(names: string[]): void;
   getState(): AppState;
+}
+
+function isoformRow(transcript: string): SVGElement {
+  if (!visible('panel-isoforms')) throw new Error('e2e: isoform actions require the Isoforms tab');
+  const row = [...document.querySelectorAll<SVGElement>('#isoforms [data-testid="isoform-row"]')].find(r => r.dataset.transcript === transcript);
+  return required(row, `isoform row ${transcript}`);
+}
+
+/** The drawn piece at the start (or end) of an isoform's `exon`-th exon, in locus order. */
+function exonNode(transcript: string, exon: number, edge: 'start' | 'end'): SVGElement {
+  const pieces = [...isoformRow(transcript).querySelectorAll<SVGElement>('[data-testid="isoform-exon"]')]
+    .sort((a, b) => Number(a.dataset.start) - Number(b.dataset.start));
+  // Pieces of one exon abut; a gap starts a new exon.
+  const exons: SVGElement[][] = [];
+  for (const piece of pieces) {
+    const last = exons[exons.length - 1];
+    if (last && Number(last[last.length - 1].dataset.end) === Number(piece.dataset.start)) last.push(piece); else exons.push([piece]);
+  }
+  const group = exons[exon];
+  if (!group) throw new Error(`e2e: exon ${exon} of ${transcript} not drawn`);
+  return edge === 'start' ? group[0] : group[group.length - 1];
 }
 
 export function install(model: () => ModelView, hooks: Hooks) {
@@ -527,8 +659,53 @@ export function install(model: () => ModelView, hooks: Hooks) {
       queueSave(path);
       required(byTestId('save-as')[0], 'Save as button').click();
     },
-    selectTab(name: 'map' | 'sequence') {
-      required(byTestId(`tab-${name}`)[0], `tab ${name}`).click();
+    selectTab(name: 'map' | 'sequence' | 'isoforms') {
+      const tab = required(byTestId(`tab-${name}`)[0], `tab ${name}`);
+      if (tab.hidden) throw new Error(`e2e: the ${name} tab is not offered for this document`);
+      tab.click();
+    },
+    selectIsoform(transcript: string) {
+      isoformRow(transcript).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    },
+    doubleClickExon(transcript: string, exon: number) {
+      exonNode(transcript, exon, 'start').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      document.getElementById('isoforms')!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+    },
+    dragExons(transcript: string, from: number, to: number) {
+      const a = exonNode(transcript, from, 'start').getBoundingClientRect();
+      const b = exonNode(transcript, to, 'end').getBoundingClientRect();
+      const y = a.top + a.height / 2;
+      const svg = document.getElementById('isoforms')!;
+      svg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: a.left, clientY: y }));
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: (a.left + b.right) / 2, clientY: y }));
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: b.right, clientY: y }));
+      window.dispatchEvent(new MouseEvent('mouseup', { button: 0, clientX: b.right, clientY: y }));
+    },
+    exonBox(transcript: string, exon: number, edge: 'start' | 'end') {
+      const node = exonNode(transcript, exon, edge);
+      node.scrollIntoView({ block: 'nearest' });
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, height: r.height, width: r.width };
+    },
+    isoformButton(name: string) {
+      const button = required(byTestId(`isoform-${name}`)[0] as HTMLButtonElement | undefined, `isoform button ${name}`);
+      if (button.disabled) throw new Error(`e2e: isoform button ${name} is disabled`);
+      button.click();
+    },
+    setIsoformQuantifier(quantifier: string) {
+      const select = document.getElementById('iso-quantifier') as HTMLSelectElement;
+      if (![...select.options].some(o => o.value === quantifier)) throw new Error(`e2e: quantifier ${quantifier} is not offered`);
+      select.value = quantifier;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+    setCompressIntrons(on: boolean) {
+      const box = document.getElementById('iso-compress') as HTMLInputElement;
+      if (box.checked !== on) box.click();
+    },
+    exportSvg(view: 'map' | 'isoforms', path: string | null) {
+      if (!visible(`panel-${view}`)) throw new Error(`e2e: exportSvg('${view}') requires the ${view} tab`);
+      queueSave(path);
+      required(byTestId(view === 'map' ? 'map-export' : 'isoform-export')[0], `${view} export button`).click();
     },
     clickSequenceBase(index: number) {
       if (!visible('panel-sequence')) throw new Error('e2e: clickSequenceBase requires the Sequence tab');

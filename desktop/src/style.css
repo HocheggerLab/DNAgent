@@ -172,3 +172,40 @@ aside:has(#detect-panel:not([hidden])) #features{flex:0 1 auto;min-height:60px}
 aside:has(#detect-panel:not([hidden])) #detect-panel{flex:1 1 auto;max-height:none}
 #confirm-dialog{width:min(460px,92vw)}#confirm-message{font-size:13px;color:var(--muted);line-height:1.45}
 button.danger{background:#c9372c;border-color:#c9372c;color:#fff}button.danger:hover{background:#a92c23;border-color:#a92c23}
+
+/* Isoform (locus) view and SVG export */
+.export-button{position:absolute;top:6px;right:8px;z-index:1;padding:4px 10px;font-size:12px}
+.isoform-toolbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);margin:10px 0 6px}
+.isoform-toolbar label{display:flex;gap:5px;align-items:center}.isoform-toolbar select{padding:3px 5px;font-size:12px}
+.isoform-toolbar button{padding:4px 10px;font-size:12px}.zoom-controls{display:flex;gap:4px}
+.iso-notice{font-size:12px;color:var(--warning);margin:0 0 6px}
+/* The expression panel sits below the drawing, so opening it never moves the rows under the pointer. */
+.isoform-body{display:flex;flex-direction:column;gap:10px}
+#isoforms{flex:1;min-width:0;width:100%;display:block;user-select:none}
+.iso-header{fill:var(--text);font-size:12.5px;font-weight:600}
+.iso-axis,.iso-tick{stroke:var(--tick);stroke-width:1.2}.iso-tick-label{fill:var(--tick-text);font-size:10.5px}
+.iso-break{fill:var(--muted);font-size:13px}
+.iso-row{cursor:pointer}.iso-row-hit{fill:transparent}.iso-row:hover .iso-row-hit{fill:var(--hover)}
+.iso-row.selected .iso-row-hit{fill:var(--panel-soft);stroke:var(--selection-outline);stroke-width:1.5}
+.iso-label{fill:var(--text);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}.iso-row.selected .iso-label{font-weight:700}
+.iso-tag{fill:var(--accent);font:600 10px -apple-system,system-ui,sans-serif}
+.iso-intron{stroke-width:1.5}.iso-exon{stroke-width:1}
+.iso-hatch-bg{fill:var(--panel)}.iso-hatch-line{stroke:#a0a4a8;stroke-width:3}
+.iso-codon{fill:#d62020;stroke:none}
+.iso-exon-band{fill:var(--selection-band);opacity:.45;pointer-events:none}
+.iso-range{fill:var(--selection-band);fill-opacity:.5;stroke:var(--selection-edge);stroke-width:1.5;pointer-events:none}
+.iso-legend-text{fill:var(--text);font-size:11px}.iso-legend-text.muted{fill:var(--muted)}
+#isoform-detail{max-width:760px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.18);font-size:12px}
+.iso-detail-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.iso-detail-head strong{font:700 13px ui-monospace,SFMono-Regular,Menlo,monospace}
+.iso-detail-head button{padding:0 8px;font-size:14px}
+#isoform-detail p{margin:6px 0}#isoform-detail h4{margin:10px 0 6px;font-size:12px}
+.iso-facts,.iso-note,.iso-mapping{color:var(--muted)}.iso-state{font-weight:600;display:flex;align-items:center;gap:6px}
+.iso-swatch-inline{display:inline-block;width:12px;height:12px;border-radius:2px;background:var(--swatch)}
+.iso-swatch-inline.hatched{background:repeating-linear-gradient(45deg,var(--swatch) 0 2px,transparent 2px 5px);border:1px solid var(--swatch)}
+.iso-bars{display:grid;gap:3px}.iso-bar-row{display:grid;grid-template-columns:78px 1fr 92px;gap:8px;align-items:center}
+.iso-cell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.iso-value{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.iso-bar{position:relative;height:12px;background:var(--panel-soft);border-radius:2px}
+.iso-bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+.iso-bar-range{position:absolute;top:5px;height:2px;background:var(--text);opacity:.6}
+body[data-tab=isoforms] .view-options{display:none}
+.window-note{font-size:12px;margin:0 0 8px;padding:6px 10px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:4px;background:var(--panel-soft);max-width:100ch}

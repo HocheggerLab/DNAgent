@@ -26,7 +26,8 @@ clap = { version = "4.6.6", features = ["derive"] }
 eframe = "=0.35.0"
 quick-xml = { version = "0.42.0", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# float_roundtrip: correctly rounded float parsing, so metadata survives save → reopen bit for bit.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 thiserror = "2.0"
 
 [workspace.lints.rust]

@@ -45,6 +45,7 @@ uv run scripts/check_amplification.py --binary target/debug/dnagent
 uv run scripts/check_translation.py --binary target/debug/dnagent
 uv run scripts/check_genbank.py --binary target/debug/dnagent
 uv run scripts/check_enzymes.py --binary target/debug/dnagent
+uv run scripts/check_locus.py --binary target/debug/dnagent
 uv run scripts/check_feature_library.py --binary target/debug/dnagent
 uv run scripts/check_gibson_product.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py

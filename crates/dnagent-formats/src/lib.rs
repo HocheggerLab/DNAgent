@@ -3,6 +3,7 @@
 pub mod assembly;
 pub mod genbank;
 pub mod genbank_record;
+pub mod locus;
 
 use dnagent_domain::{DomainError, SequenceRecord};
 use serde::Serialize;
@@ -63,6 +64,9 @@ pub struct FormatExtensions {
     pub interpreted_source_packets: Vec<OpaquePacket>,
     /// GenBank header lines after LOCUS (DEFINITION … COMMENT), kept verbatim for re-export.
     pub genbank_header: Vec<String>,
+    /// Isoform, evidence and expression metadata of a locus bundle (see [`locus`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locus: Option<serde_json::Value>,
 }
 
 /// Successful import plus explicit fidelity information.

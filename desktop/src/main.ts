@@ -5,9 +5,11 @@ import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
 import {
   addFeatures, closeDocument, defaultWorkspace, detectFeatures, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
-  pickWorkspace, pollFiles, redo, removeFeature, saveGenbank, undo, writeHandoff,
+  pickSvgPath, pickWorkspace, pollFiles, redo, removeFeature, saveGenbank, undo, writeHandoff, writeSvg,
 } from './ipc';
+import { isoformUi, renderIsoformDetail, renderIsoforms, zoom, zoomTo } from './isoform-view';
 import { renderMap, type MapProposal, type MapSite } from './map-view';
+import { serializeSvg, themeBackground } from './svg-export';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
 import { initTheme } from './theme';
 import './style.css';
@@ -40,7 +42,11 @@ const OPTIONS_KEY = 'dnagent.viewOptions';
 const options: SequenceOptions = { aminoAcids: 'one', showFrames: false, showOrfs: false, orfMinCodons: 75 };
 try { Object.assign(options, JSON.parse(localStorage.getItem(OPTIONS_KEY) ?? '{}')); } catch { /* defaults */ }
 let revision = 0;
-let activeTab: 'map' | 'sequence' = 'map';
+type ViewTab = 'map' | 'sequence' | 'isoforms';
+const VIEW_TABS: ViewTab[] = ['map', 'sequence', 'isoforms'];
+let activeTab: ViewTab = 'map';
+/** Transcript ids in drawn order from the last isoform render (for the e2e accounting). */
+let isoformsDrawn: string[] = [];
 /** Features the last map render could not label, for the notice and list badges. */
 let unlabelled: { doc: Document | null; ids: Set<string> } = { doc: null, ids: new Set() };
 initTheme(element<HTMLSelectElement>('theme'));
@@ -117,23 +123,36 @@ function sequenceColumns(): number {
   return columnsFor(element('panel-sequence').clientWidth, basePx, basePx / 1.2 * 11);
 }
 
-function showTab(tab: 'map' | 'sequence') {
-  activeTab = tab;
-  for (const name of ['map', 'sequence'] as const) {
+/** View tabs the active document offers (Isoforms only for a gene locus). */
+const offeredTabs = (): ViewTab[] => VIEW_TABS.filter(name => name !== 'isoforms' || current?.locus);
+
+function showTab(tab: ViewTab) {
+  activeTab = offeredTabs().includes(tab) ? tab : 'map';
+  syncTabs();
+  render();
+  if (activeTab === 'sequence') revealSelection();
+}
+
+function syncTabs() {
+  element('tab-isoforms').hidden = !current?.locus;
+  if (!offeredTabs().includes(activeTab)) activeTab = 'map';
+  const tab = activeTab;
+  for (const name of VIEW_TABS) {
     element(`panel-${name}`).hidden = name !== tab;
     element(`tab-${name}`).setAttribute('aria-selected', String(name === tab));
     element(`tab-${name}`).tabIndex = name === tab ? 0 : -1;
   }
-  render();
-  if (tab === 'sequence') revealSelection();
 }
 
-for (const name of ['map', 'sequence'] as const) {
+for (const name of VIEW_TABS) {
   element(`tab-${name}`).onclick = () => showTab(name);
   element(`tab-${name}`).onkeydown = event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const next = event.key === 'Home' ? 'map' : event.key === 'End' ? 'sequence' : name === 'map' ? 'sequence' : 'map';
+    const tabs = offeredTabs();
+    const at = tabs.indexOf(name);
+    const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[tabs.length - 1]
+      : tabs[(at + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
     showTab(next); element(`tab-${next}`).focus();
   };
 }
@@ -160,6 +179,8 @@ function fetchOnce<T>(key: string, request: () => Promise<T>, store: (value: T) 
 function shownEnzymes(): { names: string[]; sites: Site[] } | null {
   if (!edit || choice.set === 'none') return { names: [], sites: [] };
   const documentId = edit.document_id;
+  // Large loci: site counts for the whole catalogue are too slow, so only chosen enzymes are scanned.
+  if (current?.sequence_window != null) return choice.set === 'custom' ? chosenSites(documentId) : { names: [], sites: [] };
   const counts = countsByDoc.get(documentId);
   if (!catalogue || !counts) {
     fetchOnce(`counts:${documentId}`, () => enzymeCounts(documentId), value => countsByDoc.set(documentId, value));
@@ -174,6 +195,19 @@ function shownEnzymes(): { names: string[]; sites: Site[] } | null {
     return null;
   }
   return { names, sites };
+}
+
+function chosenSites(documentId: number): { names: string[]; sites: Site[] } | null {
+  const names = [...choice.custom].sort((a, b) => a.localeCompare(b));
+  if (!names.length) return { names, sites: [] };
+  const key = `${documentId}|chosen|${names.join(',')}`;
+  const sites = sitesCache.get(key);
+  if (!sites) {
+    fetchOnce(`sites:${key}`, () => findSites(documentId, names), value => sitesCache.set(key, value));
+    return null;
+  }
+  // Like the other sets: only enzymes that cut are listed as shown.
+  return { names: names.filter(name => sites.some(site => site.enzyme === name)), sites };
 }
 
 /** Half-open range of `length` bases from `start`, wrapping only past the end of a circle. */
@@ -204,7 +238,9 @@ function renderEnzymeControls(shown: { names: string[]; sites: Site[] } | null) 
   const set = element<HTMLSelectElement>('enzyme-set');
   set.value = choice.set;
   set.title = catalogue ? `Enzymes from ${catalogue.source} ${catalogue.version} (${catalogue.enzymes.length})` : 'Loading enzymes…';
-  element('enzyme-summary').textContent = choice.set === 'none' ? '' : shown === null ? 'finding sites…'
+  const large = current?.sequence_window != null;
+  element('enzyme-summary').textContent = choice.set === 'none' ? '' : large && choice.set !== 'custom' ? 'not computed for records over 100 kb — Choose… enzymes instead'
+    : shown === null ? 'finding sites…'
     : `${shown.names.length} enzyme${shown.names.length === 1 ? '' : 's'}, ${shown.sites.length} site${shown.sites.length === 1 ? '' : 's'}`;
   const run = element<HTMLButtonElement>('digest-run');
   run.disabled = !shown?.names.length;
@@ -337,6 +373,7 @@ function render() {
   renderDetectPanel();
   const active = doc.features.find(f => f.id === selected);
   const activeOrf = selectedOrf === null ? undefined : doc.orfs.find(o => o.id === selectedOrf);
+  syncTabs();
   document.body.dataset.tab = activeTab;
   element('title').textContent = `${doc.name} · ${length.toLocaleString()} bp · ${doc.circular ? 'circular' : 'linear'}`;
   element('selection').textContent = active
@@ -352,6 +389,7 @@ function render() {
     const strand = element<HTMLSelectElement>('range-strand').value === 'reverse' ? 'reverse' : 'forward';
     element('range-protein').textContent = range.end < range.start
       ? '(crosses the origin — use New feature… to preview its translation)'
+      : doc.sequence_window !== null ? '(not computed for records over 100 kb — New feature… previews the translation)'
       : rangeTranslation(doc, range.start, range.end, strand) || '(shorter than one codon)';
   }
   const added = new Set(edit?.added_feature_ids ?? []);
@@ -407,8 +445,127 @@ function render() {
     list.append(button);
   }
   list.scrollTop = listScroll;
+  if (activeTab === 'isoforms') renderIsoformPanel(doc);
+  syncLargeControls(doc);
   if (activeTab === 'sequence') {
-    baseIndex = renderSequence(element('sequence'), doc, { activeFeature: active, activeOrf, range, options, columns: sequenceColumns(), select, selectOrf, sites: shown?.sites ?? [], selectSite });
+    const window = sequenceWindow(doc, active);
+    const note = element('sequence-window');
+    note.hidden = window === 'full';
+    note.textContent = window === 'full' ? '' : window === null
+      ? `This record is ${length.toLocaleString()} bp, too long to show whole. Select a feature or isoform, or mark a region (drag here, on the map or in Isoforms), to see its sequence.`
+      : `Showing [${window.start.toLocaleString()}, ${window.end.toLocaleString()}) of ${length.toLocaleString()} bp around the selection${window.clipped ? ` — the selection is longer than ${doc.sequence_window!.toLocaleString()} bp; mark a smaller region to see the rest` : ''}.`;
+    if (window === null) { element('sequence').replaceChildren(); baseIndex = []; }
+    else {
+      baseIndex = renderSequence(element('sequence'), doc, { activeFeature: active, activeOrf, range, options, columns: sequenceColumns(), select, selectOrf, sites: shown?.sites ?? [], selectSite,
+        window: window === 'full' ? undefined : window });
+    }
+  }
+}
+
+// ------------------------------------------------------------------ isoform view
+
+function selectedIsoform(doc: Document) {
+  return selected === null ? undefined : doc.locus?.isoforms.find(i => i.mrna_feature_id === selected || i.cds_feature_id === selected);
+}
+
+function renderIsoformPanel(doc: Document) {
+  const locus = doc.locus;
+  if (!locus || !edit) return;
+  const length = doc.sequence.length;
+  const ui = isoformUi(edit.document_id, locus, length, doc.sequence_window !== null);
+  const quantifier = element<HTMLSelectElement>('iso-quantifier');
+  quantifier.replaceChildren(...locus.quantifiers.map(q => {
+    const option = document.createElement('option');
+    option.value = q.quantifier; option.textContent = `${q.quantifier} (${q.cell_lines.length} cell lines)`;
+    return option;
+  }));
+  quantifier.disabled = locus.quantifiers.length === 0;
+  if (ui.quantifier) quantifier.value = ui.quantifier;
+  element<HTMLInputElement>('iso-compress').checked = ui.compress;
+  const isoform = selectedIsoform(doc);
+  element<HTMLButtonElement>('iso-zoom-selection').disabled = !range && !isoform;
+  element<HTMLButtonElement>('iso-show-sequence').disabled = !range && !selected;
+  const notice = element('iso-notice');
+  const missing = locus.missing_features;
+  notice.hidden = missing.length === 0 && locus.quantifiers.length > 0;
+  notice.textContent = [
+    missing.length ? `${missing.length} isoform${missing.length === 1 ? ' is' : 's are'} not drawn because ${missing.length === 1 ? 'its feature was' : 'their features were'} deleted: ${missing.join(', ')}` : '',
+    locus.quantifiers.length ? '' : 'This locus bundle has no expression data; isoforms are in annotation order.',
+  ].filter(Boolean).join(' · ');
+  const detail = element('isoform-detail');
+  if (isoform) renderIsoformDetail(detail, locus, isoform, ui.quantifier, () => { selected = null; render(); });
+  else { detail.hidden = true; detail.replaceChildren(); }
+  const view = range && range.end > range.start ? range : null;
+  const drawn = renderIsoforms(element<HTMLElement>('isoforms') as unknown as SVGSVGElement, locus, length, ui, { selectedFeature: selected, range: view }, {
+    select: id => select(id),
+    selectRange: (start, end) => { range = { start, end }; selected = null; selectedOrf = null; anchor = { base: start }; render(); },
+    changed: () => render(),
+  });
+  isoformsDrawn = drawn.drawn;
+}
+
+function isoformAction(action: (ui: ReturnType<typeof isoformUi>, length: number) => void) {
+  if (!current?.locus || !edit) return;
+  action(isoformUi(edit.document_id, current.locus, current.sequence.length, current.sequence_window !== null), current.sequence.length);
+  render();
+}
+
+element<HTMLSelectElement>('iso-quantifier').onchange = event => isoformAction(ui => { ui.quantifier = (event.target as HTMLSelectElement).value; });
+element<HTMLInputElement>('iso-compress').onchange = event => isoformAction(ui => { ui.compress = (event.target as HTMLInputElement).checked; });
+element('iso-zoom-in').onclick = () => isoformAction((ui, length) => zoom(ui, length, 0.5));
+element('iso-zoom-out').onclick = () => isoformAction((ui, length) => zoom(ui, length, 2));
+element('iso-zoom-fit').onclick = () => isoformAction((ui, length) => { ui.start = 0; ui.end = length; });
+element('iso-zoom-selection').onclick = () => isoformAction((ui, length) => {
+  const isoform = current ? selectedIsoform(current) : undefined;
+  if (range && range.end > range.start) zoomTo(ui, length, range.start, range.end);
+  else if (isoform) zoomTo(ui, length, Math.min(...isoform.exons.map(e => e.start)), Math.max(...isoform.exons.map(e => e.start + e.length)));
+});
+element('iso-show-sequence').onclick = () => showTab('sequence');
+
+/** Export a rendered view as a standalone SVG file chosen in a save dialog. */
+async function exportSvg(svgId: string, suffix: string) {
+  if (!current) return;
+  const svg = element<HTMLElement>(svgId) as unknown as SVGSVGElement;
+  const stem = (edit?.saved_path ?? edit?.source_path ?? current.name).replace(/\.(dna|fa|fasta|fna|gbk|genbank|gb|json)$/i, '').replace(/\.locus$/i, '');
+  const path = await pickSvgPath(`${stem}.${suffix}.svg`);
+  if (!path) return;
+  try {
+    await writeSvg(path, serializeSvg(svg, themeBackground()));
+    element('status').textContent = `Exported ${suffix} to ${path}`;
+  } catch (error) {
+    element('status').textContent = `Export failed: ${errorMessage(error)}`;
+  }
+}
+element('map-export').onclick = () => void exportSvg('map', 'map');
+element('iso-export').onclick = () => void exportSvg('isoforms', 'isoforms');
+
+// ------------------------------------------------------------------ large records (gene loci over 100 kb)
+
+const WINDOW_PAD = 60;
+
+/**
+ * Bases the Sequence view shows: 'full' for ordinary records; for large ones the selection
+ * (range, else feature) padded and capped at `sequence_window` bases; null without a selection.
+ */
+function sequenceWindow(doc: Document, active: Document['features'][number] | undefined): 'full' | null | { start: number; end: number; clipped: boolean } {
+  const limit = doc.sequence_window;
+  if (limit === null) return 'full';
+  const length = doc.sequence.length;
+  const span = range && range.end > range.start ? range
+    : active ? { start: Math.min(...active.parts.map(p => p.start)), end: Math.max(...active.parts.map(p => p.start + p.length)) } : null;
+  if (!span) return null;
+  const start = Math.max(0, span.start - WINDOW_PAD);
+  const end = Math.min(length, span.end + WINDOW_PAD, start + limit);
+  return { start, end, clipped: span.end > end };
+}
+
+/** ORFs and six-frame translation are not computed for large records; say so on the controls. */
+function syncLargeControls(doc: Document) {
+  const large = doc.sequence_window !== null;
+  for (const id of ['opt-orfs', 'opt-frames']) {
+    const box = element<HTMLInputElement>(id);
+    box.disabled = large;
+    box.closest('label')!.title = large ? 'Not computed for records over 100 kb (use dnagent orfs / translate on a region)' : '';
   }
 }
 
@@ -437,6 +594,11 @@ new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => { if (activeTab === 'map') render(); });
 }).observe(element('panel-map'));
+let isoformFrame = 0;
+new ResizeObserver(() => {
+  cancelAnimationFrame(isoformFrame);
+  isoformFrame = requestAnimationFrame(() => { if (activeTab === 'isoforms') render(); });
+}).observe(element('panel-isoforms'));
 
 function shiftAnchor(next: { base: number }) { anchor = next; }
 
@@ -515,7 +677,7 @@ async function runEdit(label: string, action: () => Promise<DocumentState>) {
 
 function defaultSavePath(): string {
   const source = edit?.saved_path ?? edit?.source_path ?? 'construct.dna';
-  return source.replace(/\.(dna|fa|fasta|fna|gbk|genbank|gb)$/i, '') + '.gb';
+  return source.replace(/\.(dna|fa|fasta|fna|gbk|genbank|gb|json)$/i, '').replace(/\.locus$/i, '') + '.gb';
 }
 
 async function save(as: boolean) {
@@ -658,6 +820,9 @@ function clearView() {
   element('enzyme-summary').textContent = ''; element('digest-summary').textContent = '';
   element<HTMLButtonElement>('digest-run').disabled = true;
   (element('map') as unknown as SVGSVGElement).replaceChildren();
+  (element('isoforms') as unknown as SVGSVGElement).replaceChildren();
+  element('isoform-detail').hidden = true; element('tab-isoforms').hidden = true;
+  if (activeTab === 'isoforms') showTab('map');
   for (const id of ['new-feature', 'delete-feature', 'dirty', 'range-panel', 'map-notice']) element(id).hidden = true;
   for (const id of ['undo', 'redo', 'save', 'save-as']) element<HTMLButtonElement>(id).disabled = true;
   element('selection').textContent = 'Open a construct.';
@@ -849,7 +1014,8 @@ element('browse').onclick = async () => {
 
 if (import.meta.env.MODE === 'e2e') {
   void import('./testing/automation').then(automation => automation.install(
-    () => ({ current, edit, selected, selectedOrf, range, options, activeTab, workspace, notices, lastHandoff,
+    () => ({ current, edit, selected, selectedOrf, range, options, activeTab, workspace, notices, lastHandoff, isoformsDrawn,
+      isoformUi: current?.locus && edit ? { ...isoformUi(edit.document_id, current.locus, current.sequence.length, current.sequence_window !== null) } : null,
       enzymes: { set: choice.set, catalogue, shown: current ? shownEnzymes()?.names ?? null : null,
         digest: digestResult && edit && digestResult.documentId === edit.document_id ? digestResult : null },
       detection: edit ? detections.get(edit.document_id) ?? null : null,

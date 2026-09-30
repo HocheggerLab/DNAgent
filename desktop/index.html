@@ -4,7 +4,7 @@
 <body>
 <main>
   <header>
-    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank or single-record FASTA file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><span class="agent-controls"><button id="handoff" data-testid="handoff" type="button" title="Snapshot all tabs into the workspace and copy a prompt for the agent (⇧⌘C)" disabled>Hand off to agent</button><button id="workspace" data-testid="workspace-button" type="button" title="Workspace folder shared with the agent">Workspace…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
+    <form id="open" data-testid="open-form"><input id="path" data-testid="path-input" aria-label="Construct path" placeholder="Path to a .dna, GenBank, single-record FASTA or .locus.json file" required><button data-testid="open-submit">Open construct</button><button id="browse" data-testid="browse" type="button">Browse…</button><span class="edit-controls"><button id="undo" data-testid="undo" type="button" title="Undo (⌘Z)" disabled>Undo</button><button id="redo" data-testid="redo" type="button" title="Redo (⇧⌘Z)" disabled>Redo</button><button id="save" data-testid="save" type="button" title="Save as GenBank (⌘S)" disabled>Save</button><button id="save-as" data-testid="save-as" type="button" title="Save as GenBank…" disabled>Save as…</button></span><span class="agent-controls"><button id="handoff" data-testid="handoff" type="button" title="Snapshot all tabs into the workspace and copy a prompt for the agent (⇧⌘C)" disabled>Hand off to agent</button><button id="workspace" data-testid="workspace-button" type="button" title="Workspace folder shared with the agent">Workspace…</button></span><label class="theme-control">Appearance <select id="theme" data-testid="theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
     <p id="status" data-testid="status" role="status">DNAgent: open a construct. Saving writes GenBank; .dna files are never modified.</p>
     <div id="warnings" data-testid="warnings"></div>
     <div id="file-notices" data-testid="file-notices"></div>
@@ -27,6 +27,7 @@
       <nav role="tablist" aria-label="Construct views">
         <button id="tab-map" data-testid="tab-map" role="tab" aria-controls="panel-map" aria-selected="true">Map</button>
         <button id="tab-sequence" data-testid="tab-sequence" role="tab" aria-controls="panel-sequence" aria-selected="false" tabindex="-1">Sequence</button>
+        <button id="tab-isoforms" data-testid="tab-isoforms" role="tab" aria-controls="panel-isoforms" aria-selected="false" tabindex="-1" hidden>Isoforms</button>
       </nav>
       <div id="view-options" class="view-options">
         <label><input type="checkbox" id="opt-orfs" data-testid="toggle-orfs"> ORFs</label>
@@ -46,11 +47,26 @@
       </div>
       <section id="panel-map" role="tabpanel" aria-labelledby="tab-map" tabindex="0">
         <button id="map-notice" type="button" data-testid="map-hidden-notice" hidden></button>
+        <button id="map-export" data-testid="map-export" type="button" class="export-button" title="Export the map as an SVG drawing">Export SVG…</button>
         <svg id="map" data-testid="map" viewBox="0 0 900 440" aria-label="Construct map"></svg>
+      </section>
+      <section id="panel-isoforms" role="tabpanel" aria-labelledby="tab-isoforms" tabindex="0" hidden>
+        <div class="isoform-toolbar">
+          <label>Order by <select id="iso-quantifier" data-testid="isoform-quantifier" title="Quantifier whose mean expression across the cell-line panel orders the rows"></select></label>
+          <label><input type="checkbox" id="iso-compress" data-testid="isoform-compress"> Compress introns</label>
+          <span class="zoom-controls"><button id="iso-zoom-in" data-testid="isoform-zoom-in" type="button" title="Zoom in (⌘ + scroll)">+</button><button id="iso-zoom-out" data-testid="isoform-zoom-out" type="button" title="Zoom out">−</button><button id="iso-zoom-fit" data-testid="isoform-zoom-fit" type="button" title="Show the whole locus">Fit</button><button id="iso-zoom-selection" data-testid="isoform-zoom-selection" type="button" title="Zoom to the selected range or isoform" disabled>Zoom to selection</button></span>
+          <button id="iso-show-sequence" data-testid="isoform-show-sequence" type="button" title="Show the selected range or isoform in the Sequence view" disabled>Show in Sequence</button>
+          <button id="iso-export" data-testid="isoform-export" type="button" title="Export the isoform view as an SVG drawing">Export SVG…</button>
+        </div>
+        <p class="view-help">Drag across the exons to mark a region, or double-click an exon; click an isoform for its expression across the cell lines. Scroll sideways to pan, ⌘ + scroll to zoom.</p>
+        <p id="iso-notice" data-testid="isoform-notice" class="iso-notice" hidden></p>
+        <div class="isoform-body"><svg id="isoforms" data-testid="isoforms" aria-label="Isoforms of the gene locus"></svg>
+          <aside id="isoform-detail" data-testid="isoform-detail" hidden></aside></div>
       </section>
       <section id="panel-sequence" role="tabpanel" aria-labelledby="tab-sequence" tabindex="0" hidden>
         <p class="view-help">Forward reference 5′→3′; aligned complement 3′→5′. Coordinates are zero-based. Feature arrows mark actual source-part ends, not line breaks. Amino acids sit under each codon's middle base; drag across bases to select and translate a range.</p>
         <details id="primers" data-testid="primers"><summary id="primer-summary">Imported primers</summary><p>Unplaced imported oligos (5′→3′). Binding locations are not retained by the importer; no annealing positions or validation are inferred.</p><div id="primer-list"></div></details>
+        <p id="sequence-window" data-testid="sequence-window" class="window-note" hidden></p>
         <div id="sequence" data-testid="sequence" aria-label="Duplex sequence and imported feature tracks"></div>
       </section>
     </article>

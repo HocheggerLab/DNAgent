@@ -83,6 +83,13 @@ async fn poll_files(workspace: String, open_paths: Vec<String>) -> Result<Vec<Fi
 }
 
 #[tauri::command]
+async fn write_svg(path: String, svg: String) -> Result<(), Diagnostic> {
+    tauri::async_runtime::spawn_blocking(move || dnagent_desktop_api::session::write_svg(&PathBuf::from(path), &svg))
+        .await
+        .map_err(|error| Diagnostic { code: "task_failed".into(), message: error.to_string() })?
+}
+
+#[tauri::command]
 fn default_workspace() -> String {
     dnagent_desktop_api::session::default_workspace()
 }
@@ -126,7 +133,7 @@ fn main() {
         .manage(AppSession::default())
         .invoke_handler(tauri::generate_handler![
             open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
-            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features
+            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features, write_svg
         ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

@@ -23,6 +23,7 @@ const DEFAULT_FIXTURES = [
   'fixtures/formats/snapgene/synthetic_multipart_origin.dna',
   'fixtures/formats/snapgene/synthetic_linear.dna',
   'fixtures/formats/snapgene/synthetic_translation.dna',
+  'fixtures/formats/locus/synthetic_locus.locus.json',
 ];
 const SIZES = [{ width: 1440, height: 900 }, { width: 1100, height: 720 }, { width: 1920, height: 1200 }];
 const THEMES = ['light', 'dark'] as const;
@@ -62,6 +63,25 @@ async function capture(page: Page, name: string, caption: string, shots: Shot[])
   const file = `${name}.png`;
   await page.screenshot({ path: resolve(OUT, file) });
   shots.push({ file, caption, notes: notesFor(await state(page)) });
+}
+
+/** Isoform view: true scale, compressed introns, an isoform's expression popup, a dragged exon range zoomed in. */
+async function reviewIsoforms(page: Page, name: string, theme: string, shots: Shot[]) {
+  const api = (fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window.__DNAGENT_TEST__ as unknown as Record<string, (...x: unknown[]) => void>)[f as string](...(a as unknown[])), [fn, args] as const);
+  await api('selectTab', 'isoforms'); await idle(page);
+  await capture(page, `${name}-isoforms`, `${theme} · isoforms · true scale`, shots);
+  await api('setCompressIntrons', true); await idle(page);
+  await capture(page, `${name}-isoforms-compressed`, `${theme} · isoforms · introns compressed`, shots);
+  const rows = (await state(page)).isoforms!.rows;
+  await api('selectIsoform', rows[0].transcript); await idle(page);
+  await capture(page, `${name}-isoforms-detail`, `${theme} · isoforms · ${rows[0].transcript} selected`, shots);
+  const last = rows[0].exons.reduce((n, e, i, all) => (i && all[i - 1].end !== e.start ? n + 1 : n), 0);
+  await api('dragExons', rows[0].transcript, last, last); await idle(page);
+  await api('isoformButton', 'zoom-selection'); await idle(page);
+  await capture(page, `${name}-isoforms-zoom`, `${theme} · isoforms · last exon of ${rows[0].transcript} zoomed`, shots);
+  await api('isoformButton', 'show-sequence'); await idle(page);
+  await capture(page, `${name}-isoforms-to-sequence`, `${theme} · sequence after Show in Sequence`, shots);
+  await api('selectTab', 'isoforms'); await api('setCompressIntrons', false); await api('isoformButton', 'zoom-fit');
 }
 
 function gallery(sections: { label: string; shots: Shot[] }[]): string {
@@ -123,16 +143,23 @@ async function main() {
         if (largest) await page.evaluate(id => window.__DNAGENT_TEST__!.selectFeature(id), largest.id);
         await page.getByTestId('tab-sequence').click();
         await capture(page, `${slug(label)}-${theme}-sequence`, `${theme} · sequence · ${largest?.name ?? 'no feature'}`, shots);
-        await page.getByTestId('toggle-orfs').check();
-        await page.getByTestId('toggle-frames').check();
-        await capture(page, `${slug(label)}-${theme}-sequence-orfs-frames`, `${theme} · sequence · ORFs ≥ 75 codons + six frames`, shots);
-        await page.getByTestId('toggle-frames').uncheck();
+        // ORFs and frames are not computed for records over 100 kb (large gene loci).
+        const orfs = (await state(page)).layout.orf_controls_enabled;
+        if (orfs) {
+          await page.getByTestId('toggle-orfs').check();
+          await page.getByTestId('toggle-frames').check();
+          await capture(page, `${slug(label)}-${theme}-sequence-orfs-frames`, `${theme} · sequence · ORFs ≥ 75 codons + six frames`, shots);
+          await page.getByTestId('toggle-frames').uncheck();
+        }
         await page.getByTestId('amino-acid-mode').selectOption('three');
         await capture(page, `${slug(label)}-${theme}-sequence-3letter`, `${theme} · sequence · 3-letter amino acids`, shots);
         await page.getByTestId('amino-acid-mode').selectOption('one');
         await page.getByTestId('tab-map').click();
-        await capture(page, `${slug(label)}-${theme}-map-orfs`, `${theme} · map with ORFs ≥ 75 codons`, shots);
-        await page.getByTestId('toggle-orfs').uncheck();
+        if (orfs) {
+          await capture(page, `${slug(label)}-${theme}-map-orfs`, `${theme} · map with ORFs ≥ 75 codons`, shots);
+          await page.getByTestId('toggle-orfs').uncheck();
+        }
+        if ((await state(page)).isoforms?.tab_shown) await reviewIsoforms(page, `${slug(label)}-${theme}`, theme, shots);
         await page.close();
       }
       sections.push({ label, shots });
