@@ -1,6 +1,8 @@
-# DNAgent desktop prototype
+# DNAgent desktop app
 
-Read-only Tauri 2 + TypeScript/Vite viewer backed by the native Rust engine.
+Tauri 2 + TypeScript/Vite app backed by the native Rust engine: viewing, editing and saving
+constructs, restriction analysis, feature detection, gene isoforms and agent handoff. The
+frontend draws and holds view state only; all biology comes from Rust.
 See `../docs/desktop-architecture.md` for the decision and limitations.
 
 ## Run

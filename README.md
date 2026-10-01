@@ -1,36 +1,72 @@
 # DNAgent
 
-## Desktop direction
+**An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust engine.**
 
-The GUI is a central product interface. A read-only **Tauri 2 + TypeScript** prototype
-is available in [`desktop/`](desktop/README.md), with native Rust calculations and
-generated transport types. WASM is deferred; the CLI and existing egui viewer remain
-available. See the [architecture decision](docs/desktop-architecture.md) and
-[architecture review](docs/architecture-review.md).
+DNAgent is an open replacement for the plasmid viewing and cloning work usually done in
+SnapGene, built so that a person at the desktop and an AI agent in a terminal work on the
+same constructs with the same engine. Every biological operation lives in tested Rust crates;
+the CLI returns versioned JSON for agents, and the Tauri desktop app calls the same
+application layer. Results are checked against independent references (Biopython, NCBI
+genetic codes, brute-force scans), and end-to-end GUI tests take their expected values from
+the CLI, never from hand-typed literals.
 
-**An agent-friendly DNA design and cloning workbench.**
+> Research software from the [Hochegger Lab](https://github.com/HocheggerLab). It predicts
+> sequences and products; it does not validate experiments. Check designs before ordering.
 
-DNAgent is a Rust, library-first replacement for the plasmid viewing and cloning workflows commonly performed in SnapGene. Biological operations live in reusable crates. Development is currently CLI-first for agent use; the desktop GUI remains a basic viewer, with further interaction work deferred.
+## What it does
 
-## Milestone 1
+- **Open and save constructs:** SnapGene `.dna` (read-only), GenBank and single-record FASTA,
+  recognised by content. Saving writes GenBank losslessly for everything DNAgent models,
+  including SnapGene-only data, or reports what it cannot keep.
+- **Desktop app** (Tauri 2): circular and linear maps, a duplex sequence view with
+  translations, ORFs and six-frame translation, tabs, undo/redo, new and deleted features,
+  restriction sites and digests, feature detection from your own library, SVG export, light and
+  dark mode.
+- **Cloning engine:** restriction sites, complete digests, end compatibility, annotated
+  fragments, explicit ligation plans, Gibson assembly (fixed-length tails, Tm-optimised
+  primers, existing overlaps) with the annotated product written as GenBank, and offline
+  amplification primer design.
+- **Translation:** features, ranges and all CDSs with pinned NCBI genetic codes; complete ORFs.
+- **Feature library:** collect the annotated parts of your constructs into a private SQLite
+  library and detect them in any sequence, with variant families.
+- **Isoform viewer:** open a gene locus (from [degron-db](docs/isoform-viewer.md#getting-a-locus)
+  or any tool writing the documented `dnagent-locus` JSON) to see every transcript's exons,
+  codons, long-read evidence and expression across a cell-line panel; loci up to 3 Mb.
+- **Agent handoff:** the desktop snapshots all open tabs and selections into a workspace and
+  copies a prompt for an agent; files the agent writes there open as new tabs.
 
-The first vertical slice imports a SnapGene `.dna` file read-only and exposes the same normalized record through:
+## Quick start
+
+Requires Rust 1.92+; the desktop app also needs Node 22.6+ and the
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
+
+```bash
+# CLI (headless, no GUI dependencies)
+cargo build -p dnagent-cli --release --locked
+target/release/dnagent inspect fixtures/formats/snapgene/pUC19_M77789.dna
+target/release/dnagent sites fixtures/formats/snapgene/pUC19_M77789.dna --enzymes EcoRI,BamHI --output json
+
+# Desktop app
+cd desktop && npm ci && npm run tauri dev
+```
+
+Every command takes `--output json` and returns one envelope (`schema_version`, `ok`,
+`result` or `error`, `warnings`) described by the [JSON Schema](schemas/cli-envelope-0.9.0.schema.json).
+Coordinates are zero-based and half-open everywhere. See the [desktop guide](desktop/README.md)
+for what the app does, and [agent handoff](docs/agent-handoff.md) for working with an agent.
 
 ```bash
 dnagent inspect construct.dna --output json
 dnagent features construct.dna --output json
-dnagent primers construct.dna --output json
 dnagent sequence construct.dna --range 100..300 --output json
 dnagent map construct.dna --out map.svg
-dnagent enzymes --output json
-dnagent sites construct.dna --enzymes EcoRI,BamHI,BsaI --output json
 dnagent digest construct.dna --enzymes EcoRI,BamHI --output json
-dnagent compatible-ends vector.dna --enzymes BsaI --other insert.dna --other-enzymes BsmBI --output json
-# Only when built with --features gui:
-dnagent gui construct.dna
+dnagent translate construct.dna --all-cds --output json
+dnagent gibson plan.json --out product.gb --output json
+dnagent isoforms GENE.locus.json --output json
 ```
 
-Current status: working Milestone 1 vertical slice with checked domain types, read-only sequence/feature/primer import, explicit fidelity reporting, deterministic JSON and SVG output, and basic Map/Features/Sequence GUI views. SnapGene `.dna` and single-record FASTA are accepted; FASTA is explicitly treated as sequence-only linear DNA. Full cross-view selection remains unfinished.
+## Capabilities in detail
 
 ### Restriction sites
 
@@ -254,8 +290,8 @@ substring) and `--kind` (case-insensitive exact match) filters.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The current [JSON Schema](schemas/cli-envelope-0.9.0.schema.json) covers all fourteen
-commands' success and runtime-error envelopes. Older schemas are retained only
+The current [JSON Schema](schemas/cli-envelope-0.9.0.schema.json) covers every command's
+success and runtime-error envelopes. Older schemas are retained only
 for archived responses, not emitted or accepted by the current CLI; see the
 [schema version policy](schemas/README.md). It validates structure and basic
 value constraints; relational coordinate bounds and biological correctness
@@ -292,7 +328,8 @@ strict-mode and range checks; lab data and reports stay outside the repository.
 ## Development
 
 Rust 1.92 or newer is required. The default **CLI package** build excludes GUI
-crates and window-system dependencies:
+crates and window-system dependencies. The full pre-commit validation list (Rust, Python
+reference checks via `uv`, desktop unit and e2e tests) is in [`AGENTS.md`](AGENTS.md):
 
 ```bash
 cargo build -p dnagent-cli --locked
@@ -315,6 +352,12 @@ cargo test -p dnagent-cli --features gui --locked
 
 The narrow SnapGene migration adapter is informed by PlasCAD's MIT-licensed reader at commit `717459dcd780ec4266e9a2aa15297eae31956da5`. See [`NOTICE`](NOTICE) and [`licenses/PlasCAD-MIT.txt`](licenses/PlasCAD-MIT.txt).
 
+## Contributing
+
+Issues and pull requests are welcome. Please run the validation list in
+[`AGENTS.md`](AGENTS.md) before submitting; fixtures must be synthetic or redistributable,
+with their source and licence recorded (no private lab constructs).
+
 ## License
 
-MIT
+MIT, see [`LICENSE`](LICENSE). Third-party notices are in [`NOTICE`](NOTICE).
