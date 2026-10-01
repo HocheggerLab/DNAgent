@@ -30,9 +30,9 @@ Each handoff replaces the previous one's files in `handoff/`.
   "coordinates": "zero-based, half-open; selections with end < start wrap through the origin",
   "instructions": ["…"],
   "constructs": [{
-    "document_id": 1, "name": "1-476", "active": true,
-    "snapshot": "/Users/me/DNAgent/handoff/1-476.gb",   // read this with the dnagent CLI
-    "source": "/Users/me/constructs/1-476.dna", "unsaved_changes": true,
+    "document_id": 1, "name": "pEXAMPLE", "active": true,
+    "snapshot": "/Users/me/DNAgent/handoff/pEXAMPLE.gb",   // read this with the dnagent CLI
+    "source": "/Users/me/constructs/pEXAMPLE.dna", "unsaved_changes": true,
     "length": 9175, "topology": "circular",
     "selection": {"start": 1250, "end": 6188, "length": 4938, "wraps_origin": false},  // or null
     "selected_feature": { …same shape as `dnagent features` rows… },                  // or null
