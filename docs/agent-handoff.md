@@ -17,15 +17,34 @@ claude mcp add dnagent -- dnagent mcp          # Claude Code
 For MCPorter (Pi), add a `dnagent` server that runs `dnagent mcp`, like other stdio servers.
 If the app is not running, `dnagent mcp` exits with a message; start the app and reconnect.
 
-Tools (read-only for now; the contract is `schemas/agent-tools.json`):
+Tools (the contract is `schemas/agent-tools.json`):
 
-| Tool | Returns |
+| Tool | Does |
 |---|---|
 | `status` | app version, workspace, number of open constructs |
 | `list_documents` | open constructs in tab order: id, name, length, topology, active, unsaved changes, `edit_counter` |
 | `get_view` | the active construct, view tab, selected range and selected feature (a `dnagent features` row) |
 | `get_features` | all features of an open construct, unsaved edits included, as `dnagent features` rows |
 | `export_snapshot` | writes the construct as it is open now to `<workspace>/.dnagent/snapshots/` and returns the path, for CLI work |
+| `open_file` | opens a file as a new tab (or switches to its tab) and returns its `document_id` |
+| `select_range`, `select_feature` | select a region or feature and make its construct the active tab |
+| `notify` | shows a message in the app's **Agent** panel |
+| `present` | the end of autonomous work: opens a result file, shows a summary in the Agent panel and lists highlights (junctions, primer sites, new features); the first is selected and the user clicks the others |
+
+The view tools reply only once the app shows the change (`"applied": true`, plus the
+resulting `view`); if the window does not respond within 3 s they reply
+`"applied": false` with a note. Invalid targets (a range outside the construct, a
+wrapping range on a linear construct, an unknown feature, an unreadable file) are
+rejected before anything changes, with codes such as `invalid_range` or
+`no_such_feature`. Agents cannot edit or save through MCP yet.
+
+Two ways to work with an agent:
+
+- **Autonomous:** the agent works from start to finish with the CLI on files, writes
+  the result as GenBank and calls `present`. Without the app it still works; the
+  result is then offered through the watched workspace.
+- **Supervised:** the agent works step by step on what is open, reads your selection
+  with `get_view` and shows you regions with `select_range`/`select_feature`.
 
 Coordinates are zero-based and half-open; ranges with `end < start` wrap through the
 origin. `edit_counter` increases with every change (edit, undo, redo) and never repeats.
@@ -115,5 +134,6 @@ The desktop e2e scenarios `tabs-isolation`, `agent-handoff-product` and
 `workspace-reload` play the agent with real `dnagent` CLI commands in a test workspace.
 They check the snapshots and `context.json` against the GUI and the CLI, and check the
 notices and reloads. A Rust test checks every desktop command is served by the e2e server.
-`agent-mcp-live` plays a live agent through `dnagent mcp` and the e2e server's per-session
-agent socket, checking the agent's view against the GUI and the CLI.
+`agent-mcp-live`, `agent-points-back` and `agent-presents-product` play a live agent
+through `dnagent mcp` and the e2e server's per-session agent socket, checking the agent's
+view and what it shows against the GUI and the CLI.

@@ -105,6 +105,59 @@ pub struct ViewReport {
     pub selected_feature_id: Option<String>,
     /// The handoff workspace chosen in the app.
     pub workspace: String,
+    /// Sequence number of the last agent request the GUI applied (0 = none).
+    #[serde(default)]
+    pub agent_seen: u32,
+}
+
+/// A region an agent points at (half-open; `end < start` wraps on circular records).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Highlight {
+    pub label: String,
+    pub start: u32,
+    pub end: u32,
+}
+
+/// Something an agent asks the GUI to show; the frontend collects these with
+/// `agent_sync` and applies them in order.
+#[derive(Debug, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AgentRequest {
+    /// Show a document the agent opened (or switch to it if it has a tab).
+    Open { seq: u32, state: Box<DocumentState> },
+    /// Make the document active and select a range or a feature.
+    Select {
+        seq: u32,
+        document_id: u32,
+        range: Option<RangeRequest>,
+        feature_id: Option<String>,
+    },
+    /// A message for the user.
+    Notify { seq: u32, message: String },
+    /// An agent's result: its summary and the regions worth looking at.
+    Present {
+        seq: u32,
+        document_id: u32,
+        summary: String,
+        highlights: Vec<Highlight>,
+    },
+}
+
+/// Queued form: documents are resolved to their state when the GUI collects them.
+#[derive(Debug, Clone)]
+pub(crate) enum QueuedRequest {
+    Open(u32),
+    Select {
+        document_id: u32,
+        range: Option<RangeRequest>,
+        feature_id: Option<String>,
+    },
+    Notify(String),
+    Present {
+        document_id: u32,
+        summary: String,
+        highlights: Vec<Highlight>,
+    },
 }
 
 /// All documents opened in one window (desktop) or one browser session (e2e).
@@ -113,6 +166,8 @@ pub struct Session {
     documents: HashMap<u32, Open>,
     next_id: u32,
     view: ViewReport,
+    agent_queue: Vec<(u32, QueuedRequest)>,
+    agent_seq: u32,
 }
 
 fn diagnostic(code: &str, error: impl std::fmt::Display) -> Diagnostic {
@@ -373,6 +428,66 @@ impl Session {
         self.documents.remove(&id);
     }
 
+    /// Queue a request for the GUI (see [`AgentRequest`]).
+    /// Returns its sequence number; the GUI acknowledges it in `ViewReport::agent_seen`.
+    pub(crate) fn queue_agent_request(&mut self, request: QueuedRequest) -> u32 {
+        self.agent_seq += 1;
+        self.agent_queue.push((self.agent_seq, request));
+        self.agent_seq
+    }
+
+    /// Hand the queued agent requests to the frontend, oldest first. Requests for
+    /// documents closed meanwhile are dropped.
+    pub fn agent_sync(&mut self) -> Vec<AgentRequest> {
+        let queued = std::mem::take(&mut self.agent_queue);
+        queued
+            .into_iter()
+            .filter_map(|(seq, request)| match request {
+                QueuedRequest::Open(id) => self.state(id).ok().map(|state| AgentRequest::Open {
+                    seq,
+                    state: Box::new(state),
+                }),
+                QueuedRequest::Select {
+                    document_id,
+                    range,
+                    feature_id,
+                } => self
+                    .documents
+                    .contains_key(&document_id)
+                    .then_some(AgentRequest::Select {
+                        seq,
+                        document_id,
+                        range,
+                        feature_id,
+                    }),
+                QueuedRequest::Notify(message) => Some(AgentRequest::Notify { seq, message }),
+                QueuedRequest::Present {
+                    document_id,
+                    summary,
+                    highlights,
+                } => self
+                    .documents
+                    .contains_key(&document_id)
+                    .then_some(AgentRequest::Present {
+                        seq,
+                        document_id,
+                        summary,
+                        highlights,
+                    }),
+            })
+            .collect()
+    }
+
+    /// The open document read from `path`, if any (paths compared canonically).
+    #[must_use]
+    pub fn document_for_source(&self, path: &Path) -> Option<u32> {
+        let wanted = std::fs::canonicalize(path).ok()?;
+        let mut ids: Vec<u32> = self.documents.keys().copied().collect();
+        ids.sort_unstable();
+        ids.into_iter()
+            .find(|id| std::fs::canonicalize(&self.documents[id].source).is_ok_and(|p| p == wanted))
+    }
+
     /// Record what the frontend shows (see [`ViewReport`]).
     pub fn report_view(&mut self, view: ViewReport) {
         self.view = view;
@@ -500,6 +615,7 @@ pub fn dispatch(
             session.report_view(arg::<ViewArg>(args)?.view);
             Ok(serde_json::Value::Null)
         }
+        "agent_sync" => value(Ok(session.agent_sync())),
         "write_handoff" => {
             #[derive(Deserialize)]
             struct HandoffArg {

@@ -147,7 +147,13 @@ selection: RangeRequest | null, selected_feature_id: string | null,
 /**
  * The handoff workspace chosen in the app.
  */
-workspace: string, };
+workspace: string,
+/**
+ * Sequence number of the last agent request the GUI applied (0 = none).
+ */
+agent_seen: number, };
+export type Highlight = { label: string, start: number, end: number, };
+export type AgentRequest = { "kind": "open", seq: number, state: DocumentState, } | { "kind": "select", seq: number, document_id: number, range: RangeRequest | null, feature_id: string | null, } | { "kind": "notify", seq: number, message: string, } | { "kind": "present", seq: number, document_id: number, summary: string, highlights: Array<Highlight>, };
 export type Proposal = {
 /**
  * Stable within one detection: `<library id>@<start><strand letter>`.

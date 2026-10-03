@@ -130,9 +130,11 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:10px 0 0;paddin
 #file-notices{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .file-notice{display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--panel-soft)}
 .file-notice.conflict{border-color:var(--warning)}.file-notice span{flex:1;overflow-wrap:anywhere}.file-notice button{padding:3px 9px;font-size:12px}
-#handoff-panel{margin-top:6px;padding:8px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--panel-soft);font-size:12px}
+#handoff-panel,#agent-panel{margin-top:6px;padding:8px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--panel-soft);font-size:12px}
 .handoff-head{display:flex;gap:10px;align-items:center;margin-bottom:6px}.handoff-head span{flex:1;color:var(--muted)}
 .handoff-head button{padding:3px 9px;font-size:12px}
+#agent-message{color:var(--text);white-space:pre-wrap}#agent-highlights{display:flex;flex-wrap:wrap;gap:6px}
+#agent-highlights button{padding:3px 9px;font-size:12px}#agent-highlights button.active{border-color:var(--accent);font-weight:600}
 #handoff-prompt{width:100%;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;padding:6px;color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:4px}
 
 /* Restriction sites */

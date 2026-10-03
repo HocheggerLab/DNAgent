@@ -3,7 +3,7 @@ use dnagent_desktop_api::Diagnostic;
 use dnagent_desktop_api::detection::DetectionResult;
 use dnagent_desktop_api::restriction::{EnzymeCatalogueInfo, EnzymeCount, Fragment, Site};
 use dnagent_desktop_api::session::{
-    DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session, ViewReport,
+    AgentRequest, DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session, ViewReport,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -80,6 +80,12 @@ async fn report_view(state: State<'_, AppSession>, view: ViewReport) -> Result<(
     .await
 }
 
+/// What live agents asked the GUI to show since the last call (oldest first).
+#[tauri::command]
+async fn agent_sync(state: State<'_, AppSession>) -> Result<Vec<AgentRequest>, Diagnostic> {
+    with_session(state, |s| Ok(s.agent_sync())).await
+}
+
 #[tauri::command]
 async fn write_handoff(state: State<'_, AppSession>, workspace: String, items: Vec<HandoffItem>) -> Result<HandoffResult, Diagnostic> {
     with_session(state, move |s| s.write_handoff(&PathBuf::from(workspace), &items)).await
@@ -150,7 +156,7 @@ fn main() {
         .manage(agent_server)
         .invoke_handler(tauri::generate_handler![
             open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
-            close_document, report_view, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features, write_svg
+            close_document, report_view, agent_sync, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features, write_svg
         ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

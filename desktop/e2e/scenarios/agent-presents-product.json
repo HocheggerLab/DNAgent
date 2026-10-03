@@ -1,0 +1,40 @@
+{
+  "id": "agent-presents-product",
+  "description": "Autonomous mode: the agent works only with the CLI on a file, writes a product as GenBank and presents it; the app opens it, shows the summary and the highlights, selects the first, and selects the others when clicked.",
+  "fixture": "fixtures/formats/snapgene/synthetic_translation.dna",
+  "steps": [
+    {"run_cli": {"args": ["annotate", "fixtures/formats/snapgene/synthetic_translation.dna", "--out", "desktop/e2e/artifacts/agent-presents-product/product.gb", "--add", "--range", "0..30", "--label", "agent-made"]}, "note": "the agent works from start to finish without the GUI"},
+    {"agent_call": {"tool": "present", "arguments": {
+      "path": "desktop/e2e/artifacts/agent-presents-product/product.gb",
+      "summary": "Annotated the first 30 bp as agent-made. Check the start and the second region.",
+      "highlights": [{"label": "agent-made", "start": 0, "end": 30}, {"label": "second region", "start": 40, "end": 55}]
+    }}},
+    {"expect": [
+      {"state": "agent.present.applied", "equals": true},
+      {"state": "agent.present.highlights", "equals": 2},
+      {"state": "tab_count", "equals": 1},
+      {"state": "tabs[0].path", "equals": "desktop/e2e/artifacts/agent-presents-product/product.gb"},
+      {"state": "features[*].id", "equals_cli": {"command": "features", "file": "desktop/e2e/artifacts/agent-presents-product/product.gb", "path": "result[*].id"}},
+      {"state": "workspace.agent.open", "equals": true},
+      {"state": "workspace.agent.message", "equals": "Annotated the first 30 bp as agent-made. Check the start and the second region."},
+      {"state": "workspace.agent.highlights", "equals": [{"text": "agent-made [0, 30)", "active": true}, {"text": "second region [40, 55)", "active": false}]},
+      {"state": "selection.range", "equals": {"start": 0, "end": 30}, "message": "the first highlight is selected"}
+    ], "screenshot": true},
+    {"click": {"testid": "agent-highlight", "index": 1}},
+    {"expect": [
+      {"state": "selection.range", "equals": {"start": 40, "end": 55}},
+      {"state": "workspace.agent.highlights[1].active", "equals": true}
+    ]},
+    {"agent_call": {"tool": "present", "arguments": {
+      "path": "desktop/e2e/artifacts/agent-presents-product/product.gb",
+      "summary": "bad",
+      "highlights": [{"label": "too far", "start": 0, "end": 100000}]
+    }, "expect_error": "invalid_range"}, "note": "an invalid highlight presents nothing"},
+    {"expect": [
+      {"state": "workspace.agent.message", "equals": "Annotated the first 30 bp as agent-made. Check the start and the second region."},
+      {"state": "tab_count", "equals": 1}
+    ]},
+    {"click": {"testid": "agent-close"}},
+    {"expect": [{"state": "workspace.agent.open", "equals": false}]}
+  ]
+}

@@ -1,10 +1,10 @@
-import type { Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Site, ViewReport } from './bindings';
+import type { AgentRequest, Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Highlight, Site, ViewReport } from './bindings';
 import { enzymesInSet, loadChoice, openChooser, renderDigest, saveChoice, type EnzymeSet } from './enzymes';
 import { defaultChecked, renderDetection, requestsFor, type Detection } from './detect';
 import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
 import {
-  addFeatures, closeDocument, defaultWorkspace, detectFeatures, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
+  addFeatures, agentSync, closeDocument, defaultWorkspace, detectFeatures, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
   pickSvgPath, pickWorkspace, pollFiles, redo, removeFeature, reportView, saveGenbank, undo, writeHandoff, writeSvg,
 } from './ipc';
 import { isoformUi, renderIsoformDetail, renderIsoforms, zoom, zoomTo } from './isoform-view';
@@ -872,6 +872,8 @@ try { workspace = localStorage.getItem(WORKSPACE_KEY) ?? ''; } catch { /* defaul
 let lastHandoff: { prompt: string; context_path: string } | null = null;
 
 let reportedView = '';
+/** Reports go out one at a time: concurrent requests could arrive out of order and leave Rust with an older view. */
+let reporting: Promise<void> = Promise.resolve();
 /** Tell Rust what is shown (only when it changed), so agents read the live view through `dnagent mcp`. */
 function reportCurrentView() {
   const view: ViewReport = {
@@ -881,11 +883,12 @@ function reportCurrentView() {
     selection: current ? range : null,
     selected_feature_id: current ? selected : null,
     workspace,
+    agent_seen: agentSeen,
   };
   const key = JSON.stringify(view);
   if (key === reportedView) return;
   reportedView = key;
-  void reportView(view).catch(() => { reportedView = ''; });
+  reporting = reporting.then(() => reportView(view)).then(() => undefined, () => { reportedView = ''; });
 }
 type Notice = { kind: 'new' | 'changed' | 'conflict'; path: string };
 let notices: Notice[] = [];
@@ -1021,6 +1024,92 @@ element('workspace').onclick = async () => {
   if (path) setWorkspace(path);
 };
 void ensureWorkspace().then(() => pollWorkspace());
+// ------------------------------------------------------------------ live agent (dnagent mcp)
+
+/** What the agent last showed in the agent panel: a message, or a presented result. */
+let agentPanel: { message: string; documentId: number | null; highlights: Highlight[]; active: number } | null = null;
+
+function selectAgentRange(documentId: number, start: number, end: number) {
+  const index = docTabs.findIndex(tab => tab.edit.document_id === documentId);
+  if (index < 0) return;
+  if (index !== activeDoc) activateDoc(index);
+  range = { start, end }; selected = null; selectedOrf = null; anchor = { base: start };
+  render();
+  if (activeTab === 'sequence') revealSelection();
+}
+
+function renderAgentPanel() {
+  element('agent-panel').hidden = agentPanel === null;
+  element('agent-message').textContent = agentPanel?.message ?? '';
+  const panel = agentPanel;
+  element('agent-highlights').replaceChildren(...(panel?.highlights ?? []).map((highlight, index) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.dataset.testid = 'agent-highlight';
+    button.className = index === panel!.active ? 'active' : '';
+    button.textContent = `${highlight.label} [${highlight.start.toLocaleString()}, ${highlight.end.toLocaleString()})`;
+    button.onclick = () => {
+      panel!.active = index; renderAgentPanel();
+      if (panel!.documentId !== null) selectAgentRange(panel!.documentId, highlight.start, highlight.end);
+    };
+    return button;
+  }));
+}
+
+/** Show a document the agent opened: switch to its tab, or add one from the session state. */
+function showAgentDocument(state: DocumentState) {
+  const existing = docTabs.findIndex(tab => tab.edit.document_id === state.edit.document_id);
+  if (existing >= 0) { activateDoc(existing); return; }
+  stash();
+  const path = state.edit.source_path;
+  docTabs.push({ current: state.document, edit: state.edit, path, selected: null, selectedOrf: null, range: null, anchor: null });
+  activeDoc = -1;
+  activateDoc(docTabs.length - 1);
+  rememberStamp(path);
+}
+
+function applyAgentRequest(request: AgentRequest) {
+  switch (request.kind) {
+    case 'open': showAgentDocument(request.state); break;
+    case 'select': {
+      const index = docTabs.findIndex(tab => tab.edit.document_id === request.document_id);
+      if (index < 0) return;
+      if (request.feature_id !== null) { if (index !== activeDoc) activateDoc(index); select(request.feature_id); }
+      else if (request.range !== null) selectAgentRange(request.document_id, request.range.start, request.range.end);
+      break;
+    }
+    case 'notify':
+      agentPanel = { message: request.message, documentId: null, highlights: [], active: -1 };
+      renderAgentPanel();
+      break;
+    case 'present': {
+      agentPanel = { message: request.summary, documentId: request.document_id, highlights: request.highlights, active: request.highlights.length ? 0 : -1 };
+      renderAgentPanel();
+      const first = request.highlights[0];
+      const index = docTabs.findIndex(tab => tab.edit.document_id === request.document_id);
+      if (first) selectAgentRange(request.document_id, first.start, first.end);
+      else if (index >= 0) activateDoc(index);
+      break;
+    }
+  }
+}
+
+/** Sequence number of the last agent request applied; reported so agent tools know the user saw it. */
+let agentSeen = 0;
+let agentSyncing = false;
+/** Collect what a live agent asked the GUI to show (requests arrive in order, once). */
+async function pollAgent() {
+  if (agentSyncing) return;
+  agentSyncing = true;
+  try {
+    const requests = await agentSync();
+    for (const request of requests) { applyAgentRequest(request); agentSeen = request.seq; }
+    if (requests.length) reportCurrentView();
+  } catch { /* the backend is not ready yet; try again on the next tick */ } finally { agentSyncing = false; }
+}
+
+element('agent-close').onclick = () => { agentPanel = null; renderAgentPanel(); };
+window.setInterval(() => void pollAgent(), 250);
+
 window.setInterval(() => { if (document.visibilityState === 'visible') void pollWorkspace(); }, import.meta.env.MODE === 'e2e' ? 3_600_000 : 2_000);
 
 element('open').onsubmit = event => { event.preventDefault(); void load(element<HTMLInputElement>('path').value); };

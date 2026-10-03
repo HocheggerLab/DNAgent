@@ -796,6 +796,8 @@ version = "0.1.0"
 dependencies = [
  "dnagent-app",
  "dnagent-desktop-api",
+ "schemars 1.2.2",
+ "serde",
  "serde_json",
  "tokio",
  "turbomcp",

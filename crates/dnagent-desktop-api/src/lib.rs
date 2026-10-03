@@ -351,6 +351,8 @@ pub fn typescript() -> String {
         session::HandoffResult::decl(),
         session::FileStamp::decl(),
         session::ViewReport::decl(),
+        session::Highlight::decl(),
+        session::AgentRequest::decl(),
         detection::Proposal::decl(),
         detection::DetectionResult::decl(),
         restriction::EnzymeInfo::decl(),

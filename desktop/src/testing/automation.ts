@@ -55,6 +55,8 @@ export interface AppState {
   workspace: {
     path: string; shown: string;
     notices: { kind: string; path: string }[];
+    /** The agent panel: a live agent's message or presented result (`dnagent mcp`). */
+    agent: { open: boolean; message: string; highlights: { text: string; active: boolean }[] };
     handoff: { open: boolean; prompt: string; context_path: string | null };
   };
   dialog: { open: boolean; summary: string; protein: string; warnings: string[]; error: string; inputs: { label: string; kind: string; strand: string; translate: boolean } };
@@ -526,6 +528,11 @@ export function getState(model: ModelView): AppState {
       path: model.workspace,
       shown: document.getElementById('workspace')!.textContent ?? '',
       notices: [...document.querySelectorAll<HTMLElement>('[data-testid="file-notice"]')].map(n => ({ kind: n.dataset.kind ?? '', path: n.dataset.path ?? '' })),
+      agent: {
+        open: !document.getElementById('agent-panel')!.hidden,
+        message: document.getElementById('agent-message')!.textContent ?? '',
+        highlights: [...document.querySelectorAll<HTMLElement>('[data-testid="agent-highlight"]')].map(b => ({ text: b.textContent ?? '', active: b.classList.contains('active') })),
+      },
       handoff: {
         open: !document.getElementById('handoff-panel')!.hidden,
         prompt: (document.getElementById('handoff-prompt') as HTMLTextAreaElement).value,

@@ -1,0 +1,55 @@
+{
+  "id": "agent-points-back",
+  "description": "A live agent opens a construct, selects a feature and a range, and leaves a message; each tool returns only once the GUI shows the change, and the GUI's selection matches the CLI.",
+  "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+  "steps": [
+    {"open": {}},
+    {"agent_call": {"tool": "open_file", "arguments": {"path": "fixtures/formats/snapgene/synthetic_multipart_origin.dna"}}, "note": "the agent opens a second construct"},
+    {"expect": [
+      {"state": "agent.open_file.applied", "equals": true},
+      {"state": "agent.open_file.already_open", "equals": false},
+      {"state": "tab_count", "equals": 2},
+      {"state": "tabs[1].active", "equals": true},
+      {"state": "tabs[1].document_id", "equals_state": "agent.open_file.document_id"},
+      {"state": "document.name", "equals_cli": {"command": "inspect", "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna", "path": "result.name"}},
+      {"state": "features[*].id", "equals_cli": {"command": "features", "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna", "path": "result[*].id"}}
+    ]},
+    {"agent_call": {"tool": "select_feature", "arguments": {"document_id": 2, "feature_id": "feature-0001"}}, "note": "the agent points at the origin-spanning feature"},
+    {"expect": [
+      {"state": "agent.select_feature.applied", "equals": true},
+      {"state": "selection.feature_id", "equals_cli": {"command": "features", "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna", "one": "result[?(@.label=='multipart wrap')].id"}},
+      {"state": "selection.map.parts", "equals_cli": {"command": "features", "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna", "one": "result[?(@.id=='feature-0001')].location", "transform": "parts"}},
+      {"state": "agent.select_feature.view.selected_feature", "equals_cli": {"command": "features", "fixture": "fixtures/formats/snapgene/synthetic_multipart_origin.dna", "one": "result[?(@.id=='feature-0001')]"}}
+    ], "screenshot": true},
+    {"agent_call": {"tool": "open_file", "arguments": {"path": "fixtures/formats/snapgene/synthetic_linear.dna"}}, "note": "an open file switches to its tab instead of opening twice"},
+    {"expect": [
+      {"state": "agent.open_file.already_open", "equals": true},
+      {"state": "tab_count", "equals": 2},
+      {"state": "tabs[0].active", "equals": true}
+    ]},
+    {"select_tab": "sequence"},
+    {"agent_call": {"tool": "select_range", "arguments": {"document_id": 2, "start": 9, "end": 2}}, "note": "a range through the origin, switching back to the circular construct"},
+    {"expect": [
+      {"state": "agent.select_range.applied", "equals": true},
+      {"state": "tabs[1].active", "equals": true},
+      {"state": "active_tab", "equals": "sequence"},
+      {"state": "selection.kind", "equals": "range"},
+      {"state": "selection.range", "equals": {"start": 9, "end": 2}},
+      {"state": "agent.select_range.view.selection.wraps_origin", "equals": true}
+    ], "screenshot": true},
+    {"agent_call": {"tool": "notify", "arguments": {"message": "Found both junctions; answer in the terminal."}}},
+    {"wait_idle": true},
+    {"expect": [
+      {"state": "workspace.agent.open", "equals": true},
+      {"state": "workspace.agent.message", "equals": "Found both junctions; answer in the terminal."},
+      {"state": "workspace.agent.highlights", "equals": []}
+    ]},
+    {"agent_call": {"tool": "select_range", "arguments": {"document_id": 1, "start": 3, "end": 1}, "expect_error": "invalid_range"}, "note": "linear constructs do not wrap"},
+    {"agent_call": {"tool": "select_feature", "arguments": {"document_id": 2, "feature_id": "feature-0999"}, "expect_error": "no_such_feature"}},
+    {"agent_call": {"tool": "open_file", "arguments": {"path": "fixtures/formats/snapgene/does-not-exist.dna"}, "expect_error": "import_failed"}},
+    {"expect": [
+      {"state": "tab_count", "equals": 2},
+      {"state": "selection.range", "equals": {"start": 9, "end": 2}, "message": "rejected requests change nothing"}
+    ]}
+  ]
+}

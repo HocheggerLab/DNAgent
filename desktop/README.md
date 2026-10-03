@@ -28,6 +28,8 @@ original; `.dna` files are never modified. GenBank files open like `.dna` files.
 history (⌘1–⌘9 switch). **Hand off to agent** (⇧⌘C) snapshots all tabs into the
 workspace (**Workspace…**, default `~/DNAgent`) and copies a prompt for your agent in a
 terminal. Files the agent writes there are offered as new tabs; changed open files reload.
+A live agent connected through `dnagent mcp` can also open constructs, select regions
+and present results in the **Agent** panel; click a highlight to select it.
 See [`../docs/agent-handoff.md`](../docs/agent-handoff.md).
 
 Appearance follows macOS light/dark mode; override it with the **Appearance** menu.

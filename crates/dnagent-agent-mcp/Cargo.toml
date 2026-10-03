@@ -8,8 +8,10 @@ description = "MCP server (turbomcp, unix socket) exposing a running DNAgent des
 [dependencies]
 dnagent-app = { path = "../dnagent-app" }
 dnagent-desktop-api = { path = "../dnagent-desktop-api" }
+schemars = "1"
+serde.workspace = true
 serde_json.workspace = true
-tokio = { version = "1", features = ["rt", "sync", "net"] }
+tokio = { version = "1", features = ["rt", "sync", "net", "time"] }
 turbomcp = { version = "3.1.5", default-features = false, features = ["unix"] }
 turbomcp-server = { version = "3.1.5", default-features = false, features = ["unix"] }
 

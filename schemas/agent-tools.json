@@ -1,69 +1,224 @@
 [
   {
-    "name": "export_snapshot",
     "description": "Write the construct as it is open now (unsaved edits included) as GenBank into the workspace's .dnagent/snapshots folder and return the path, for analysis with the dnagent CLI.",
     "inputSchema": {
-      "type": "object",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
       "properties": {
         "document_id": {
-          "type": "integer",
+          "description": "document_id from list_documents or get_view",
           "format": "uint32",
           "minimum": 0,
-          "description": "document_id from list_documents or get_view"
+          "type": "integer"
         }
       },
       "required": [
         "document_id"
       ],
-      "additionalProperties": false,
-      "$schema": "https://json-schema.org/draft/2020-12/schema"
-    }
+      "type": "object"
+    },
+    "name": "export_snapshot"
   },
   {
-    "name": "get_features",
     "description": "All features of an open construct (current state, unsaved edits included), as `dnagent features --output json` rows.",
     "inputSchema": {
-      "type": "object",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
       "properties": {
         "document_id": {
-          "type": "integer",
+          "description": "document_id from list_documents or get_view",
           "format": "uint32",
           "minimum": 0,
-          "description": "document_id from list_documents or get_view"
+          "type": "integer"
         }
       },
       "required": [
         "document_id"
       ],
-      "additionalProperties": false,
-      "$schema": "https://json-schema.org/draft/2020-12/schema"
-    }
+      "type": "object"
+    },
+    "name": "get_features"
   },
   {
-    "name": "get_view",
     "description": "What the user is looking at: the active construct, view tab, selected base range and selected feature (as a `dnagent features` row). \"This\", \"here\" or \"the selection\" refer to these.",
     "inputSchema": {
-      "type": "object",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
-      "$schema": "https://json-schema.org/draft/2020-12/schema"
-    }
+      "type": "object"
+    },
+    "name": "get_view"
   },
   {
-    "name": "list_documents",
     "description": "Every open construct in tab order: id, name, length, topology, whether it is the active tab, unsaved changes and edit_counter.",
     "inputSchema": {
-      "type": "object",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
-      "$schema": "https://json-schema.org/draft/2020-12/schema"
-    }
+      "type": "object"
+    },
+    "name": "list_documents"
   },
   {
-    "name": "status",
+    "description": "Show a short message to the user in the app's agent panel, e.g. progress or a question to answer in the terminal.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "description": "the message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "name": "notify"
+  },
+  {
+    "description": "Open a construct file (.dna, GenBank, FASTA, .locus.json) in the app as a new tab, or switch to it if it is already open. Use an absolute path (~/ is expanded). Returns its document_id once the app shows it.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "absolute path of the file to open",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "name": "open_file"
+  },
+  {
+    "description": "Present a finished result: open the file (e.g. an assembled product written as GenBank), show the summary in the app's agent panel and list the highlights (junctions, primer sites, new features) for the user to click; the first highlight is selected. Use at the end of autonomous work.",
+    "inputSchema": {
+      "$defs": {
+        "HighlightArg": {
+          "description": "A region to highlight in `present` (half-open; end < start wraps on circular records).",
+          "properties": {
+            "end": {
+              "description": "Zero-based exclusive end.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "label": {
+              "description": "Short name shown to the user, e.g. \"5' junction\" or \"F primer\".",
+              "type": "string"
+            },
+            "start": {
+              "description": "Zero-based start.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "label",
+            "start",
+            "end"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "highlights": {
+          "description": "regions to point out, in order of importance",
+          "items": {
+            "$ref": "#/$defs/HighlightArg"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "absolute path of the result file to open",
+          "type": "string"
+        },
+        "summary": {
+          "description": "what was done and what to check, in one or two sentences",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "summary",
+        "highlights"
+      ],
+      "type": "object"
+    },
+    "name": "present"
+  },
+  {
+    "description": "Select a feature (by its id from get_features) and make its construct the active tab. Returns the resulting view.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "description": "document_id from list_documents or get_view",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "feature_id": {
+          "description": "feature id, e.g. feature-0003",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_id",
+        "feature_id"
+      ],
+      "type": "object"
+    },
+    "name": "select_feature"
+  },
+  {
+    "description": "Select a base range in an open construct and make it the active tab, to show the user a region. Zero-based, half-open [start, end); end < start wraps through the origin on circular constructs. Returns the resulting view.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "description": "document_id from list_documents or get_view",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "end": {
+          "description": "zero-based exclusive end",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "start": {
+          "description": "zero-based start",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document_id",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "name": "select_range"
+  },
+  {
     "description": "The app version, workspace folder and how many constructs are open.",
     "inputSchema": {
-      "type": "object",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
-      "$schema": "https://json-schema.org/draft/2020-12/schema"
-    }
+      "type": "object"
+    },
+    "name": "status"
   }
 ]

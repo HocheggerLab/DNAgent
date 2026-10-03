@@ -115,6 +115,25 @@ async fn start(
     (Client::connect(&path).await, stop, path)
 }
 
+/// Keys in sorted order: schema generation does not fix the order of keys such as
+/// `$schema` and `$defs`, so the contract compares canonical JSON.
+fn canonical(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<(String, Value)> = map.into_iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(k, v)| (k, canonical(v)))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical).collect()),
+        other => other,
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn tool_list_matches_the_committed_contract() {
     let (mut client, stop, path) = start(Arc::default(), "contract").await;
@@ -123,7 +142,7 @@ async fn tool_list_matches_the_committed_contract() {
         .as_array_mut()
         .unwrap()
         .sort_by_key(|t| t["name"].as_str().unwrap().to_owned());
-    let actual = serde_json::to_string_pretty(&tools).unwrap() + "\n";
+    let actual = serde_json::to_string_pretty(&canonical(tools)).unwrap() + "\n";
     let contract = Path::new(env!("CARGO_MANIFEST_DIR")).join(CONTRACT);
     if std::env::var_os("DNAGENT_UPDATE_CONTRACTS").is_some() {
         std::fs::write(&contract, &actual).unwrap();
@@ -154,6 +173,7 @@ async fn agent_reads_the_live_view_and_features() {
             selection: Some(RangeRequest { start: 0, end: 3 }),
             selected_feature_id: Some(feature),
             workspace: workspace.display().to_string(),
+            agent_seen: 0,
         });
         id
     };
@@ -218,6 +238,146 @@ async fn a_live_socket_is_not_taken_over() {
         .permissions()
         .mode();
     assert_eq!(mode & 0o777, 0o700);
+    let _ = stop.send(true);
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}
+
+/// A stand-in frontend: collects agent requests and reports the view they produce,
+/// as `main.ts` does every ~250 ms.
+fn fake_frontend(session: &Mutex<Session>, stop: &std::sync::atomic::AtomicBool) {
+    use dnagent_desktop_api::session::AgentRequest;
+    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+        {
+            let mut s = session.lock().unwrap();
+            let mut view = s.view().clone();
+            for request in s.agent_sync() {
+                match request {
+                    AgentRequest::Open { seq, state } => {
+                        view.agent_seen = seq;
+                        let id = state.edit.document_id;
+                        if !view.document_ids.contains(&id) {
+                            view.document_ids.push(id);
+                        }
+                        view.active_document_id = Some(id);
+                        view.selection = None;
+                        view.selected_feature_id = None;
+                    }
+                    AgentRequest::Select {
+                        seq,
+                        document_id,
+                        range,
+                        feature_id,
+                    } => {
+                        view.agent_seen = seq;
+                        view.active_document_id = Some(document_id);
+                        view.selection = range;
+                        view.selected_feature_id = feature_id;
+                    }
+                    AgentRequest::Present {
+                        seq,
+                        document_id,
+                        highlights,
+                        ..
+                    } => {
+                        view.agent_seen = seq;
+                        view.active_document_id = Some(document_id);
+                        view.selection = highlights.first().map(|h| RangeRequest {
+                            start: h.start,
+                            end: h.end,
+                        });
+                        view.selected_feature_id = None;
+                    }
+                    AgentRequest::Notify { seq, .. } => view.agent_seen = seq,
+                }
+            }
+            s.report_view(view);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_points_back_and_waits_until_the_gui_shows_it() {
+    let session: Arc<Mutex<Session>> = Arc::default();
+    let (mut client, stop, path) = start(Arc::clone(&session), "show").await;
+
+    // Without a frontend the request is accepted but reported as not shown.
+    let unseen = client
+        .call("open_file", json!({"path": fixture().to_str().unwrap()}))
+        .await
+        .unwrap();
+    assert_eq!(unseen["applied"], false);
+    assert!(unseen["note"].as_str().unwrap().contains("did not show"));
+
+    let halt = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let frontend = {
+        let (session, halt) = (Arc::clone(&session), Arc::clone(&halt));
+        std::thread::spawn(move || fake_frontend(&session, &halt))
+    };
+    let opened = client
+        .call("open_file", json!({"path": fixture().to_str().unwrap()}))
+        .await
+        .unwrap();
+    assert_eq!(opened["already_open"], true);
+    assert_eq!(opened["applied"], true);
+    let id = opened["document_id"].clone();
+
+    let ranged = client
+        .call(
+            "select_range",
+            json!({"document_id": id, "start": 2, "end": 7}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(ranged["applied"], true);
+    assert_eq!(ranged["view"]["selection"]["length"], 5);
+
+    let features = client
+        .call("get_features", json!({"document_id": id}))
+        .await
+        .unwrap();
+    let feature = features["features"][0].clone();
+    let picked = client
+        .call(
+            "select_feature",
+            json!({"document_id": id, "feature_id": feature["id"]}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(picked["view"]["selected_feature"], feature);
+
+    let presented = client
+        .call(
+            "present",
+            json!({
+                "path": fixture().to_str().unwrap(),
+                "summary": "Checked the construct.",
+                "highlights": [{"label": "first", "start": 0, "end": 3}, {"label": "second", "start": 4, "end": 6}]
+            }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(presented["applied"], true);
+    assert_eq!(presented["view"]["selection"]["end"], 3);
+
+    let bad = client
+        .call(
+            "select_range",
+            json!({"document_id": id, "start": 0, "end": 100_000}),
+        )
+        .await
+        .unwrap_err();
+    assert!(bad.contains("invalid_range"), "{bad}");
+    assert_eq!(
+        client
+            .call("notify", json!({"message": "done"}))
+            .await
+            .unwrap()["applied"],
+        true
+    );
+
+    halt.store(true, std::sync::atomic::Ordering::Relaxed);
+    frontend.join().unwrap();
     let _ = stop.send(true);
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
