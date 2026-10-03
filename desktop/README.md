@@ -3,7 +3,6 @@
 Tauri 2 + TypeScript/Vite app backed by the native Rust engine: viewing, editing and saving
 constructs, restriction analysis, feature detection, gene isoforms and agent handoff. The
 frontend draws and holds view state only; all biology comes from Rust.
-See `../docs/desktop-architecture.md` for the decision and limitations.
 
 ## Run
 
@@ -110,3 +109,12 @@ so it tests app logic and layout, not the webview engine or the native shell. Se
 The drift test deliberately fails if Rust DTOs change without regenerating the
 committed bindings. The shell has a separate Cargo lockfile; the engine workspace
 remains headless by default. Native build success is not a visual/interaction test.
+
+## Security
+
+No shell, filesystem or network plugin commands are exposed to the web frontend; the
+native dialog plugin grants only `dialog:allow-open`. One custom command reads a
+user-entered or picker-selected local file through the importer. It is not a file
+sandbox, so remote frontend content must never be loaded; a CSP restricts production
+content and connections. The app writes only to the chosen workspace (handoff
+snapshots) and to paths you save to.

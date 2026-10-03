@@ -6,7 +6,7 @@
 - CLI and GUI must call the same typed application layer; neither reimplements biology.
 - Keep the default CLI package build headless; gate desktop dependencies behind its `gui` feature.
 - Keep the versioned JSON Schema and live-output validation in sync with CLI changes.
-- Keep the CLI a first-class agent tool and the GUI a central desktop interface. Follow `docs/roadmap.md` and `docs/desktop-architecture.md`: Tauri/native Rust prototyping proceeds alongside engine hardening; WASM is deferred.
+- Keep the CLI a first-class agent tool and the GUI a central desktop interface. Follow `docs/roadmap.md`: Tauri/native Rust desktop work proceeds alongside engine hardening; WASM is deferred.
 - Preserve import warnings in every CLI projection; strict rejection must happen before output-file writes.
 - Keep GUI-only selection, hover, zoom and viewport state in the frontend (`desktop/` for Tauri; `dnagent-gui` for the retained egui viewer). Generate TypeScript DTOs from the Rust desktop API; never duplicate biological calculations in TypeScript.
 - Use zero-based, half-open coordinates internally and in JSON.
