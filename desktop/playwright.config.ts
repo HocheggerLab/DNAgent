@@ -1,6 +1,7 @@
 // Chromium-only harness for app logic and layout. Production uses WKWebView/WebKitGTK;
 // see e2e/README.md. Port 1421 avoids the Tauri dev server on 1420.
 import { defineConfig, devices } from '@playwright/test';
+import { AGENT_SOCKETS } from './e2e/lib/agent.ts';
 
 const port = 1421;
 const serverPort = 1431;
@@ -23,7 +24,7 @@ export default defineConfig({
   webServer: [
     {
       // The real Rust desktop session behind HTTP; relative fixture paths resolve from the repo root.
-      command: `cargo run -q -p dnagent-desktop-api --example e2e_server -- --port ${serverPort}`,
+      command: `cargo run -q -p dnagent-agent-mcp --example e2e_server -- --port ${serverPort} --agent-sockets ${AGENT_SOCKETS}`,
       cwd: '..',
       url: `http://127.0.0.1:${serverPort}/health`,
       // The built-in enzyme set, like the CLI oracle: a locally installed REBASE must not change results.

@@ -3,7 +3,7 @@ use dnagent_desktop_api::Diagnostic;
 use dnagent_desktop_api::detection::DetectionResult;
 use dnagent_desktop_api::restriction::{EnzymeCatalogueInfo, EnzymeCount, Fragment, Site};
 use dnagent_desktop_api::session::{
-    DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session,
+    DocumentState, FeaturePreview, FeatureRequest, FileStamp, HandoffItem, HandoffResult, SaveResult, Session, ViewReport,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -70,6 +70,16 @@ async fn close_document(state: State<'_, AppSession>, document_id: u32) -> Resul
     .await
 }
 
+/// The frontend reports what it shows, so agents can read the live view.
+#[tauri::command]
+async fn report_view(state: State<'_, AppSession>, view: ViewReport) -> Result<(), Diagnostic> {
+    with_session(state, move |s| {
+        s.report_view(view);
+        Ok(())
+    })
+    .await
+}
+
 #[tauri::command]
 async fn write_handoff(state: State<'_, AppSession>, workspace: String, items: Vec<HandoffItem>) -> Result<HandoffResult, Diagnostic> {
     with_session(state, move |s| s.write_handoff(&PathBuf::from(workspace), &items)).await
@@ -128,12 +138,19 @@ fn main() {
     for warning in dnagent_app::enzymes::activate() {
         eprintln!("warning [{}]: {}", warning.code, warning.message);
     }
+    let session = AppSession::default();
+    // Agents (Claude Code, Pi) reach this session through `dnagent mcp`; the stop
+    // handle lives as long as the app.
+    let agent_server = dnagent_agent_mcp::spawn_for_app(Arc::clone(&session.0), |task| {
+        tauri::async_runtime::spawn(task);
+    });
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppSession::default())
+        .manage(session)
+        .manage(agent_server)
         .invoke_handler(tauri::generate_handler![
             open_document, preview_feature, add_feature, remove_feature, undo, redo, save_genbank,
-            close_document, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features, write_svg
+            close_document, report_view, write_handoff, poll_files, default_workspace, enzyme_catalogue, enzyme_counts, find_sites, digest, detect_features, add_features, write_svg
         ])
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");

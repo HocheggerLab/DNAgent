@@ -1,0 +1,32 @@
+{
+  "id": "agent-mcp-live",
+  "description": "A live agent reads what the GUI shows through `dnagent mcp` and the app's agent socket: the selected feature is the CLI's row, the feature list matches the CLI, and later selection and tab changes are visible on the next read.",
+  "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+  "steps": [
+    {"open": {}},
+    {"select_feature": {"label": "reverse multipart"}},
+    {"agent_call": {"tool": "get_view"}, "note": "the agent asks what the user is pointing at"},
+    {"expect": [
+      {"state": "agent.get_view.selected_feature", "equals_cli": {"command": "features", "one": "result[?(@.label=='reverse multipart')]"}},
+      {"state": "agent.get_view.selected_feature.id", "equals_state": "selection.feature_id"},
+      {"state": "agent.get_view.document.document_id", "equals_state": "tabs[0].document_id"},
+      {"state": "agent.get_view.document.length", "equals_cli": {"command": "inspect", "path": "result.length"}},
+      {"state": "agent.get_view.view_tab", "equals": "map"},
+      {"state": "agent.get_view.selection", "equals": null}
+    ]},
+    {"agent_call": {"tool": "get_features", "arguments": {"document_id": 1}}},
+    {"expect": [
+      {"state": "agent.get_features.features", "equals_cli": {"command": "features", "path": "result"}}
+    ]},
+    {"select_tab": "sequence"},
+    {"drag_bases": {"from": 2, "to": 6}},
+    {"agent_call": {"tool": "get_view"}, "note": "the next read sees the new tab and range"},
+    {"expect": [
+      {"state": "agent.get_view.view_tab", "equals": "sequence"},
+      {"state": "agent.get_view.selection.start", "equals_state": "selection.range.start"},
+      {"state": "agent.get_view.selection.end", "equals_state": "selection.range.end"},
+      {"state": "agent.get_view.selected_feature", "equals": null}
+    ]},
+    {"agent_call": {"tool": "get_features", "arguments": {"document_id": 99}, "expect_error": "no_such_document"}}
+  ]
+}

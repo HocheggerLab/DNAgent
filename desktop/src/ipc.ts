@@ -4,7 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type {
-  DetectionResult, DocumentState, EnzymeCatalogueInfo, EnzymeCount, FeaturePreview, FeatureRequest, FileStamp, Fragment, HandoffItem, HandoffResult, SaveResult, Site,
+  DetectionResult, DocumentState, EnzymeCatalogueInfo, EnzymeCount, FeaturePreview, FeatureRequest, FileStamp, Fragment, HandoffItem, HandoffResult, SaveResult, Site, ViewReport,
 } from './bindings';
 
 const stub = import.meta.env.MODE === 'e2e' ? import('./testing/stub-backend') : null;
@@ -30,6 +30,7 @@ export const undo = (documentId: number) => call<DocumentState>('undo', { docume
 export const redo = (documentId: number) => call<DocumentState>('redo', { documentId });
 export const saveGenbank = (documentId: number, path: string) => call<SaveResult>('save_genbank', { documentId, path });
 export const closeDocument = (documentId: number) => call<null>('close_document', { documentId });
+export const reportView = (view: ViewReport) => call<null>('report_view', { view });
 export const writeHandoff = (workspace: string, items: HandoffItem[]) => call<HandoffResult>('write_handoff', { workspace, items });
 export const pollFiles = (workspace: string, openPaths: string[]) => call<FileStamp[]>('poll_files', { workspace, openPaths });
 export const defaultWorkspace = () => call<string>('default_workspace', {});

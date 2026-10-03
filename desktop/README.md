@@ -102,7 +102,7 @@ opened by a local Rust test server; only screenshots are written, into the gitig
 Scenarios in `e2e/scenarios/*.json` drive the real frontend through a test-only
 automation API (Vite `e2e` mode, absent from production builds). Native commands are
 answered by the real Rust desktop session through a local test server
-(`dnagent-desktop-api` example `e2e_server`). The harness uses Chromium, not the production WKWebView/WebKitGTK,
+(`dnagent-agent-mcp` example `e2e_server`). The harness uses Chromium, not the production WKWebView/WebKitGTK,
 so it tests app logic and layout, not the webview engine or the native shell. See
 [`e2e/README.md`](e2e/README.md).
 

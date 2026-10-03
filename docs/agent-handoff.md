@@ -2,7 +2,33 @@
 
 DNAgent does not run an agent or a shell. You run the agent (e.g. Claude in a terminal
 beside the app), and the app shares context with it through a **workspace folder**
-(default `~/DNAgent`, changeable with **Workspace…**).
+(default `~/DNAgent`, changeable with **Workspace…**). While the app runs, an agent can
+also read what is open and selected **live** through MCP (below), without a handoff.
+
+## Live connection (MCP)
+
+The running app serves agents on a user-only unix socket (`~/.dnagent/agent.sock`, or
+`$DNAGENT_AGENT_SOCKET`). `dnagent mcp` relays an agent's stdio to it:
+
+```bash
+claude mcp add dnagent -- dnagent mcp          # Claude Code
+```
+
+For MCPorter (Pi), add a `dnagent` server that runs `dnagent mcp`, like other stdio servers.
+If the app is not running, `dnagent mcp` exits with a message; start the app and reconnect.
+
+Tools (read-only for now; the contract is `schemas/agent-tools.json`):
+
+| Tool | Returns |
+|---|---|
+| `status` | app version, workspace, number of open constructs |
+| `list_documents` | open constructs in tab order: id, name, length, topology, active, unsaved changes, `edit_counter` |
+| `get_view` | the active construct, view tab, selected range and selected feature (a `dnagent features` row) |
+| `get_features` | all features of an open construct, unsaved edits included, as `dnagent features` rows |
+| `export_snapshot` | writes the construct as it is open now to `<workspace>/.dnagent/snapshots/` and returns the path, for CLI work |
+
+Coordinates are zero-based and half-open; ranges with `end < start` wrap through the
+origin. `edit_counter` increases with every change (edit, undo, redo) and never repeats.
 
 ## GUI → agent: Hand off to agent (⇧⌘C)
 
@@ -79,8 +105,9 @@ it has unsaved edits. Opening a file that is already open switches to its tab.
 ## Security
 
 The app still exposes no shell or process execution to its web view. It writes only to
-the chosen workspace (handoff snapshots) and to paths you save to, and it only reads the
-workspace to notice changes.
+the chosen workspace (handoff and agent snapshots) and to paths you save to, and it only
+reads the workspace to notice changes. The agent socket lives in a folder only your user
+can open (0700); it serves the tools above and nothing else.
 
 ## Tests
 
@@ -88,3 +115,5 @@ The desktop e2e scenarios `tabs-isolation`, `agent-handoff-product` and
 `workspace-reload` play the agent with real `dnagent` CLI commands in a test workspace.
 They check the snapshots and `context.json` against the GUI and the CLI, and check the
 notices and reloads. A Rust test checks every desktop command is served by the e2e server.
+`agent-mcp-live` plays a live agent through `dnagent mcp` and the e2e server's per-session
+agent socket, checking the agent's view against the GUI and the CLI.

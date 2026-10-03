@@ -1228,6 +1228,42 @@
             }
           },
           "description": "Queue the save dialog answer and click Export SVG…; the written file must be standalone SVG (styles resolved) naming every drawn isoform or the document."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agent_call"
+          ],
+          "properties": {
+            "agent_call": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tool"
+              ],
+              "properties": {
+                "tool": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "arguments": {
+                  "type": "object"
+                },
+                "expect_error": {
+                  "type": "string",
+                  "description": "The call must fail with an error containing this text (e.g. a diagnostic code)."
+                }
+              },
+              "description": "Play a live agent: call an MCP tool through the real `dnagent mcp` relay on this page's agent socket. The JSON result is available to later expectations as state `agent.<tool>`."
+            },
+            "screenshot": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
         }
       ]
     }

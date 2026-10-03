@@ -16,6 +16,9 @@ pub struct EditState {
     pub document_id: u32,
     /// Position in the edit history (0 = as opened).
     pub revision: u32,
+    /// Increases with every change of content (edit, undo, redo) and never repeats,
+    /// unlike `revision`; agents pass it back so concurrent edits are detected.
+    pub edit_counter: u32,
     pub can_undo: bool,
     pub can_redo: bool,
     /// Changes since opening or the last save.
@@ -85,6 +88,23 @@ struct Open {
     index: usize,
     saved_index: usize,
     saved_path: Option<PathBuf>,
+    edit_counter: u32,
+}
+
+/// What the frontend shows: reported on every change so agents can ask what the user
+/// is looking at. Selection and tabs live in the frontend; Rust only records them.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ViewReport {
+    /// Open documents in tab order.
+    pub document_ids: Vec<u32>,
+    pub active_document_id: Option<u32>,
+    /// The visible view tab (`map`, `sequence`, `isoforms`).
+    pub view_tab: String,
+    /// Selected base range of the active document (`end < start` wraps on circles).
+    pub selection: Option<RangeRequest>,
+    pub selected_feature_id: Option<String>,
+    /// The handoff workspace chosen in the app.
+    pub workspace: String,
 }
 
 /// All documents opened in one window (desktop) or one browser session (e2e).
@@ -92,6 +112,7 @@ struct Open {
 pub struct Session {
     documents: HashMap<u32, Open>,
     next_id: u32,
+    view: ViewReport,
 }
 
 fn diagnostic(code: &str, error: impl std::fmt::Display) -> Diagnostic {
@@ -133,6 +154,7 @@ impl Session {
             edit: EditState {
                 document_id: id,
                 revision: u32::try_from(open.index).unwrap_or(u32::MAX),
+                edit_counter: open.edit_counter,
                 can_undo: open.index > 0,
                 can_redo: open.index + 1 < open.history.len(),
                 dirty: open.index != open.saved_index,
@@ -154,6 +176,7 @@ impl Session {
         open.history.truncate(open.index + 1);
         open.history.push(entry);
         open.index += 1;
+        open.edit_counter += 1;
         self.state(id)
     }
 
@@ -174,6 +197,7 @@ impl Session {
                 index: 0,
                 saved_index: 0,
                 saved_path: None,
+                edit_counter: 0,
             },
         );
         self.state(id)
@@ -277,6 +301,7 @@ impl Session {
             return Err(diagnostic("edit_failed", "nothing to undo"));
         }
         open.index -= 1;
+        open.edit_counter += 1;
         self.state(id)
     }
 
@@ -286,6 +311,7 @@ impl Session {
             return Err(diagnostic("edit_failed", "nothing to redo"));
         }
         open.index += 1;
+        open.edit_counter += 1;
         self.state(id)
     }
 
@@ -346,11 +372,60 @@ impl Session {
     pub fn close(&mut self, id: u32) {
         self.documents.remove(&id);
     }
+
+    /// Record what the frontend shows (see [`ViewReport`]).
+    pub fn report_view(&mut self, view: ViewReport) {
+        self.view = view;
+    }
+
+    /// The last view the frontend reported.
+    #[must_use]
+    pub fn view(&self) -> &ViewReport {
+        &self.view
+    }
+
+    /// Current state of every open document, in tab order where the frontend reported one.
+    #[must_use]
+    pub fn document_states(&self) -> Vec<DocumentState> {
+        let mut ids: Vec<u32> = self.documents.keys().copied().collect();
+        ids.sort_by_key(|id| {
+            (
+                self.view
+                    .document_ids
+                    .iter()
+                    .position(|v| v == id)
+                    .unwrap_or(usize::MAX),
+                *id,
+            )
+        });
+        ids.into_iter()
+            .filter_map(|id| self.state(id).ok())
+            .collect()
+    }
+
+    /// The current state of one document.
+    pub fn document_state(&self, id: u32) -> Result<DocumentState, Diagnostic> {
+        self.state(id)
+    }
+
+    /// The current import report (record, warnings) of one document.
+    pub fn report(&self, id: u32) -> Result<&ImportReport, Diagnostic> {
+        let open = self
+            .documents
+            .get(&id)
+            .ok_or_else(|| diagnostic("no_such_document", format!("document {id} is not open")))?;
+        Ok(&open.history[open.index].report)
+    }
 }
 
 #[derive(Deserialize)]
 struct DocumentArg {
     document_id: u32,
+}
+
+#[derive(Deserialize)]
+struct ViewArg {
+    view: ViewReport,
 }
 
 fn arg<T: serde::de::DeserializeOwned>(args: &serde_json::Value) -> Result<T, Diagnostic> {
@@ -419,6 +494,10 @@ pub fn dispatch(
         }
         "close_document" => {
             session.close(arg::<DocumentArg>(args)?.document_id);
+            Ok(serde_json::Value::Null)
+        }
+        "report_view" => {
+            session.report_view(arg::<ViewArg>(args)?.view);
             Ok(serde_json::Value::Null)
         }
         "write_handoff" => {
@@ -700,7 +779,7 @@ mod tests {
 // ------------------------------------------------------------------ agent handoff
 
 /// A selected base range from the GUI (half-open; `end < start` wraps on circles).
-#[derive(Debug, Clone, Copy, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 pub struct RangeRequest {
     pub start: u32,
     pub end: u32,
@@ -790,7 +869,7 @@ pub fn default_workspace() -> String {
     Path::new(&home).join("DNAgent").display().to_string()
 }
 
-fn safe_stem(path: &Path) -> String {
+pub(crate) fn safe_stem(path: &Path) -> String {
     let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -890,7 +969,7 @@ fn prepare_handoff_folder(workspace: &Path) -> Result<PathBuf, Diagnostic> {
 }
 
 /// Validated selection for context.json (null when nothing is selected).
-fn selection_json(
+pub(crate) fn selection_json(
     selection: Option<RangeRequest>,
     length: usize,
     name: &str,

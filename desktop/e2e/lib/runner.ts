@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { BINARY, cli, CLI_ENV, REPO_ROOT } from './cli.ts';
+import { AgentToolError, agentSocket, callAgentTool } from './agent.ts';
 import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
@@ -92,6 +93,8 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
   page.on('dialog', dialog => void dialog.accept()); // e.g. "discard unsaved changes?"
   let savedFile: string | null = null;
   const memory = new Map<string, unknown>();
+  // Results of agent_call steps, visible to expectations as state `agent.<tool>`.
+  const agentResults: Record<string, unknown> = {};
 
   const waitIdle = () => page.waitForFunction(() => window.__DNAGENT_TEST__!.getState().idle, null, { timeout: IDLE_TIMEOUT_MS })
     .catch(() => { throw new Error(`app did not become idle within ${IDLE_TIMEOUT_MS} ms`); });
@@ -191,6 +194,19 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
     } else if ('poll_workspace' in step) {
       await page.evaluate(() => window.__DNAGENT_TEST__!.pollWorkspace());
       await waitIdle();
+    } else if ('agent_call' in step) {
+      // The view report is a tracked request: once idle, Rust has what the GUI shows.
+      await waitIdle();
+      const session = await page.evaluate(() => window.__DNAGENT_TEST__!.sessionId());
+      const call = step.agent_call;
+      try {
+        agentResults[call.tool] = await callAgentTool(agentSocket(session), call.tool, call.arguments);
+        if (call.expect_error !== undefined) throw new Error(`agent tool ${call.tool} succeeded; expected an error containing "${call.expect_error}"`);
+      } catch (error) {
+        if (!(error instanceof AgentToolError)) throw error;
+        if (call.expect_error === undefined) throw new Error(`agent tool ${call.tool} failed: ${error.message}`);
+        if (!error.message.includes(call.expect_error)) throw new Error(`agent tool ${call.tool} failed with "${error.message}"; expected "${call.expect_error}"`);
+      }
     } else if ('run_cli' in step) {
       try {
         execFileSync(BINARY, step.run_cli.args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: 'pipe', env: CLI_ENV });
@@ -256,7 +272,7 @@ export async function runScenario(page: Page, scenario: Scenario): Promise<void>
       await waitIdle();
       savedFile = step.save_as.path;
     } else if ('expect' in step) {
-      const snapshot = await state();
+      const snapshot = { ...await state(), agent: agentResults };
       const defaultFile = await activeFile();
       const failures: string[] = [];
       for (const [item, assertion] of step.expect.entries()) {

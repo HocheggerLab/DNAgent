@@ -1,0 +1,69 @@
+[
+  {
+    "name": "export_snapshot",
+    "description": "Write the construct as it is open now (unsaved edits included) as GenBank into the workspace's .dnagent/snapshots folder and return the path, for analysis with the dnagent CLI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "document_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "description": "document_id from list_documents or get_view"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }
+  },
+  {
+    "name": "get_features",
+    "description": "All features of an open construct (current state, unsaved edits included), as `dnagent features --output json` rows.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "document_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "description": "document_id from list_documents or get_view"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }
+  },
+  {
+    "name": "get_view",
+    "description": "What the user is looking at: the active construct, view tab, selected base range and selected feature (as a `dnagent features` row). \"This\", \"here\" or \"the selection\" refer to these.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }
+  },
+  {
+    "name": "list_documents",
+    "description": "Every open construct in tab order: id, name, length, topology, whether it is the active tab, unsaved changes and edit_counter.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }
+  },
+  {
+    "name": "status",
+    "description": "The app version, workspace folder and how many constructs are open.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }
+  }
+]

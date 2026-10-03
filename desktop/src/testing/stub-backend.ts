@@ -1,9 +1,10 @@
 // e2e-only backend: forwards every desktop command to the live Rust test server
-// (`cargo run -p dnagent-desktop-api --example e2e_server`) through the Vite proxy.
+// (`cargo run -p dnagent-agent-mcp --example e2e_server`) through the Vite proxy.
 // One server session per page load; pickers answer from queued test paths.
 import type { Diagnostic } from '../bindings';
 
-const session = crypto.randomUUID();
+/** One backend session per page load; the e2e server serves agents on a socket named after it. */
+export const session = crypto.randomUUID();
 const delays = new Map<string, number>();
 const picks: (string | null)[] = [];
 const saves: (string | null)[] = [];

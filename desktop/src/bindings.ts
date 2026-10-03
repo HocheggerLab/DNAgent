@@ -96,7 +96,12 @@ export type EditState = { document_id: number,
 /**
  * Position in the edit history (0 = as opened).
  */
-revision: number, can_undo: boolean, can_redo: boolean,
+revision: number,
+/**
+ * Increases with every change of content (edit, undo, redo) and never repeats,
+ * unlike `revision`; agents pass it back so concurrent edits are detected.
+ */
+edit_counter: number, can_undo: boolean, can_redo: boolean,
 /**
  * Changes since opening or the last save.
  */
@@ -126,6 +131,23 @@ export type RangeRequest = { start: number, end: number, };
 export type HandoffItem = { document_id: number, active: boolean, selection: RangeRequest | null, selected_feature_id: string | null, };
 export type HandoffResult = { workspace: string, context_path: string, snapshots: Array<string>, prompt: string, };
 export type FileStamp = { path: string, modified_ms: number, size: number, };
+export type ViewReport = {
+/**
+ * Open documents in tab order.
+ */
+document_ids: Array<number>, active_document_id: number | null,
+/**
+ * The visible view tab (`map`, `sequence`, `isoforms`).
+ */
+view_tab: string,
+/**
+ * Selected base range of the active document (`end < start` wraps on circles).
+ */
+selection: RangeRequest | null, selected_feature_id: string | null,
+/**
+ * The handoff workspace chosen in the app.
+ */
+workspace: string, };
 export type Proposal = {
 /**
  * Stable within one detection: `<library id>@<start><strand letter>`.

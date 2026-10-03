@@ -1,11 +1,11 @@
-import type { Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Site } from './bindings';
+import type { Diagnostic, Document, DocumentState, EditState, EnzymeCatalogueInfo, EnzymeCount, Fragment, Site, ViewReport } from './bindings';
 import { enzymesInSet, loadChoice, openChooser, renderDigest, saveChoice, type EnzymeSet } from './enzymes';
 import { defaultChecked, renderDetection, requestsFor, type Detection } from './detect';
 import { bindFeatureDialog, openFeatureDialog } from './feature-dialog';
 import { contains, featureColor } from './map-layout';
 import {
   addFeatures, closeDocument, defaultWorkspace, detectFeatures, digest, enzymeCatalogue, enzymeCounts, findSites, openDocument, pickConstructPath, pickSavePath,
-  pickSvgPath, pickWorkspace, pollFiles, redo, removeFeature, saveGenbank, undo, writeHandoff, writeSvg,
+  pickSvgPath, pickWorkspace, pollFiles, redo, removeFeature, reportView, saveGenbank, undo, writeHandoff, writeSvg,
 } from './ipc';
 import { isoformUi, renderIsoformDetail, renderIsoforms, zoom, zoomTo } from './isoform-view';
 import { renderMap, type MapProposal, type MapSite } from './map-view';
@@ -364,6 +364,7 @@ element('detect-add').onclick = () => void addDetected();
 function render() {
   stash();
   renderDocTabs();
+  reportCurrentView();
   element<HTMLButtonElement>('handoff').disabled = docTabs.length === 0;
   if (!current) return;
   const doc = current;
@@ -827,6 +828,7 @@ function clearView() {
   for (const id of ['undo', 'redo', 'save', 'save-as']) element<HTMLButtonElement>(id).disabled = true;
   element('selection').textContent = 'Open a construct.';
   renderDocTabs();
+  reportCurrentView();
   element<HTMLButtonElement>('handoff').disabled = true;
 }
 
@@ -868,6 +870,23 @@ const WORKSPACE_KEY = 'dnagent.workspace';
 let workspace = '';
 try { workspace = localStorage.getItem(WORKSPACE_KEY) ?? ''; } catch { /* default below */ }
 let lastHandoff: { prompt: string; context_path: string } | null = null;
+
+let reportedView = '';
+/** Tell Rust what is shown (only when it changed), so agents read the live view through `dnagent mcp`. */
+function reportCurrentView() {
+  const view: ViewReport = {
+    document_ids: docTabs.map(tab => tab.edit.document_id),
+    active_document_id: current && edit ? edit.document_id : null,
+    view_tab: activeTab,
+    selection: current ? range : null,
+    selected_feature_id: current ? selected : null,
+    workspace,
+  };
+  const key = JSON.stringify(view);
+  if (key === reportedView) return;
+  reportedView = key;
+  void reportView(view).catch(() => { reportedView = ''; });
+}
 type Notice = { kind: 'new' | 'changed' | 'conflict'; path: string };
 let notices: Notice[] = [];
 /** Last seen stamp per watched path; null until the workspace baseline is taken. */
@@ -886,7 +905,7 @@ async function ensureWorkspace() {
 }
 
 function setWorkspace(path: string) {
-  workspace = path; stamps = null; notices = []; renderNotices();
+  workspace = path; stamps = null; notices = []; renderNotices(); reportCurrentView();
   try { localStorage.setItem(WORKSPACE_KEY, path); } catch { /* not persisted */ }
   workspaceLabel();
   void pollWorkspace();

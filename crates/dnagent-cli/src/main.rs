@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 mod library_cmd;
+mod mcp_relay;
 
 const SCHEMA_VERSION: &str = "0.9.0";
 
@@ -160,6 +161,14 @@ enum Command {
     /// Open the desktop viewer (requires the gui build feature).
     #[cfg(feature = "gui")]
     Gui { input: Option<PathBuf> },
+    /// MCP server for agents (stdio): relays to the running DNAgent desktop app, which
+    /// serves its open constructs and the user's selection. Register it with your agent,
+    /// e.g. `claude mcp add dnagent -- dnagent mcp`.
+    Mcp {
+        /// Agent socket of the app (default: $DNAGENT_AGENT_SOCKET or ~/.dnagent/agent.sock).
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -318,6 +327,7 @@ impl Command {
             Self::Orfs { .. } => "orfs",
             #[cfg(feature = "gui")]
             Self::Gui { .. } => "gui",
+            Self::Mcp { .. } => "mcp",
         }
     }
 
@@ -347,6 +357,7 @@ impl Command {
             }
             #[cfg(feature = "gui")]
             Self::Gui { .. } => false,
+            Self::Mcp { .. } => false,
         }
     }
 }
@@ -388,6 +399,10 @@ struct ErrorBody<'a> {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    // stdout carries only the MCP protocol: no enzyme activation or warnings.
+    if let Command::Mcp { socket } = cli.command {
+        return mcp_relay::run(socket);
+    }
     let command = cli.command.name();
     let requests_json = cli.command.requests_json();
     let mut warnings = dnagent_app::enzymes::activate();
@@ -581,6 +596,7 @@ fn run(cli: Cli, warnings: &mut Vec<ImportWarning>) -> Result<(), Box<dyn std::e
         Command::Map { input, out } => run_map(&input, &out, strict, warnings)?,
         #[cfg(feature = "gui")]
         Command::Gui { input } => dnagent_gui::run(input.as_deref())?,
+        Command::Mcp { .. } => unreachable!("handled in main before enzyme activation"),
     }
     Ok(())
 }

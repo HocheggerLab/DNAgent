@@ -605,6 +605,17 @@ pub fn require_genbank_path(path: &Path) -> Result<(), AppError> {
     }
 }
 
+/// Unix socket where a running DNAgent desktop app serves agents (MCP), shared by the app
+/// and `dnagent mcp`: `$DNAGENT_AGENT_SOCKET`, else `~/.dnagent/agent.sock`.
+#[must_use]
+pub fn agent_socket_path() -> std::path::PathBuf {
+    if let Some(path) = std::env::var_os("DNAGENT_AGENT_SOCKET").filter(|p| !p.is_empty()) {
+        return path.into();
+    }
+    let home = std::env::var_os("HOME").unwrap_or_else(|| ".".into());
+    Path::new(&home).join(".dnagent").join("agent.sock")
+}
+
 /// Write text atomically: a sibling temporary file, then rename over the target.
 pub fn write_atomic(path: &Path, text: &str) -> Result<(), AppError> {
     let mut temporary = path.as_os_str().to_owned();

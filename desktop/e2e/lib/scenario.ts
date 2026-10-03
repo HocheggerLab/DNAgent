@@ -14,7 +14,7 @@ const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click_sequence_base', 'click', 'wait_idle', 'expect',
   'set_viewport', 'set_color_scheme', 'select_option', 'reload', 'select_orf', 'drag_bases', 'fill', 'press', 'save_as', 'remember',
   'set_workspace', 'poll_workspace', 'run_cli', 'click_site', 'choose_enzymes', 'toggle_detection', 'select_detection',
-  'select_isoform', 'drag_exons', 'double_click_exon', 'export_svg'] as const;
+  'select_isoform', 'drag_exons', 'double_click_exon', 'export_svg', 'agent_call'] as const;
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
   | 'site_ticks' | 'site_enzymes' | 'site_labels' | 'site_regions' | 'site_cuts' | 'recognition_range' | 'fragment_parts'
   | 'detection_rows' | 'default_detections' | 'detection_spans_new' | 'spans' | 'isoform_displays' | 'codon_marks'
@@ -54,7 +54,8 @@ export type Step = { screenshot?: boolean; note?: string } & (
   | { select_isoform: { transcript: string } }
   | { drag_exons: { transcript: string; from: number; to: number } }
   | { double_click_exon: { transcript: string; exon: number } }
-  | { export_svg: { view: 'map' | 'isoforms'; path: string } });
+  | { export_svg: { view: 'map' | 'isoforms'; path: string } }
+  | { agent_call: { tool: string; arguments?: Record<string, unknown>; expect_error?: string } });
 export interface Scenario { id: string; description: string; fixture: string; steps: Step[] }
 
 /**
@@ -69,6 +70,7 @@ const BIOLOGICAL = [
   /^primers\.count/,
   /^map\.orf_regions/,
   /^selection\.range_translation\.protein/,
+  /^agent\.[a-z_]+\.(features|selected_feature\.|selection\.|document\.(name|length|topology))/,
   /^dialog\.protein/,
   /^detect\.(rows|checked|new_names|unticked_new_names|map)/,
   /^isoforms\.(rows|drawn_ids|highlighted_exons|range|tick_labels|detail\.(cells|display|transcript))/,

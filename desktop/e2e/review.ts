@@ -106,7 +106,7 @@ async function main() {
   if (existsSync(OUT)) { rmSync(PREVIOUS, { recursive: true, force: true }); renameSync(OUT, PREVIOUS); }
   mkdirSync(OUT, { recursive: true });
   const SERVER_PORT = 1433;
-  const server = spawn('cargo', ['run', '-q', '-p', 'dnagent-desktop-api', '--example', 'e2e_server', '--', '--port', String(SERVER_PORT)], { cwd: REPO, stdio: 'ignore' });
+  const server = spawn('cargo', ['run', '-q', '-p', 'dnagent-agent-mcp', '--example', 'e2e_server', '--', '--port', String(SERVER_PORT)], { cwd: REPO, stdio: 'ignore' });
   const vite = spawn('npx', ['vite', '--mode', 'e2e', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
     { cwd: DESKTOP, stdio: 'ignore', env: { ...process.env, DNAGENT_E2E_PORT: String(SERVER_PORT) } });
   try {

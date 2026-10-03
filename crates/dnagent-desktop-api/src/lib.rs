@@ -129,6 +129,7 @@ const LOCUS_MAX_BASES: usize = 3_000_000;
 /// Most bases the Sequence view renders at once for a record over [`MAX_BASES`].
 const SEQUENCE_WINDOW: usize = 50_000;
 
+pub mod agent;
 pub mod detection;
 pub mod isoforms;
 pub mod restriction;
@@ -349,6 +350,7 @@ pub fn typescript() -> String {
         session::HandoffItem::decl(),
         session::HandoffResult::decl(),
         session::FileStamp::decl(),
+        session::ViewReport::decl(),
         detection::Proposal::decl(),
         detection::DetectionResult::decl(),
         restriction::EnzymeInfo::decl(),

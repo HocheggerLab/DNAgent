@@ -12,5 +12,6 @@ tauri-plugin-dialog = "2"
 tauri = { version = "2", features = [] }
 dnagent-desktop-api = { path = "../../crates/dnagent-desktop-api" }
 dnagent-app = { path = "../../crates/dnagent-app" }
+dnagent-agent-mcp = { path = "../../crates/dnagent-agent-mcp" }
 
 [workspace]

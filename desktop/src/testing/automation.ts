@@ -6,7 +6,7 @@ import { dialogState, previewPending } from '../feature-dialog';
 import type { SequenceOptions } from '../sequence-view';
 import { pendingRequests } from '../ipc';
 import { themeState } from '../theme';
-import { queuePick, queueSave, setDelay } from './stub-backend';
+import { queuePick, queueSave, session, setDelay } from './stub-backend';
 
 export interface ModelView {
   current: Document | null;
@@ -573,6 +573,8 @@ export function getState(model: ModelView): AppState {
 }
 
 export interface AutomationApi {
+  /** This page's backend session (its agent socket is named after it). */
+  sessionId(): string;
   open(path: string, options?: { delayMs?: number }): void;
   browse(path: string | null): void;
   selectFeature(featureId: string, extend?: boolean): void;
@@ -654,6 +656,7 @@ export function install(model: () => ModelView, hooks: Hooks) {
       required(byTestId('workspace-button')[0], 'Workspace button').click();
     },
     pollWorkspace: () => hooks.pollWorkspace(),
+    sessionId: () => session,
     /** Queue the save dialog's answer, then click Save as…. */
     saveAs(path: string | null) {
       queueSave(path);

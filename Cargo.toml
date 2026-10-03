@@ -9,6 +9,7 @@ members = [
     "crates/dnagent-gui",
     "crates/dnagent-cli",
     "crates/dnagent-desktop-api",
+    "crates/dnagent-agent-mcp",
     "crates/dnagent-library",
 ]
 default-members = ["crates/dnagent-cli"]

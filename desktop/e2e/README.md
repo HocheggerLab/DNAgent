@@ -44,7 +44,7 @@ scenario JSON ──validate──► runner (Node/Playwright) ──page.evalua
   appear in `dist/`, and checks that the same markers *are* present in an e2e build,
   so the check can't pass vacuously.
 - **A live Rust test server** answers every desktop command: Playwright starts
-  `cargo run -p dnagent-desktop-api --example e2e_server -- --port 1431` from the
+  `cargo run -p dnagent-agent-mcp --example e2e_server -- --port 1431` from the
   repository root, and Vite (e2e mode) proxies `/__dnagent` to it. It runs the same
   `Session` as the Tauri shell (open, preview, add/remove, undo/redo, save), with one
   session per page load, so edits and saves are real. There are no recorded responses.
@@ -198,6 +198,7 @@ Each step has exactly one action, plus optional `screenshot: true` and `note`.
 | `set_workspace: path` | Choose the workspace through **Workspace…** (a folder under `desktop/e2e/artifacts/`, emptied first). |
 | `poll_workspace: true` | Run the app's workspace poll now (the function its timer runs). |
 | `run_cli: {args}` | Play the agent: run the real `dnagent` CLI from the repository root; it must succeed. |
+| `agent_call: {tool, arguments?, expect_error?}` | Play a live agent: call an MCP tool through the real `dnagent mcp` relay on this page's agent socket. The result is state `agent.<tool>` for later expectations (literals are rejected on its biological paths). |
 | `click_site: {enzyme}` | Click the enzyme's site label (Map) or first site box (Sequence). |
 | `choose_enzymes: {names}` | Open **Choose…**, tick exactly these enzymes and confirm. |
 | `toggle_detection: {name}` | Click the tick box of the first **Detected** row with this name. |
