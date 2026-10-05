@@ -66,6 +66,11 @@
         {
           "state": "layout.sequence_fits_width",
           "equals": true
+        },
+        {
+          "state": "layout.amino_acids_off_their_codon",
+          "equals": 0,
+          "message": "every letter is drawn over its codon's middle base, not just recorded there"
         }
       ],
       "screenshot": true

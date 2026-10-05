@@ -92,6 +92,9 @@ export interface AppState {
     sequence_shows_range: boolean | null;
     /** ORF and six-frame controls are usable (false for records over 100 kb). */
     orf_controls_enabled: boolean;
+    /** Rendered amino-acid letters whose centre is not over their codon's middle base
+     * (CSS geometry, not the model: `middles` can be right while the row is drawn wrong). */
+    amino_acids_off_their_codon: number | null;
   };
   /** Rendered map accounting and geometry checks; null unless the Map tab is visible. */
   map: null | {
@@ -557,6 +560,18 @@ export function getState(model: ModelView): AppState {
         };
       })(),
       orf_controls_enabled: !(document.getElementById('opt-orfs') as HTMLInputElement).disabled && !(document.getElementById('opt-frames') as HTMLInputElement).disabled,
+      amino_acids_off_their_codon: !panels.includes('sequence') ? null : (() => {
+        let off = 0;
+        for (const cell of document.querySelectorAll<HTMLElement>('#sequence [data-testid="amino-acid"]')) {
+          const block = cell.closest('.sequence-block');
+          const base = block?.querySelector<HTMLElement>(`[data-strand="forward"] [data-position="${cell.dataset.codonMiddle}"]`);
+          if (!base) continue;
+          const letter = cell.getBoundingClientRect(), column = base.getBoundingClientRect();
+          // Half a column: a letter is "on" its codon while it stays within that base's cell.
+          if (Math.abs((letter.left + letter.right) / 2 - (column.left + column.right) / 2) > column.width / 2) off++;
+        }
+        return off;
+      })(),
     },
     map: current && panels.includes('map') ? mapState(current) : null,
     warnings: {

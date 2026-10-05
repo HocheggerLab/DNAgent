@@ -83,7 +83,11 @@ body[data-tab=map] .view-options .sequence-only{display:none}
 .strand-line .dragging{background:var(--drag)}
 .feature-track{background:var(--feature-color);color:var(--feature-text);border-bottom-width:1px}
 .feature-track.selected{background:var(--feature-color);outline:3px solid var(--selection-outline);outline-offset:-1px;font-weight:750;border-top-width:1px}
-.translation-line .base-grid,.frame-line .base-grid{text-align:center;font-size:12px}
+.translation-line .base-grid,.frame-line .base-grid{text-align:center}
+/* Size the letters, never the grid: column width is 1.2ch, and ch follows the element's
+   own font-size, so shrinking the grid would narrow the columns and drift the letters
+   off their codons (as the coordinate ruler already avoids by sizing its spans). */
+.translation-line .amino,.frame-line .amino{font-size:12px}
 .translation-line .line-caption{color:var(--text)}
 .amino{border-radius:2px;line-height:18px;background:color-mix(in srgb,var(--feature-color,var(--muted)) 22%,transparent)}
 .amino.odd{background:color-mix(in srgb,var(--feature-color,var(--muted)) 38%,transparent)}
