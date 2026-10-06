@@ -370,14 +370,17 @@ impl Session {
         self.state(id)
     }
 
-    /// Save the current revision as GenBank at `path` (atomic write).
+    /// Save the current revision at `path` (atomic write). The extension chooses the
+    /// format: `.dna` writes SnapGene, anything else DNAgent GenBank. A `.dna` file is
+    /// never written over its own source; the caller picks the path.
     pub fn save_genbank(&mut self, id: u32, path: &Path) -> Result<SaveResult, Diagnostic> {
         let open = self.open_mut(id)?;
-        let warnings = dnagent_app::save_genbank(
-            &open.history[open.index].report,
-            path,
-            &dnagent_app::genbank_date_today(),
-        )
+        let report = &open.history[open.index].report;
+        let warnings = if dnagent_app::is_snapgene_path(path) {
+            dnagent_app::save_snapgene(report, path)
+        } else {
+            dnagent_app::save_genbank(report, path, &dnagent_app::genbank_date_today())
+        }
         .map_err(|e| diagnostic("save_failed", e))?;
         open.saved_index = open.index;
         open.saved_path = Some(path.to_path_buf());
@@ -838,9 +841,27 @@ mod tests {
             reopened.document.features.len(),
             added.document.features.len()
         );
+        // `.dna` is now written as well as read. The feature added above has just been
+        // removed, so this record matches the file it came from and is written verbatim.
+        let unchanged = session.save_genbank(id, &dir.join("same.dna")).unwrap();
+        assert!(unchanged.warnings.is_empty(), "{:?}", unchanged.warnings);
+
+        // After a real edit there is nothing to copy, so the annotations are generated
+        // from the model and the save says so rather than pretending otherwise.
+        session.add_feature(id, &request(2, 9, false)).unwrap();
+        let edited = session.save_genbank(id, &dir.join("edited.dna")).unwrap();
+        assert!(
+            edited
+                .warnings
+                .iter()
+                .any(|w| w.code == "snapgene_annotations_generated"),
+            "{:?}",
+            edited.warnings
+        );
+        assert!(dnagent_app::open_path(&dir.join("edited.dna")).is_ok());
         assert_eq!(
             session
-                .save_genbank(id, &dir.join("bad.dna"))
+                .save_genbank(id, &dir.join("bad.txt"))
                 .unwrap_err()
                 .code,
             "save_failed"

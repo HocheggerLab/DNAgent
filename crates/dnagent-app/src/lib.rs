@@ -605,6 +605,43 @@ pub fn require_genbank_path(path: &Path) -> Result<(), AppError> {
     }
 }
 
+/// True when the path names a SnapGene file, which DNAgent can now write as well as read.
+#[must_use]
+pub fn is_snapgene_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("dna"))
+}
+
+/// Save as SnapGene `.dna` at a **new** path: never over the source, as `.dna` files are
+/// still never modified in place.
+///
+/// A record that was read from `.dna` and not edited since is reproduced byte for byte.
+/// Anything else is written from DNAgent's model, which cannot carry SnapGene's
+/// uninterpreted packets or its display and detection attributes; those losses are
+/// returned as warnings rather than applied silently.
+pub fn save_snapgene(report: &ImportReport, path: &Path) -> Result<Vec<ImportWarning>, AppError> {
+    if !is_snapgene_path(path) {
+        return Err(AppError::UnsupportedOutput(path.display().to_string()));
+    }
+    let (bytes, warnings) = snapgene_bytes(report);
+    write_atomic_bytes(path, &bytes)?;
+    Ok(warnings)
+}
+
+/// The bytes a `.dna` save would write, and what that costs, without writing anything:
+/// byte-for-byte when the record is the one that was read, generated from the model
+/// otherwise. Separate from [`save_snapgene`] so strict mode can refuse before any write.
+#[must_use]
+pub fn snapgene_bytes(report: &ImportReport) -> (Vec<u8>, Vec<ImportWarning>) {
+    match dnagent_format_snapgene::export_bytes(report) {
+        Ok(verbatim) => (verbatim, Vec::new()),
+        Err(_) => {
+            dnagent_format_snapgene::export_record(&report.record, Some(&report.preserved_metadata))
+        }
+    }
+}
+
 /// Unix socket where a running DNAgent desktop app serves agents (MCP), shared by the app
 /// and `dnagent mcp`: `$DNAGENT_AGENT_SOCKET`, else `~/.dnagent/agent.sock`.
 #[must_use]
@@ -618,10 +655,15 @@ pub fn agent_socket_path() -> std::path::PathBuf {
 
 /// Write text atomically: a sibling temporary file, then rename over the target.
 pub fn write_atomic(path: &Path, text: &str) -> Result<(), AppError> {
+    write_atomic_bytes(path, text.as_bytes())
+}
+
+/// Write bytes atomically: a sibling temporary file, then rename over the target.
+pub fn write_atomic_bytes(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
     let mut temporary = path.as_os_str().to_owned();
     temporary.push(".dnagent-tmp");
     let temporary = std::path::PathBuf::from(temporary);
-    std::fs::write(&temporary, text).map_err(|source| AppError::Write {
+    std::fs::write(&temporary, bytes).map_err(|source| AppError::Write {
         path: temporary.display().to_string(),
         source,
     })?;

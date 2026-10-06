@@ -321,3 +321,92 @@ fn real_snapgene_files_round_trip_byte_for_byte() {
     }
     assert!(checked > 0, "no .dna files in {directory}");
 }
+
+/// Generated annotation packets must describe exactly what the record holds: write every
+/// fixture from the model, read it back, and require the same features, primers, sequence
+/// and topology. This is the check that matters for records DNAgent builds or edits.
+#[test]
+fn generated_files_preserve_the_model_for_every_fixture() {
+    let directory =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/formats/snapgene");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&directory).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+        if path.extension().is_none_or(|e| e != "dna") || name.starts_with("invalid_") {
+            continue;
+        }
+        let report = import_bytes(&bytes(&name), &name).unwrap();
+        let (written, _) = dnagent_format_snapgene::export_record(
+            &report.record,
+            Some(&report.preserved_metadata),
+        );
+        let reread = import_bytes(&written, &name)
+            .unwrap_or_else(|error| panic!("{name}: generated file does not read back: {error}"));
+        assert_eq!(
+            reread.record.sequence(),
+            report.record.sequence(),
+            "{name}: sequence"
+        );
+        assert_eq!(
+            reread.record.topology(),
+            report.record.topology(),
+            "{name}: topology"
+        );
+        assert_eq!(
+            reread.record.features(),
+            report.record.features(),
+            "{name}: features"
+        );
+        assert_eq!(
+            reread.record.primers(),
+            report.record.primers(),
+            "{name}: primers"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 11,
+        "expected every valid fixture, checked {checked}"
+    );
+}
+
+/// The same, over real SnapGene files (see the byte-for-byte test for how to point at them).
+#[test]
+#[ignore = "needs DNAGENT_PRIVATE_DNA; private constructs are not in the repository"]
+fn generated_files_preserve_the_model_for_real_files() {
+    let directory = std::env::var("DNAGENT_PRIVATE_DNA")
+        .expect("set DNAGENT_PRIVATE_DNA to a directory of .dna files");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_none_or(|e| e != "dna") {
+            continue;
+        }
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let report = import_bytes(&std::fs::read(&path).unwrap(), &name).unwrap();
+        let (written, _) = dnagent_format_snapgene::export_record(
+            &report.record,
+            Some(&report.preserved_metadata),
+        );
+        let reread = import_bytes(&written, &name)
+            .unwrap_or_else(|error| panic!("{name}: generated file does not read back: {error}"));
+        assert_eq!(
+            reread.record.features(),
+            report.record.features(),
+            "{name}: features"
+        );
+        assert_eq!(
+            reread.record.primers(),
+            report.record.primers(),
+            "{name}: primers"
+        );
+        assert_eq!(
+            reread.record.sequence(),
+            report.record.sequence(),
+            "{name}: sequence"
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "no .dna files in {directory}");
+}

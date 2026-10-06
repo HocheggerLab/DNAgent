@@ -15,9 +15,10 @@ the CLI, never from hand-typed literals.
 
 ## What it does
 
-- **Open and save constructs:** SnapGene `.dna` (read-only), GenBank and single-record FASTA,
-  recognised by content. Saving writes GenBank losslessly for everything DNAgent models,
-  including SnapGene-only data, or reports what it cannot keep.
+- **Open and save constructs:** SnapGene `.dna`, GenBank and single-record FASTA,
+  recognised by content. Saving writes GenBank or SnapGene `.dna`, losslessly for everything
+  DNAgent models, or reports what it cannot keep. A `.dna` file DNAgent only read is written
+  back byte for byte.
 - **Desktop app** (Tauri 2): circular and linear maps, a duplex sequence view with
   translations, ORFs and six-frame translation, tabs, undo/redo, new and deleted features,
   restriction sites and digests, feature detection from your own library, SVG export, light and
@@ -136,9 +137,9 @@ This provisions databases only; BLAST specificity is not yet connected to primer
 
 ### Editing and GenBank
 
-DNAgent opens and saves GenBank (`.gb`, `.gbk`, `.genbank`); SnapGene `.dna` files are
-read-only. `dnagent convert` saves a record as GenBank without losing anything DNAgent
-read. SnapGene-only data and the original import warnings travel along in a DNAgent
+DNAgent opens and saves GenBank (`.gb`, `.gbk`, `.genbank`) and SnapGene `.dna`; a source
+file is never modified in place. `dnagent convert` saves a record in either format, chosen
+by the output extension, without losing anything DNAgent read. SnapGene-only data and the original import warnings travel along in a DNAgent
 comment block. `dnagent annotate` adds a feature (optionally a translated CDS with a
 computed `/translation`) or removes one. The desktop app does the same through
 shift-click selection, a New-feature dialog, undo/redo and Save.
@@ -148,7 +149,10 @@ dnagent convert construct.dna --out construct.gb
 dnagent annotate construct.gb --out construct.gb --add --range 1250..6188 --label "fusion ORF" --translate
 ```
 
-See [GenBank records](docs/genbank-records.md).
+See [GenBank records](docs/genbank-records.md). The same commands write SnapGene `.dna`
+when the output path ends in `.dna`: a file DNAgent only read is reproduced byte for byte,
+and an edited or constructed record has its annotations generated, with the losses reported.
+See [SnapGene reading and writing](docs/snapgene.md).
 
 ### Tabs and agent handoff
 

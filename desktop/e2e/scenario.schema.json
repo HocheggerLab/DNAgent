@@ -853,7 +853,7 @@
               "properties": {
                 "path": {
                   "type": "string",
-                  "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.(gb|gbk|genbank)$"
+                  "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.(gb|gbk|genbank|dna)$"
                 }
               },
               "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as…."

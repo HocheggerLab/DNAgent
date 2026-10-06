@@ -690,7 +690,8 @@ async function save(as: boolean) {
     applyState(result.state);
     rememberStamp(path);
     const notes = result.warnings.map(w => `${w.code}: ${w.message}`).join('; ');
-    element('status').textContent = `Saved GenBank to ${path}${notes ? ` — ${notes}` : ''}`;
+    const format = /\.dna$/i.test(path) ? 'SnapGene' : 'GenBank';
+    element('status').textContent = `Saved ${format} to ${path}${notes ? ` — ${notes}` : ''}`;
   } catch (error) {
     element('status').textContent = `Save failed: ${errorMessage(error)}`;
   }

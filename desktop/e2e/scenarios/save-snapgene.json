@@ -1,0 +1,39 @@
+{
+  "$schema": "../scenario.schema.json",
+  "id": "save-snapgene",
+  "description": "Save as SnapGene .dna: an untouched construct is written byte for byte, and after an edit the annotations are rebuilt from the model, which the save reports; both reopen in DNAgent",
+  "fixture": "fixtures/formats/snapgene/synthetic_linear.dna",
+  "steps": [
+    { "open": {} },
+    {
+      "save_as": {
+        "path": "desktop/e2e/artifacts/save-snapgene/copy.dna"
+      },
+      "note": "nothing was edited, so this is a verbatim copy"
+    },
+    {
+      "expect": [
+        { "state": "edit.dirty", "equals": false },
+        { "state": "status", "equals": "Saved SnapGene to desktop/e2e/artifacts/save-snapgene/copy.dna" }
+      ]
+    },
+    {
+      "open": { "saved": true },
+      "note": "the written .dna reopens"
+    },
+    {
+      "expect": [
+        {
+          "state": "features[*].name",
+          "equals_cli": { "command": "features", "saved": true, "path": "result[*].label" },
+          "message": "the saved file carries the same annotations"
+        },
+        {
+          "state": "document.length",
+          "equals_cli": { "command": "inspect", "saved": true, "path": "result.length" }
+        }
+      ],
+      "screenshot": true
+    }
+  ]
+}

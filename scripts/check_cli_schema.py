@@ -197,7 +197,8 @@ def main():
             (["annotate", saved, "--out", saved, "--add", "--range", "550..10", "--label", "wrap", "--strand", "unknown"], True),
             (["annotate", saved, "--out", saved, "--remove", "feature-0008"], True),
             (["annotate", saved, "--out", saved, "--remove", "missing"], False),
-            (["convert", translation_fixture, "--out", str(Path(scratch) / "bad.dna")], False),
+            (["convert", translation_fixture, "--out", str(Path(scratch) / "copy.dna")], True),
+            (["convert", translation_fixture, "--out", str(Path(scratch) / "bad.txt")], False),
             (["inspect", saved, "--output", "json"], True),
             (["features", str(ROOT / "fixtures/formats/genbank/pUC19_M77789.gb"), "--output", "json"], True),
             (["enzyme-catalogue"], True),
@@ -215,7 +216,7 @@ def main():
             (["gibson", cdna_plan, "--out", str(product), "--output", "json"], True, True),
             (["gibson-optimise", str(ROOT / "fixtures/plans/synthetic-gibson-optimisation.json"), "--out", str(Path(scratch) / "optimised.gb")], True, True),
             (["gibson", cdna_plan, "--out", str(Path(scratch) / "strict.gb"), "--strict", "--output", "json"], False, False),
-            (["gibson", cdna_plan, "--out", str(Path(scratch) / "bad.dna"), "--output", "json"], False, False),
+            (["gibson", cdna_plan, "--out", str(Path(scratch) / "bad.txt"), "--output", "json"], False, False),
         ]:
             target = Path(args[args.index("--out") + 1])
             proc = subprocess.run([str(binary), *args], capture_output=True, text=True, timeout=60)

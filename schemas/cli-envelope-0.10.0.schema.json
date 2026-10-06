@@ -1573,7 +1573,10 @@
           "minLength": 1
         },
         "format": {
-          "const": "genbank"
+          "enum": [
+            "genbank",
+            "snapgene"
+          ]
         },
         "feature_count": {
           "type": "integer",

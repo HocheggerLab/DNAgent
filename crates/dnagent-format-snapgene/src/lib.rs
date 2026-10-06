@@ -14,6 +14,7 @@ use dnagent_formats::{
 };
 use quick_xml::de::from_str;
 use serde::Deserialize;
+use std::fmt::Write as _;
 use std::str;
 
 const COOKIE: u8 = 0x09;
@@ -502,6 +503,106 @@ mod tests {
 
 // ------------------------------------------------------------------------- export
 
+/// Escape a value for an XML attribute written with double quotes.
+fn escape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&apos;"),
+            _ => out.push(character),
+        }
+    }
+    out
+}
+
+/// One `Segment` range, as SnapGene writes them: one-based and inclusive, with a wrapping
+/// arc written as `start-end` where the end has come back round past the origin.
+fn segment_range(region: &Region, molecule_length: usize) -> String {
+    let start = region.start().get();
+    let end_exclusive = start + region.length().get();
+    let last = if region.is_circular_arc() {
+        (end_exclusive + molecule_length - 1) % molecule_length + 1
+    } else {
+        end_exclusive
+    };
+    format!("{}-{last}", start + 1)
+}
+
+/// Build the `Features` packet payload from the record's own annotations, for a record
+/// DNAgent created or edited. Only what DNAgent models is written: SnapGene's display and
+/// detection attributes (`translationMW`, `maxRunOn`, `detectionMode`, …) are absent, so a
+/// generated file is faithful to the biology but is not a byte copy of a SnapGene one.
+fn features_xml(record: &SequenceRecord) -> String {
+    let molecule_length = record.sequence().len();
+    let mut xml = String::from("<?xml version=\"1.0\"?><Features>");
+    for (index, feature) in record.features().iter().enumerate() {
+        let _ = write!(xml, "<Feature recentID=\"{index}\"");
+        let _ = write!(xml, " name=\"{}\"", escape(feature.label()));
+        let _ = write!(xml, " type=\"{}\"", escape(feature.kind()));
+        if let Some(directionality) = match feature.location().strand() {
+            Strand::Forward => Some("1"),
+            Strand::Reverse => Some("2"),
+            Strand::Unknown => None,
+        } {
+            let _ = write!(xml, " directionality=\"{directionality}\"");
+        }
+        xml.push('>');
+        for part in feature.location().parts() {
+            let _ = write!(
+                xml,
+                "<Segment range=\"{}\" type=\"standard\"",
+                segment_range(part, molecule_length)
+            );
+            if let Some(color) = &feature.display().color {
+                let _ = write!(xml, " color=\"{}\"", escape(color));
+            }
+            xml.push_str("/>");
+        }
+        for qualifier in feature.qualifiers() {
+            let _ = write!(xml, "<Q name=\"{}\">", escape(&qualifier.key));
+            if let Some(value) = &qualifier.value {
+                // SnapGene stores whole numbers as @int; our reader turns @int back into a
+                // string, so write @int only where that round trip is exact.
+                match value.parse::<i64>() {
+                    Ok(number) if number.to_string() == *value => {
+                        let _ = write!(xml, "<V int=\"{number}\"/>");
+                    }
+                    _ => {
+                        let _ = write!(xml, "<V text=\"{}\"/>", escape(value));
+                    }
+                }
+            }
+            xml.push_str("</Q>");
+        }
+        xml.push_str("</Feature>");
+    }
+    xml.push_str("</Features>");
+    xml
+}
+
+/// Build the `Primers` packet payload from the record's primer list.
+fn primers_xml(record: &SequenceRecord) -> String {
+    let mut xml = String::from("<?xml version=\"1.0\"?><Primers>");
+    for primer in record.primers() {
+        let _ = write!(
+            xml,
+            "<Primer name=\"{}\" sequence=\"{}\"",
+            escape(&primer.name),
+            escape(primer.sequence.as_str())
+        );
+        if let Some(description) = &primer.description {
+            let _ = write!(xml, " description=\"{}\"", escape(description));
+        }
+        xml.push_str("/>");
+    }
+    xml.push_str("</Primers>");
+    xml
+}
+
 /// Why a record cannot be written as SnapGene `.dna`.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ExportError {
@@ -616,4 +717,71 @@ fn verify_unmodified(report: &ImportReport) -> Result<(), ExportError> {
         });
     }
     Ok(())
+}
+
+/// The cookie SnapGene writes for a DNA file: the marker, file type 1, and export/import
+/// versions. Used when a record has no SnapGene ancestry to copy one from.
+const CANONICAL_COOKIE: [u8; COOKIE_PAYLOAD_LENGTH] = *b"SnapGene\x00\x01\x00\x01\x00\x01";
+
+/// Write any record as `.dna`, generating the annotation packets from the model.
+///
+/// The result holds only what DNAgent models: cookie, sequence and the `Features` and
+/// `Primers` packets. Uninterpreted packets of a source file are **not** carried over,
+/// because their meaning is unknown and they may describe annotations the record no longer
+/// has; each is reported instead. Prefer [`export_bytes`] when the record is unchanged.
+#[must_use]
+pub fn export_record(
+    record: &SequenceRecord,
+    source: Option<&FormatExtensions>,
+) -> (Vec<u8>, Vec<ImportWarning>) {
+    let layout = source.and_then(|extensions| extensions.snapgene.as_ref());
+    let mut warnings = Vec::new();
+
+    let cookie = layout.map_or_else(|| CANONICAL_COOKIE.to_vec(), |l| l.cookie.clone());
+    // Bit 0 is topology, which the record owns; any other bit (methylation and the like) is
+    // kept only when this record came from a SnapGene file that set it.
+    let circular = u8::from(record.topology() == Topology::Circular);
+    let flags = layout.map_or(circular, |l| (l.dna_flags & !1) | circular);
+
+    if let Some(extensions) = source {
+        for packet in &extensions.opaque_packets {
+            warnings.push(
+                ImportWarning::new(
+                    "snapgene_packet_not_written",
+                    format!(
+                        "uninterpreted packet 0x{:02x} ({} bytes) is not carried into a generated file; its meaning is unknown and it may not describe this record",
+                        packet.packet_type, packet.payload_length
+                    ),
+                )
+                .for_packet(packet.packet_type),
+            );
+        }
+    }
+    if layout.is_some_and(|l| l.dna_flags & !1 != 0) {
+        warnings.push(ImportWarning::new(
+            "snapgene_dna_flags_retained",
+            format!(
+                "sequence flag bits 0x{:02x} (methylation and similar settings DNAgent does not model) are copied from the source file unchanged",
+                flags & !1
+            ),
+        ));
+    }
+    warnings.push(ImportWarning::new(
+        "snapgene_annotations_generated",
+        "annotations were written from DNAgent's model; SnapGene's display and detection attributes are absent",
+    ));
+
+    let mut out = Vec::new();
+    packet(COOKIE, &cookie, &mut out);
+    let mut dna = Vec::with_capacity(record.sequence().len() + 1);
+    dna.push(flags);
+    dna.extend_from_slice(record.sequence().as_str().as_bytes());
+    packet(DNA, &dna, &mut out);
+    if !record.features().is_empty() {
+        packet(FEATURES, features_xml(record).as_bytes(), &mut out);
+    }
+    if !record.primers().is_empty() {
+        packet(PRIMERS, primers_xml(record).as_bytes(), &mut out);
+    }
+    (out, warnings)
 }

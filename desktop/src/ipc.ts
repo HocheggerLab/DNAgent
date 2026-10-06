@@ -55,7 +55,11 @@ export function pickConstructPath(): Promise<string | null> {
 export function pickSavePath(defaultPath: string): Promise<string | null> {
   return tracked(async () => {
     if (stub) return (await stub).pickSavePath();
-    const path = await save({ defaultPath, filters: [{ name: 'GenBank', extensions: ['gb', 'gbk', 'genbank'] }] });
+    // The chosen extension decides the format; GenBank first, as the default.
+    const path = await save({ defaultPath, filters: [
+      { name: 'GenBank', extensions: ['gb', 'gbk', 'genbank'] },
+      { name: 'SnapGene', extensions: ['dna'] },
+    ] });
     return path ?? null;
   });
 }

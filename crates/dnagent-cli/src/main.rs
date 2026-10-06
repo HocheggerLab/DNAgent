@@ -143,10 +143,11 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputMode::Text)]
         output: OutputMode,
     },
-    /// Save a record as DNAgent GenBank, preserving retained metadata (JSON report).
+    /// Save a record as DNAgent GenBank or SnapGene .dna, chosen by the output extension,
+    /// preserving retained metadata (JSON report).
     Convert {
         input: PathBuf,
-        /// Output .gb/.gbk/.genbank path (written atomically).
+        /// Output path, written atomically: .gb/.gbk/.genbank for GenBank, .dna for SnapGene.
         #[arg(long)]
         out: PathBuf,
     },
@@ -864,7 +865,8 @@ fn load_gibson_source(
 #[derive(Debug, Args)]
 struct ProductArgs {
     /// Write the predicted product as DNAgent GenBank: carried-over source features,
-    /// primers at their binding sites and junction overlaps.
+    /// primers at their binding sites and junction overlaps. GenBank, or SnapGene `.dna`
+    /// when the path ends in `.dna`.
     #[arg(long)]
     out: Option<PathBuf>,
     /// Record name for the product (default: the output file name).
@@ -904,7 +906,10 @@ fn write_gibson_product(
     let Some(out) = &args.out else {
         return Ok(None);
     };
-    dnagent_app::require_genbank_path(out)?;
+    let snapgene = dnagent_app::is_snapgene_path(out);
+    if !snapgene {
+        dnagent_app::require_genbank_path(out)?;
+    }
     let name = args.name.clone().unwrap_or_else(|| {
         out.file_stem()
             .and_then(|s| s.to_str())
@@ -924,10 +929,15 @@ fn write_gibson_product(
             count: product_warnings.len(),
         }));
     }
-    let (text, write_warnings) =
-        dnagent_app::genbank_text(&product, &dnagent_app::genbank_date_today());
+    let (bytes, write_warnings) = if snapgene {
+        dnagent_app::snapgene_bytes(&product)
+    } else {
+        let (text, write_warnings) =
+            dnagent_app::genbank_text(&product, &dnagent_app::genbank_date_today());
+        (text.into_bytes(), write_warnings)
+    };
     warnings.extend(write_warnings);
-    dnagent_app::write_atomic(out, &text)?;
+    dnagent_app::write_atomic_bytes(out, &bytes)?;
     Ok(Some(SavedProduct {
         path: out.display().to_string(),
         length: product.record.sequence().len(),
@@ -1412,9 +1422,19 @@ fn save_report(
     warnings: &mut Vec<ImportWarning>,
     extra: &serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    dnagent_app::require_genbank_path(out)?;
-    let (text, write_warnings) =
-        dnagent_app::genbank_text(report, &dnagent_app::genbank_date_today());
+    // The extension chooses the format; both are written to a new path, never over a source.
+    let snapgene = dnagent_app::is_snapgene_path(out);
+    if !snapgene {
+        dnagent_app::require_genbank_path(out)?;
+    }
+    // Serialise first: strict mode must refuse before anything is written.
+    let (bytes, write_warnings) = if snapgene {
+        dnagent_app::snapgene_bytes(report)
+    } else {
+        let (text, warnings) =
+            dnagent_app::genbank_text(report, &dnagent_app::genbank_date_today());
+        (text.into_bytes(), warnings)
+    };
     warnings.extend(write_warnings);
     if strict && !warnings.is_empty() {
         return Err(AppError::ImportWarnings {
@@ -1422,10 +1442,10 @@ fn save_report(
         }
         .into());
     }
-    dnagent_app::write_atomic(out, &text)?;
+    dnagent_app::write_atomic_bytes(out, &bytes)?;
     let mut result = serde_json::json!({
         "output_path": out.display().to_string(),
-        "format": "genbank",
+        "format": if snapgene { "snapgene" } else { "genbank" },
         "feature_count": report.record.features().len(),
         "primer_count": report.record.primers().len(),
         "retained_snapgene_packets": report.preserved_metadata.opaque_packets.len() + report.preserved_metadata.interpreted_source_packets.len(),

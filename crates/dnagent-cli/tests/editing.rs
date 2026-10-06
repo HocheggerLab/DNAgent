@@ -163,7 +163,21 @@ fn annotate_adds_a_translated_cds_and_removes_it_again() {
 #[test]
 fn edits_fail_cleanly_and_strict_mode_writes_nothing() {
     let source = root().join("fixtures/formats/snapgene/synthetic_translation.dna");
-    let bad_extension = temp("out.dna");
+    // `.dna` is a supported output now: an unedited record is reproduced exactly.
+    let snapgene = temp("out.dna");
+    let output = run(&[
+        "convert",
+        source.to_str().unwrap(),
+        "--out",
+        snapgene.to_str().unwrap(),
+    ]);
+    assert!(output.status.success());
+    assert_eq!(json(&output)["result"]["format"], "snapgene");
+    assert_eq!(
+        std::fs::read(&snapgene).unwrap(),
+        std::fs::read(&source).unwrap()
+    );
+    let bad_extension = temp("out.txt");
     let output = run(&[
         "convert",
         source.to_str().unwrap(),

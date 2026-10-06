@@ -1,9 +1,10 @@
 # GenBank records (read and write)
 
-DNAgent opens `.gb`, `.gbk` and `.genbank` files and saves records as GenBank. SnapGene
-`.dna` files are read-only: saving never modifies them. A `.dna` writer is not
-implemented. GenBank is the working format, and it keeps everything a later `.dna`
-writer would need.
+DNAgent opens `.gb`, `.gbk` and `.genbank` files and saves records as GenBank. It also
+writes SnapGene `.dna` (see [SnapGene reading and writing](snapgene.md)); either way a
+source file is never modified in place. GenBank remains the working format: it is the one
+that keeps everything DNAgent read, including SnapGene-only data, in a form any tool can
+open.
 
 ```bash
 dnagent convert construct.dna --out construct.gb

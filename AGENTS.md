@@ -11,8 +11,11 @@
 - Keep GUI-only selection, hover, zoom and viewport state in the frontend (`desktop/` for Tauri; `dnagent-gui` for the retained egui viewer). Generate TypeScript DTOs from the Rust desktop API; never duplicate biological calculations in TypeScript.
 - Use zero-based, half-open coordinates internally and in JSON.
 - Preserve multipart and origin-spanning features; never silently flatten or discard them.
-- SnapGene `.dna` is read-only; DNAgent saves GenBank (`docs/genbank-records.md`). Saving must be
-  lossless for everything DNAgent models, or report the limitation; never drop metadata silently.
+- Source files are never modified in place. DNAgent saves GenBank (`docs/genbank-records.md`)
+  and SnapGene `.dna` (`docs/snapgene.md`), always to a new path. Saving must be lossless for
+  everything DNAgent models, or report the limitation; never drop metadata silently. A `.dna`
+  file DNAgent only read is written back byte for byte; an edited or constructed record has
+  its annotation packets generated, and what a generated file cannot carry is warned about.
 - Unsupported format content must be preserved or reported with structured warnings.
 
 ## Provenance and licensing
@@ -46,6 +49,7 @@ uv run scripts/check_translation.py --binary target/debug/dnagent
 uv run scripts/check_genbank.py --binary target/debug/dnagent
 uv run scripts/check_enzymes.py --binary target/debug/dnagent
 uv run scripts/check_locus.py --binary target/debug/dnagent
+uv run scripts/check_snapgene_write.py --binary target/debug/dnagent
 uv run scripts/check_feature_library.py --binary target/debug/dnagent
 uv run scripts/check_gibson_product.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
