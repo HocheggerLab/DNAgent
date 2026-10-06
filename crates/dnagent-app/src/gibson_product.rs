@@ -261,11 +261,12 @@ fn junction_features(
 
 /// The designed oligos, as the record's (unplaced) primer list.
 fn primer_list(
-    primers: &[(PrimerCandidate, PrimerCandidate)],
+    primers: &[Option<(PrimerCandidate, PrimerCandidate)>],
 ) -> Result<Vec<ImportedPrimer>, AppError> {
     primers
         .iter()
         .enumerate()
+        .filter_map(|(i, pair)| pair.as_ref().map(|p| (i, p)))
         .flat_map(|(i, (f, r))| {
             [
                 (format!("Gibson F{}", i + 1), f),
@@ -292,9 +293,10 @@ fn primer_list(
 
 /// Build the product record. `primers` are (forward, reverse) per component, in order
 /// (the fixed-length candidates, or the optimiser's choices).
+/// `primers` is per component, `None` for a provided fragment, which has none to annotate.
 pub fn product_record(
     report: &GibsonReport,
-    primers: &[(PrimerCandidate, PrimerCandidate)],
+    primers: &[Option<(PrimerCandidate, PrimerCandidate)>],
     name: &str,
 ) -> Result<(ImportReport, Vec<ImportWarning>), AppError> {
     let product = &report.product_sequence_5to3;
@@ -314,15 +316,17 @@ pub fn product_record(
             &mut pending,
             &mut warnings,
         )?;
-        primer_features(
-            component,
-            &primers[index],
-            index + 1,
-            product,
-            circular,
-            &mut pending,
-            &mut warnings,
-        )?;
+        if let Some(pair) = &primers[index] {
+            primer_features(
+                component,
+                pair,
+                index + 1,
+                product,
+                circular,
+                &mut pending,
+                &mut warnings,
+            )?;
+        }
     }
     junction_features(report, total, circular, &mut pending)?;
     pending.sort_by_key(|p| p.start);

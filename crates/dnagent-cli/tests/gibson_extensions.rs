@@ -20,7 +20,7 @@ fn optimisation_alias_returns_canonical_envelope_and_variable_lengths() {
     assert!(output.stderr.is_empty());
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(body["command"], "gibson-optimise");
-    assert_eq!(body["schema_version"], "0.9.0");
+    assert_eq!(body["schema_version"], "0.10.0");
     let report = &body["result"];
     assert_eq!(report["pairs"].as_array().unwrap().len(), 2);
     assert!(report["design"]["annealing_length"].is_null());

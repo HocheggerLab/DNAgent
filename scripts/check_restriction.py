@@ -34,7 +34,7 @@ def main():
     args = parser.parse_args()
     binary = args.binary.resolve()
     validator = Draft202012Validator(
-        json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
+        json.loads((ROOT / "schemas/cli-envelope-0.10.0.schema.json").read_text())
     )
 
     def call(*arguments):

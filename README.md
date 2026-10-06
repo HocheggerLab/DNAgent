@@ -51,7 +51,7 @@ cd desktop && npm ci && npm run tauri dev
 ```
 
 Every command takes `--output json` and returns one envelope (`schema_version`, `ok`,
-`result` or `error`, `warnings`) described by the [JSON Schema](schemas/cli-envelope-0.9.0.schema.json).
+`result` or `error`, `warnings`) described by the [JSON Schema](schemas/cli-envelope-0.10.0.schema.json).
 Coordinates are zero-based and half-open everywhere. See the [desktop guide](desktop/README.md)
 for what the app does, and [agent handoff](docs/agent-handoff.md) for working with an agent.
 
@@ -237,6 +237,13 @@ as `misc_feature`, without inferred CDSs or translations. Neither predicts
 experimental success. Hairpin/dimer checks are **sequence screens, not folding-energy
 calculations**; there is no silent fallback on failed constraints.
 
+Each core declares how its fragment reaches the reaction: `pcr` (amplified here, so it
+can take primer tails) or `provided` (a restriction fragment, synthesis or stock linear
+DNA, used exactly as given). The usual insert-into-vector case marks the cut vector
+`provided`, so both overlaps are written into the insert's two primers and the backbone
+is never amplified. `preparation` is required, because assuming it would silently
+amplify a vector you meant to digest.
+
 See [fixed-length Gibson](docs/gibson.md), [primer optimisation](docs/primer-optimisation.md)
 and [existing overlaps](docs/existing-overlaps.md). GUI work remains deferred.
 
@@ -244,8 +251,8 @@ and [existing overlaps](docs/existing-overlaps.md). GUI work remains deferred.
 
 All file-reading commands (`inspect`, `features`, `primers`, `sequence`, `map`, `sites`, `digest`, `compatible-ends`, `fragments`, `ligate`, `gibson`, `gibson-optimise`, `gibson-assemble`, `primer-design`) return a
 `warnings` array at the top level of JSON success and runtime-error envelopes.
-The envelope schema version is now **0.9.0**, adding primer optimisation and existing-overlap assembly.
-The additive `primer-design` command also uses 0.9.0; existing command result shapes
+The envelope schema version is now **0.10.0**, adding primer optimisation and existing-overlap assembly.
+The additive `primer-design` command also uses 0.10.0; existing command result shapes
 remain unchanged. Its plan/design failures use `amplification_failed`.
 Version 0.8.0 added PCR-tail Gibson candidates.
 Version 0.7.0 added explicit ligation products.
@@ -290,7 +297,7 @@ substring) and `--kind` (case-insensitive exact match) filters.
 oligos, **not** inferred binding sites, PCR products or newly designed primers.
 Empty primer lists are valid. Both commands obey the same warning/strict policy.
 
-The current [JSON Schema](schemas/cli-envelope-0.9.0.schema.json) covers every command's
+The current [JSON Schema](schemas/cli-envelope-0.10.0.schema.json) covers every command's
 success and runtime-error envelopes. Older schemas are retained only
 for archived responses, not emitted or accepted by the current CLI; see the
 [schema version policy](schemas/README.md). It validates structure and basic

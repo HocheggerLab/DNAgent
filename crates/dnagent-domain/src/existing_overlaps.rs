@@ -109,6 +109,7 @@ pub fn assemble(
             closure: next == 0,
             product_start: starts[next],
             overlap_sequence_5to3: motif.into(),
+            added_by: None,
         });
     }
     let mut components = Vec::new();

@@ -2,22 +2,25 @@
   "schema_version": 2,
   "inputs": [
     {
-      "path": "synthetic_gibson.dna"
+      "path": "../formats/snapgene/pUC19_M77789.dna"
+    },
+    {
+      "path": "../formats/genbank/synthetic_cdna.gb"
     }
   ],
   "cores": [
     {
       "input": 1,
-      "start": 270,
-      "length": 90,
+      "start": 289,
+      "length": 2629,
       "orientation": "forward",
-      "preparation": "pcr"
+      "preparation": "provided"
     },
     {
-      "input": 1,
-      "start": 65,
-      "length": 100,
-      "orientation": "reverse",
+      "input": 2,
+      "start": 60,
+      "length": 600,
+      "orientation": "forward",
       "preparation": "pcr"
     }
   ],

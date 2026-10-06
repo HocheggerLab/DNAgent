@@ -1,9 +1,25 @@
 {
-  "schema_version": 1,
-  "inputs": [{"path": "synthetic_gibson.dna"}],
+  "schema_version": 2,
+  "inputs": [
+    {
+      "path": "synthetic_gibson.dna"
+    }
+  ],
   "cores": [
-    {"input": 1, "start": 270, "length": 90, "orientation": "forward"},
-    {"input": 1, "start": 90, "length": 100, "orientation": "reverse"}
+    {
+      "input": 1,
+      "start": 270,
+      "length": 90,
+      "orientation": "forward",
+      "preparation": "pcr"
+    },
+    {
+      "input": 1,
+      "start": 90,
+      "length": 100,
+      "orientation": "reverse",
+      "preparation": "pcr"
+    }
   ],
   "topology": "circular",
   "overlap_length": 25,

@@ -17,6 +17,16 @@ pub struct CoreSelection {
     pub orientation: Orientation,
 }
 
+/// How a fragment reaches the reaction. A `Provided` fragment (restriction digest,
+/// synthesis, a stock linear DNA) is used as it is: it gets no primers, and the homology
+/// at its junctions is written into the neighbouring PCR fragments' primers instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Preparation {
+    Pcr,
+    Provided,
+}
+
 #[derive(Debug, Error)]
 pub enum GibsonError {
     #[error("invalid Gibson design: {0}")]
@@ -41,11 +51,15 @@ pub struct PrimerCandidate {
 #[derive(Debug, Clone, Serialize)]
 pub struct GibsonComponent {
     pub selection: CoreSelection,
+    pub preparation: Preparation,
     pub product_start: usize,
     pub core_sequence_5to3: String,
-    pub pcr_product_sequence_5to3: String,
-    pub forward_primer: PrimerCandidate,
-    pub reverse_primer: PrimerCandidate,
+    /// The fragment as it enters the reaction: the core plus any primer tails for a PCR
+    /// fragment, the core itself for a provided one.
+    pub fragment_sequence_5to3: String,
+    /// Absent for provided fragments, which are not amplified.
+    pub forward_primer: Option<PrimerCandidate>,
+    pub reverse_primer: Option<PrimerCandidate>,
     /// Core-local, not PCR-tail or inferred fused-product annotations.
     pub annotations: Vec<FeatureMapping>,
 }
@@ -57,6 +71,19 @@ pub struct GibsonJunction {
     pub closure: bool,
     pub product_start: usize,
     pub overlap_sequence_5to3: String,
+    /// Which primer carries this overlap as a 5-prime tail: the upstream fragment's
+    /// reverse primer, or the downstream fragment's forward primer when the upstream
+    /// fragment is provided and so cannot be extended. `None` when the fragments already
+    /// overlap and no primer adds anything.
+    pub added_by: Option<TailCarrier>,
+}
+
+/// The primer that writes a junction's overlap into its fragment (1-based component).
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(tag = "primer", content = "component", rename_all = "snake_case")]
+pub enum TailCarrier {
+    ReverseOf(usize),
+    ForwardOf(usize),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,6 +135,7 @@ pub fn validate_request(
 pub fn design(
     records: &[SequenceRecord],
     selected: &[CoreSelection],
+    preparation: &[Preparation],
     topology: Topology,
     overlap: usize,
     annealing: usize,
@@ -116,6 +144,7 @@ pub fn design(
     let mut report = design_with_lengths(
         records,
         selected,
+        preparation,
         topology,
         overlap,
         &vec![(annealing, annealing); selected.len()],
@@ -139,73 +168,152 @@ pub(crate) fn validate_templates(records: &[SequenceRecord]) -> Result<(), Gibso
     Ok(())
 }
 
+/// Plan each junction: which sequence is the shared overlap, and which primer writes it.
+/// A fragment's forward tail can be decided while visiting the fragment before it, so this
+/// runs before any primer is built.
+fn plan_junctions(
+    cores: &[String],
+    preparation: &[Preparation],
+    starts: &[usize],
+    product_sequence_5to3: &str,
+    topology: Topology,
+    overlap: usize,
+) -> Result<Vec<GibsonJunction>, GibsonError> {
+    let mut junctions: Vec<GibsonJunction> = Vec::new();
+    for i in 0..cores.len() {
+        let closure = i + 1 == cores.len();
+        if closure && topology != Topology::Circular {
+            continue;
+        }
+        let next = (i + 1) % cores.len();
+        let (overlap_sequence_5to3, added_by, product_start) = match (
+            preparation[i],
+            preparation[next],
+        ) {
+            // A provided fragment cannot be extended, so its neighbour's forward
+            // primer copies the provided fragment's own 3-prime end.
+            (Preparation::Provided, Preparation::Pcr) => (
+                cores[i][cores[i].len() - overlap..].to_owned(),
+                TailCarrier::ForwardOf(next + 1),
+                starts[i] + cores[i].len() - overlap,
+            ),
+            (Preparation::Provided, Preparation::Provided) => {
+                return Err(GibsonError::Component {
+                    component: i + 1,
+                    reason: "both fragments at this junction are provided, so no primer can add the overlap; give them existing overlaps instead",
+                });
+            }
+            // Otherwise keep the overlap in the downstream fragment's 5-prime end.
+            (Preparation::Pcr, _) => (
+                cores[next][..overlap].to_owned(),
+                TailCarrier::ReverseOf(i + 1),
+                if closure { 0 } else { starts[next] },
+            ),
+        };
+        if !unique_duplex_site(product_sequence_5to3, &overlap_sequence_5to3, topology) {
+            return Err(GibsonError::Component {
+                component: i + 1,
+                reason: "overlap is repeated or reverse-complement ambiguous in the intended product",
+            });
+        }
+        junctions.push(GibsonJunction {
+            after_component: i + 1,
+            before_component: next + 1,
+            closure,
+            product_start,
+            overlap_sequence_5to3,
+            added_by: Some(added_by),
+        });
+    }
+    Ok(junctions)
+}
+
 pub(crate) fn design_with_lengths(
     records: &[SequenceRecord],
     selected: &[CoreSelection],
+    preparation: &[Preparation],
     topology: Topology,
     overlap: usize,
     lengths: &[(usize, usize)],
 ) -> Result<GibsonReport, GibsonError> {
-    validate_lengths(records.len(), selected, overlap, lengths)?;
+    validate_preparation(selected, preparation, overlap)?;
+    validate_lengths(records.len(), selected, overlap, lengths, preparation)?;
     validate_templates(records)?;
     let cores = selected
         .iter()
         .map(|s| core(&records[s.input - 1], s))
         .collect::<Result<Vec<_>, _>>()?;
     let product_sequence_5to3 = cores.concat();
-    let mut components = Vec::new();
-    let mut junctions = Vec::new();
-    let mut product_start = 0;
+    let mut starts = Vec::with_capacity(cores.len());
+    let mut at = 0usize;
+    for sequence in &cores {
+        starts.push(at);
+        at += sequence.len();
+    }
+
     for (i, (selection, sequence)) in selected.iter().zip(&cores).enumerate() {
+        if preparation[i] == Preparation::Provided {
+            continue;
+        }
         let template = &records[selection.input - 1];
-        let forward_anneal = &sequence[..lengths[i].0];
         let reverse_anneal = reverse_complement(&sequence[sequence.len() - lengths[i].1..]);
-        for primer in [forward_anneal, &reverse_anneal] {
-            if !unique_duplex_site(template.sequence().as_str(), primer, template.topology()) {
+        for annealing in [&sequence[..lengths[i].0], reverse_anneal.as_str()] {
+            if !unique_duplex_site(template.sequence().as_str(), annealing, template.topology()) {
                 return Err(GibsonError::Component {
                     component: i + 1,
                     reason: "primer annealing sequence lacks a unique exact site on its full template",
                 });
             }
         }
-        let closure = i + 1 == selected.len();
-        let has_junction = !closure || topology == Topology::Circular;
-        let next = (i + 1) % selected.len();
-        let tail = if has_junction {
-            &cores[next][..overlap]
-        } else {
-            ""
+    }
+
+    let junctions = plan_junctions(
+        &cores,
+        preparation,
+        &starts,
+        &product_sequence_5to3,
+        topology,
+        overlap,
+    )?;
+
+    let mut components = Vec::new();
+    for (i, (selection, sequence)) in selected.iter().zip(&cores).enumerate() {
+        let template = &records[selection.input - 1];
+        let tail_of = |want: TailCarrier| -> &str {
+            junctions
+                .iter()
+                .find(|j| match (j.added_by, Some(want)) {
+                    (Some(TailCarrier::ReverseOf(a)), Some(TailCarrier::ReverseOf(b)))
+                    | (Some(TailCarrier::ForwardOf(a)), Some(TailCarrier::ForwardOf(b))) => a == b,
+                    _ => false,
+                })
+                .map_or("", |j| j.overlap_sequence_5to3.as_str())
         };
-        if has_junction {
-            if !unique_duplex_site(&product_sequence_5to3, tail, topology) {
-                return Err(GibsonError::Component {
-                    component: i + 1,
-                    reason: "overlap is repeated or reverse-complement ambiguous in the intended product",
-                });
-            }
-            junctions.push(GibsonJunction {
-                after_component: i + 1,
-                before_component: next + 1,
-                closure,
-                product_start: if closure {
-                    0
-                } else {
-                    product_start + sequence.len()
-                },
-                overlap_sequence_5to3: tail.to_owned(),
-            });
-        }
+        let forward_tail = tail_of(TailCarrier::ForwardOf(i + 1));
+        let reverse_tail = tail_of(TailCarrier::ReverseOf(i + 1));
         let annotations = core_annotations(template, selection, sequence)?;
+        let (fragment_sequence_5to3, forward_primer, reverse_primer) = match preparation[i] {
+            Preparation::Provided => (sequence.clone(), None, None),
+            Preparation::Pcr => {
+                let forward_anneal = &sequence[..lengths[i].0];
+                let reverse_anneal = reverse_complement(&sequence[sequence.len() - lengths[i].1..]);
+                (
+                    format!("{forward_tail}{sequence}{reverse_tail}"),
+                    Some(primer(forward_anneal, forward_tail)),
+                    Some(primer(&reverse_anneal, &reverse_complement(reverse_tail))),
+                )
+            }
+        };
         components.push(GibsonComponent {
             selection: selection.clone(),
-            product_start,
+            preparation: preparation[i],
+            product_start: starts[i],
             core_sequence_5to3: sequence.clone(),
-            pcr_product_sequence_5to3: format!("{sequence}{tail}"),
-            forward_primer: primer(forward_anneal, ""),
-            reverse_primer: primer(&reverse_anneal, &reverse_complement(tail)),
+            fragment_sequence_5to3,
+            forward_primer,
+            reverse_primer,
             annotations,
         });
-        product_start += sequence.len();
     }
     verify_assembly(&components, &junctions, &product_sequence_5to3)?;
     Ok(GibsonReport {
@@ -221,7 +329,8 @@ pub(crate) fn design_with_lengths(
         junctions,
         assumptions: vec![
             "PCR-tail design mode: requested cores concatenate without deduplicating endogenous sequence; this is not intake of pre-existing overlapping fragments",
-            "Only reverse primers receive 5-prime tails, derived from the next oriented core prefix; forward primers have no synthetic tails",
+            "Each junction's overlap is written by one primer: the upstream fragment's reverse primer, or the downstream fragment's forward primer where the upstream fragment is provided rather than amplified",
+            "Provided fragments (restriction digest, synthesis, stock linear DNA) receive no primers; their ends are used exactly as given and are not verified against any digest here",
             "Overlaps must occur exactly once in the intended product across both orientations, including circular-origin matches",
             "Assumes clean sequence-faithful PCR and ideal overlap-directed assembly; reaction yield, enzyme conditions and experimental validity are not predicted",
             "Core-local annotations map through product_start; feature reunion/fusion, translations and biological function are not inferred",
@@ -232,17 +341,46 @@ pub(crate) fn design_with_lengths(
     })
 }
 
+/// A provided fragment is not amplified, so it must already carry any overlap taken from
+/// its own ends: up to one at each junction.
+fn validate_preparation(
+    selected: &[CoreSelection],
+    preparation: &[Preparation],
+    overlap: usize,
+) -> Result<(), GibsonError> {
+    if preparation.len() != selected.len() {
+        return Err(GibsonError::Invalid(
+            "every core needs an explicit preparation",
+        ));
+    }
+    for (i, selection) in selected.iter().enumerate() {
+        if preparation[i] == Preparation::Provided && selection.length < 2 * overlap {
+            return Err(GibsonError::Component {
+                component: i + 1,
+                reason: "a provided fragment must be at least twice the overlap length",
+            });
+        }
+    }
+    Ok(())
+}
+
 fn validate_lengths(
     input_count: usize,
     selected: &[CoreSelection],
     overlap: usize,
     lengths: &[(usize, usize)],
+    preparation: &[Preparation],
 ) -> Result<(), GibsonError> {
     validate_request(input_count, selected, overlap, 18)?;
     if lengths.len() != selected.len()
-        || lengths.iter().zip(selected).any(|(&(f, r), s)| {
-            !(18..=40).contains(&f) || !(18..=40).contains(&r) || f + r > s.length
-        })
+        || lengths
+            .iter()
+            .zip(selected)
+            .zip(preparation)
+            .filter(|(_, p)| **p == Preparation::Pcr)
+            .any(|((&(f, r), s), _)| {
+                !(18..=40).contains(&f) || !(18..=40).contains(&r) || f + r > s.length
+            })
     {
         return Err(GibsonError::Invalid(
             "invalid or overlapping primer annealing lengths",
@@ -341,12 +479,12 @@ fn verify_assembly(
     junctions: &[GibsonJunction],
     expected: &str,
 ) -> Result<(), GibsonError> {
-    let mut assembled = components[0].pcr_product_sequence_5to3.clone();
+    let mut assembled = components[0].fragment_sequence_5to3.clone();
     for junction in junctions {
         let overlap = &junction.overlap_sequence_5to3;
-        let next = &components[junction.before_component - 1].pcr_product_sequence_5to3;
+        let next = &components[junction.before_component - 1].fragment_sequence_5to3;
         if !assembled.ends_with(overlap) || !next.starts_with(overlap) {
-            return Err(GibsonError::Invalid("PCR-product junction mismatch"));
+            return Err(GibsonError::Invalid("fragment junction mismatch"));
         }
         if junction.closure {
             assembled.truncate(assembled.len() - overlap.len());
@@ -356,7 +494,7 @@ fn verify_assembly(
     }
     if assembled != expected {
         return Err(GibsonError::Invalid(
-            "PCR-product assembly does not conserve requested cores",
+            "fragment assembly does not conserve requested cores",
         ));
     }
     Ok(())
@@ -404,18 +542,32 @@ mod tests {
     }
     #[test]
     fn circular_origin_reverse_core_and_pcr_tails_reconstruct_product() {
-        let report = design(&[record()], &selections(), Topology::Circular, 25, 22).unwrap();
+        let report = design(
+            &[record()],
+            &selections(),
+            &[Preparation::Pcr; 2],
+            Topology::Circular,
+            25,
+            22,
+        )
+        .unwrap();
         assert_eq!(report.product_sequence_5to3.len(), 190);
         assert_eq!(report.junctions.len(), 2);
         assert!(report.junctions[1].closure);
         assert!(
             report.components[0]
                 .forward_primer
+                .as_ref()
+                .unwrap()
                 .tail_sequence_5to3
                 .is_empty()
         );
         assert_eq!(
-            report.components[0].reverse_primer.tail_sequence_5to3,
+            report.components[0]
+                .reverse_primer
+                .as_ref()
+                .unwrap()
+                .tail_sequence_5to3,
             reverse_complement(&report.components[1].core_sequence_5to3[..25])
         );
     }
@@ -425,6 +577,7 @@ mod tests {
         let report = design(
             std::slice::from_ref(&r),
             &selections(),
+            &[Preparation::Pcr; 2],
             Topology::Linear,
             25,
             22,
@@ -433,14 +586,36 @@ mod tests {
         assert!(
             report.components[1]
                 .reverse_primer
+                .as_ref()
+                .unwrap()
                 .tail_sequence_5to3
                 .is_empty()
         );
         assert_eq!(report.junctions.len(), 1);
         let mut bad = selections();
         bad[0].start = usize::MAX;
-        assert!(design(std::slice::from_ref(&r), &bad, Topology::Linear, 25, 22).is_err());
-        assert!(design(&[r], &selections(), Topology::Linear, 19, 22).is_err());
+        assert!(
+            design(
+                std::slice::from_ref(&r),
+                &bad,
+                &[Preparation::Pcr; 2],
+                Topology::Linear,
+                25,
+                22
+            )
+            .is_err()
+        );
+        assert!(
+            design(
+                &[r],
+                &selections(),
+                &[Preparation::Pcr; 2],
+                Topology::Linear,
+                19,
+                22
+            )
+            .is_err()
+        );
     }
     #[test]
     fn resource_and_template_bounds_are_explicit() {
@@ -465,7 +640,87 @@ mod tests {
             vec![],
         )
         .unwrap();
-        assert!(design(&[r], &selections(), Topology::Circular, 25, 22).is_err());
+        assert!(
+            design(
+                &[r],
+                &selections(),
+                &[Preparation::Pcr; 2],
+                Topology::Circular,
+                25,
+                22
+            )
+            .is_err()
+        );
+    }
+
+    /// The usual bench design: the vector is cut and used as it is, so both overlaps are
+    /// written into the insert's primers and the vector gets none.
+    #[test]
+    fn a_provided_vector_puts_both_tails_on_the_amplified_insert() {
+        let report = design(
+            &[record()],
+            &selections(),
+            &[Preparation::Provided, Preparation::Pcr],
+            Topology::Circular,
+            25,
+            22,
+        )
+        .unwrap();
+        let (vector, insert) = (&report.components[0], &report.components[1]);
+        assert!(vector.forward_primer.is_none() && vector.reverse_primer.is_none());
+        assert_eq!(vector.fragment_sequence_5to3, vector.core_sequence_5to3);
+
+        let forward = insert.forward_primer.as_ref().unwrap();
+        let reverse = insert.reverse_primer.as_ref().unwrap();
+        assert_eq!(forward.tail_sequence_5to3.len(), 25);
+        assert_eq!(reverse.tail_sequence_5to3.len(), 25);
+        // The insert copies the provided vector's own ends: its 3-prime end before the
+        // insert, and its 5-prime start after it.
+        assert_eq!(
+            forward.tail_sequence_5to3,
+            vector.core_sequence_5to3[vector.core_sequence_5to3.len() - 25..]
+        );
+        assert_eq!(
+            reverse.tail_sequence_5to3,
+            reverse_complement(&vector.core_sequence_5to3[..25])
+        );
+        assert!(matches!(
+            report.junctions[0].added_by,
+            Some(TailCarrier::ForwardOf(2))
+        ));
+        assert!(matches!(
+            report.junctions[1].added_by,
+            Some(TailCarrier::ReverseOf(2))
+        ));
+    }
+
+    #[test]
+    fn two_provided_fragments_cannot_form_a_junction() {
+        let error = design(
+            &[record()],
+            &selections(),
+            &[Preparation::Provided; 2],
+            Topology::Circular,
+            25,
+            22,
+        )
+        .unwrap_err();
+        assert!(format!("{error}").contains("both fragments at this junction are provided"));
+    }
+
+    #[test]
+    fn preparation_must_cover_every_core() {
+        assert!(
+            design(
+                &[record()],
+                &selections(),
+                &[Preparation::Pcr],
+                Topology::Circular,
+                25,
+                22
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -485,6 +740,16 @@ mod tests {
         assert!(!unique_duplex_site("AAGCTT", "AAGCTT", Topology::Linear));
         assert!(unique_duplex_site("GACCTAGT", "TGA", Topology::Circular));
         let s = selections()[0].clone();
-        assert!(design(&[record()], &[s.clone(), s], Topology::Circular, 25, 22).is_err());
+        assert!(
+            design(
+                &[record()],
+                &[s.clone(), s],
+                &[Preparation::Pcr; 2],
+                Topology::Circular,
+                25,
+                22
+            )
+            .is_err()
+        );
     }
 }

@@ -2,8 +2,8 @@
 //! Numerical parameter provenance and scope: docs/primer-optimisation.md.
 use crate::digest::reverse_complement;
 use crate::gibson::{
-    CoreSelection, GibsonError, GibsonReport, PrimerCandidate, core, design_with_lengths, primer,
-    unique_duplex_site, validate_request, validate_templates,
+    CoreSelection, GibsonError, GibsonReport, Preparation, PrimerCandidate, core,
+    design_with_lengths, primer, unique_duplex_site, validate_request, validate_templates,
 };
 use crate::{SequenceRecord, Topology};
 use serde::{Deserialize, Serialize};
@@ -104,6 +104,8 @@ pub struct AssessedPrimer {
 }
 #[derive(Debug, Serialize)]
 pub struct OptimisedPair {
+    /// 1-based component this pair amplifies; provided fragments have no pair.
+    pub component: usize,
     pub forward: AssessedPrimer,
     pub reverse: AssessedPrimer,
     pub heterodimer: DimerScreen,
@@ -122,6 +124,7 @@ pub struct OptimisedGibson {
 pub fn optimise(
     records: &[SequenceRecord],
     selected: &[CoreSelection],
+    preparation: &[Preparation],
     topology: Topology,
     overlap: usize,
     constraints: &PrimerConstraints,
@@ -133,28 +136,54 @@ pub fn optimise(
         .iter()
         .map(|s| core(&records[s.input - 1], s))
         .collect::<Result<Vec<_>, _>>()?;
-    let mut pairs = Vec::new();
-    for (i, (selection, sequence)) in selected.iter().zip(&cores).enumerate() {
-        let tail = if i + 1 < selected.len() || topology == Topology::Circular {
-            reverse_complement(&cores[(i + 1) % selected.len()][..overlap])
-        } else {
-            String::new()
-        };
-        let template = &records[selection.input - 1];
-        let forward = candidates(sequence, "", false, template, constraints)?;
-        let reverse = candidates(sequence, &tail, true, template, constraints)?;
-        pairs.push(choose_pair(&forward, &reverse, sequence.len(), constraints).ok_or(GibsonError::Component { component: i + 1, reason: "no primer pair satisfies exact-site, Tm, GC and sequence-structure constraints; no fallback design returned" })?);
+    // Tails follow the same rule as the design: the upstream fragment's reverse primer
+    // carries the overlap, unless that fragment is provided and so cannot be extended,
+    // in which case the downstream fragment's forward primer does.
+    let joined = |i: usize| i + 1 < selected.len() || topology == Topology::Circular;
+    let mut forward_tails = vec![String::new(); selected.len()];
+    let mut reverse_tails = vec![String::new(); selected.len()];
+    for i in 0..selected.len() {
+        if !joined(i) {
+            continue;
+        }
+        let next = (i + 1) % selected.len();
+        match (preparation[i], preparation[next]) {
+            (Preparation::Provided, Preparation::Pcr) => {
+                forward_tails[next].clone_from(&cores[i][cores[i].len() - overlap..].to_owned());
+            }
+            (Preparation::Provided, Preparation::Provided) => {
+                return Err(GibsonError::Component {
+                    component: i + 1,
+                    reason: "both fragments at this junction are provided, so no primer can add the overlap; give them existing overlaps instead",
+                });
+            }
+            (Preparation::Pcr, _) => {
+                reverse_tails[i] = reverse_complement(&cores[next][..overlap]);
+            }
+        }
     }
-    let lengths: Vec<_> = pairs
-        .iter()
-        .map(|p| {
-            (
-                p.forward.primer.annealing_sequence_5to3.len(),
-                p.reverse.primer.annealing_sequence_5to3.len(),
-            )
-        })
-        .collect();
-    let design = design_with_lengths(records, selected, topology, overlap, &lengths)?;
+    let mut pairs = Vec::new();
+    let mut lengths = Vec::with_capacity(selected.len());
+    for (i, (selection, sequence)) in selected.iter().zip(&cores).enumerate() {
+        if preparation[i] == Preparation::Provided {
+            // Not amplified: no primers to choose, and no annealing lengths to report.
+            lengths.push((0, 0));
+            continue;
+        }
+        let template = &records[selection.input - 1];
+        let forward = candidates(sequence, &forward_tails[i], false, template, constraints)?;
+        let reverse = candidates(sequence, &reverse_tails[i], true, template, constraints)?;
+        let pair = choose_pair(&forward, &reverse, sequence.len(), constraints).ok_or(GibsonError::Component { component: i + 1, reason: "no primer pair satisfies exact-site, Tm, GC and sequence-structure constraints; no fallback design returned" })?;
+        lengths.push((
+            pair.forward.primer.annealing_sequence_5to3.len(),
+            pair.reverse.primer.annealing_sequence_5to3.len(),
+        ));
+        pairs.push(OptimisedPair {
+            component: i + 1,
+            ..pair
+        });
+    }
+    let design = design_with_lengths(records, selected, preparation, topology, overlap, &lengths)?;
     Ok(OptimisedGibson {
         design,
         constraints: constraints.clone(),
@@ -245,6 +274,7 @@ fn choose_pair(
                 key < (b.score, bf + br, bf, br)
             }) {
                 best = Some(OptimisedPair {
+                    component: 0, // set by the caller, which knows the component
                     forward: f.clone(),
                     reverse: r.clone(),
                     heterodimer: dimer,
@@ -426,7 +456,15 @@ mod tests {
             &record.sequence().as_str()[..18],
             Topology::Linear
         ));
-        let result = optimise(&[record], &selected, Topology::Linear, 25, &c).unwrap();
+        let result = optimise(
+            &[record],
+            &selected,
+            &[Preparation::Pcr],
+            Topology::Linear,
+            25,
+            &c,
+        )
+        .unwrap();
         assert_eq!(
             result.pairs[0].forward.primer.annealing_sequence_5to3.len(),
             19

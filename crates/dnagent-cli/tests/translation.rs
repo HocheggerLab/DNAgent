@@ -35,7 +35,7 @@ fn feature_translation_reports_codons_provenance_and_imported_match() {
     let body = json(&output);
     assert_eq!(
         (body["command"].as_str(), body["schema_version"].as_str()),
-        (Some("translate"), Some("0.9.0"))
+        (Some("translate"), Some("0.10.0"))
     );
     let result = &body["result"];
     assert_eq!(result["mode"], "feature");

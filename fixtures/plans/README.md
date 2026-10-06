@@ -17,6 +17,9 @@
   the origin); the Gibson product GenBank and desktop agent scenario use it.
 - `synthetic-cdna-into-puc19-optimised.json`: the same design with Tm-constrained primer
   search (`gibson-optimise`); the `gibson-cloning` skill's worked example.
+- `synthetic-cdna-into-puc19-digested.json`: the same clone the usual bench way, with the
+  vector `provided` (cut, not amplified), so both overlaps ride on the insert's two
+  primers and the backbone gets none. Same 3,229 bp product as the all-PCR plans.
 
 The ligation plans reference existing public synthetic format fixtures. The Gibson
 source is a deterministic synthetic original, with no imported biological sequence;

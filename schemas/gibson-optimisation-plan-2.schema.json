@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "gibson-optimisation-plan-1",
+  "title": "gibson-optimisation-plan-2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "inputs": {
       "type": "array",
@@ -201,7 +201,8 @@
           "input",
           "start",
           "length",
-          "orientation"
+          "orientation",
+          "preparation"
         ],
         "properties": {
           "input": {
@@ -224,6 +225,13 @@
               "forward",
               "reverse"
             ]
+          },
+          "preparation": {
+            "enum": [
+              "pcr",
+              "provided"
+            ],
+            "description": "How this fragment reaches the reaction. 'provided' (restriction digest, synthesis, stock linear DNA) is used as given and receives no primers; its junction overlaps are written into the neighbouring amplified fragments' primers. Required: an omission must not silently amplify a vector you intend to digest."
           }
         }
       },

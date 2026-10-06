@@ -14,7 +14,7 @@ use std::path::Path;
 pub struct OptimisationPlan {
     pub schema_version: u32,
     pub inputs: Vec<GibsonSource>,
-    pub cores: Vec<CoreSelection>,
+    pub cores: Vec<crate::gibson::PlanCore>,
     pub topology: Topology,
     pub overlap_length: usize,
     pub constraints: PrimerConstraints,
@@ -28,9 +28,11 @@ pub struct ExistingPlan {
     pub topology: Topology,
     pub overlaps: Vec<usize>,
 }
-fn header(version: u32, sources: &[GibsonSource]) -> Result<(), GibsonError> {
-    if version != 1 {
-        return Err(GibsonError::Invalid("expected Gibson plan version 1"));
+fn header(version: u32, expected: u32, sources: &[GibsonSource]) -> Result<(), GibsonError> {
+    if version != expected {
+        return Err(GibsonError::Invalid(
+            "unexpected Gibson plan version; PCR-tail plans are version 2 (per-core preparation is required) and existing-overlap plans version 1",
+        ));
     }
     for source in sources {
         source.validate()?;
@@ -39,11 +41,12 @@ fn header(version: u32, sources: &[GibsonSource]) -> Result<(), GibsonError> {
 }
 impl OptimisationPlan {
     pub fn validate(&self) -> Result<(), GibsonError> {
-        header(self.schema_version, &self.inputs)?;
+        header(self.schema_version, 2, &self.inputs)?;
         self.constraints.validate()?;
+        let (selections, _) = crate::gibson::PlanCore::split(&self.cores);
         validate_request(
             self.inputs.len(),
-            &self.cores,
+            &selections,
             self.overlap_length,
             self.constraints.min_length,
         )
@@ -51,7 +54,7 @@ impl OptimisationPlan {
 }
 impl ExistingPlan {
     pub fn validate(&self) -> Result<(), GibsonError> {
-        header(self.schema_version, &self.inputs)?;
+        header(self.schema_version, 1, &self.inputs)?;
         existing_overlaps::validate_request(
             self.inputs.len(),
             &self.fragments,
@@ -93,9 +96,11 @@ pub fn optimise(
     if records.len() != plan.inputs.len() {
         return Err(GibsonError::Invalid("loaded record count differs from plan inputs").into());
     }
+    let (selections, preparation) = crate::gibson::PlanCore::split(&plan.cores);
     Ok(primer_optimisation::optimise(
         records,
-        &plan.cores,
+        &selections,
+        &preparation,
         plan.topology,
         plan.overlap_length,
         &plan.constraints,

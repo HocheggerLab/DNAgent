@@ -18,7 +18,7 @@ from check_gibson_extensions import rc, tm, dimer, hairpin
 
 ROOT = Path(__file__).resolve().parents[1]
 ENVELOPE = Draft202012Validator(
-    json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
+    json.loads((ROOT / "schemas/cli-envelope-0.10.0.schema.json").read_text())
 )
 PLAN = Draft202012Validator(
     json.loads((ROOT / "schemas/primer-design-plan-1.schema.json").read_text())

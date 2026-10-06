@@ -20,7 +20,7 @@ from check_gibson import write_fixture, positions
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = Draft202012Validator(
-    json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
+    json.loads((ROOT / "schemas/cli-envelope-0.10.0.schema.json").read_text())
 )
 
 
@@ -110,8 +110,8 @@ def candidates(core, tail, reverse, source, circular, c):
     return result
 
 
-def oracle_pair(core, tail, source, circular, c):
-    fs = candidates(core, "", False, source, circular, c)
+def oracle_pair(core, tail, source, circular, c, forward_tail=""):
+    fs = candidates(core, forward_tail, False, source, circular, c)
     rs = candidates(core, tail, True, source, circular, c)
     feasible = []
     for f in fs:
@@ -142,10 +142,20 @@ def verify_optimised(body, plan, records, expected):
     cores = get_cores(plan, records)
     design = out["design"]
     assert design["product_sequence_5to3"] == "".join(cores)
-    assert len(out["pairs"]) == len(cores)
-    for i, (pair, (best, examined, feasible)) in enumerate(
-        zip(out["pairs"], expected, strict=True)
-    ):
+    prep = [core["preparation"] for core in plan["cores"]]
+    assert len(out["pairs"]) == prep.count("pcr")
+    for component, fragment in zip(design["components"], prep, strict=True):
+        assert component["preparation"] == fragment
+        if fragment == "provided":
+            # Used as given: no primers, and nothing added to either end.
+            assert component["forward_primer"] is None
+            assert component["reverse_primer"] is None
+            assert (
+                component["fragment_sequence_5to3"] == component["core_sequence_5to3"]
+            )
+    for pair, (best, examined, feasible) in zip(out["pairs"], expected, strict=True):
+        i = pair["component"] - 1
+        assert prep[i] == "pcr"
         key, f, r, ds = best
         assert abs(pair["score"] - key[0]) < 1e-9
         assert pair["candidate_pairs_examined"] == examined
@@ -160,7 +170,7 @@ def verify_optimised(body, plan, records, expected):
             assert design["components"][i][f"{name}_primer"] == item["primer"]
         # Asymmetric chosen primer lengths still recover the exact PCR product.
         pcr = f[2] + cores[i][f[0] : len(cores[i]) - r[0]] + rc(r[2])
-        assert design["components"][i]["pcr_product_sequence_5to3"] == pcr
+        assert design["components"][i]["fragment_sequence_5to3"] == pcr
 
 
 def verify_existing(body, plan, records):
@@ -291,6 +301,9 @@ def main():
                     "start": 0,
                     "length": 180,
                     "orientation": "reverse" if (index + i) % 2 else "forward",
+                    # Every other round, the first fragment is digested and provided, so
+                    # both overlaps must move onto the amplified one.
+                    "preparation": "provided" if (i == 0 and index % 4 == 3) else "pcr",
                 }
                 for i in range(2)
             ]
@@ -329,14 +342,25 @@ def main():
                         max_three_prime_run=3,
                         max_pair_tm_difference_c=3,
                     )
-                expected = []
-                for i, core in enumerate(cores):
-                    tail = (
-                        rc(cores[(i + 1) % 2][: p["overlap_length"]])
-                        if i == 0 or p["topology"] == "circular"
-                        else ""
+                overlap = p["overlap_length"]
+                prep = [core["preparation"] for core in p["cores"]]
+                forward_tails = ["" for _ in cores]
+                reverse_tails = ["" for _ in cores]
+                for i in range(len(cores)):
+                    if not (i == 0 or p["topology"] == "circular"):
+                        continue
+                    nxt = (i + 1) % len(cores)
+                    if prep[i] == "provided":
+                        forward_tails[nxt] = cores[i][len(cores[i]) - overlap :]
+                    else:
+                        reverse_tails[i] = rc(cores[nxt][:overlap])
+                expected = [
+                    oracle_pair(
+                        core, reverse_tails[i], sequences[i], False, c, forward_tails[i]
                     )
-                    expected.append(oracle_pair(core, tail, sequences[i], False, c))
+                    for i, core in enumerate(cores)
+                    if prep[i] == "pcr"
+                ]
                 success = all(item[0] is not None for item in expected)
                 body = call("gibson-optimise", p, success)
                 if success:

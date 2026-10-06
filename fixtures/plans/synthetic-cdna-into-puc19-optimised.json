@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "inputs": [
     {
       "path": "../formats/snapgene/pUC19_M77789.dna"
@@ -13,13 +13,15 @@
       "input": 1,
       "start": 289,
       "length": 2629,
-      "orientation": "forward"
+      "orientation": "forward",
+      "preparation": "pcr"
     },
     {
       "input": 2,
       "start": 60,
       "length": 600,
-      "orientation": "forward"
+      "orientation": "forward",
+      "preparation": "pcr"
     }
   ],
   "topology": "circular",

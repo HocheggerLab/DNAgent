@@ -14,7 +14,7 @@ use std::process::ExitCode;
 mod library_cmd;
 mod mcp_relay;
 
-const SCHEMA_VERSION: &str = "0.9.0";
+const SCHEMA_VERSION: &str = "0.10.0";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -768,11 +768,11 @@ fn run_gibson_optimise(
     let records = load_gibson_sources(&plan.inputs, strict, warnings)?;
     let result = operations::optimise(&records, &plan)?;
     // The product carries the optimiser's chosen primers, not the fixed-length ones.
-    let primers: Vec<_> = result
-        .pairs
-        .iter()
-        .map(|p| (p.forward.primer.clone(), p.reverse.primer.clone()))
-        .collect();
+    let mut primers: Vec<Option<_>> = vec![None; result.design.components.len()];
+    for pair in &result.pairs {
+        primers[pair.component - 1] =
+            Some((pair.forward.primer.clone(), pair.reverse.primer.clone()));
+    }
     let saved = write_gibson_product(&result.design, &primers, product_args, strict, warnings)?;
     print_json(
         "gibson-optimise",
@@ -893,10 +893,10 @@ struct WithProduct<T: Serialize> {
 
 fn write_gibson_product(
     report: &dnagent_domain::gibson::GibsonReport,
-    primers: &[(
+    primers: &[Option<(
         dnagent_domain::gibson::PrimerCandidate,
         dnagent_domain::gibson::PrimerCandidate,
-    )],
+    )>],
     args: &ProductArgs,
     strict: bool,
     warnings: &mut Vec<ImportWarning>,
@@ -956,7 +956,7 @@ fn run_gibson(
     let primers: Vec<_> = view
         .components
         .iter()
-        .map(|c| (c.forward_primer.clone(), c.reverse_primer.clone()))
+        .map(|c| c.forward_primer.clone().zip(c.reverse_primer.clone()))
         .collect();
     let saved = write_gibson_product(&view, &primers, product_args, strict, warnings)?;
     match output {
@@ -976,16 +976,24 @@ fn run_gibson(
             );
             println!("Product 5to3: {}", view.product_sequence_5to3);
             for (i, component) in view.components.iter().enumerate() {
-                println!(
-                    "Component {} forward 5to3: {}",
-                    i + 1,
-                    component.forward_primer.sequence_5to3
-                );
-                println!(
-                    "Component {} reverse 5to3: {}",
-                    i + 1,
-                    component.reverse_primer.sequence_5to3
-                );
+                match (&component.forward_primer, &component.reverse_primer) {
+                    (Some(forward), Some(reverse)) => {
+                        println!(
+                            "Component {} forward 5to3: {}",
+                            i + 1,
+                            forward.sequence_5to3
+                        );
+                        println!(
+                            "Component {} reverse 5to3: {}",
+                            i + 1,
+                            reverse.sequence_5to3
+                        );
+                    }
+                    _ => println!(
+                        "Component {}: provided fragment, used as given (no primers)",
+                        i + 1
+                    ),
+                }
             }
             for assumption in &view.assumptions {
                 println!("Assumption: {assumption}");

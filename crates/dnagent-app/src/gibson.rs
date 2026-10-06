@@ -2,7 +2,8 @@
 use crate::AppError;
 use dnagent_domain::digest::reverse_complement;
 use dnagent_domain::gibson::{
-    CoreSelection, GibsonError, GibsonReport, core, design, unique_duplex_site, validate_request,
+    CoreSelection, GibsonError, GibsonReport, Preparation, core, design, unique_duplex_site,
+    validate_request,
 };
 use dnagent_domain::ligation::Orientation;
 use dnagent_domain::{DnaSeq, ImportedPrimer, SequenceRecord, Topology};
@@ -276,12 +277,32 @@ fn load_pcr_source(source: &PcrSource) -> Result<ImportReport, AppError> {
     Ok(imported)
 }
 
+/// A core plus how that fragment reaches the reaction. `preparation` is required: a plan
+/// that left it out would silently amplify a vector the user intends to digest.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlanCore {
+    #[serde(flatten)]
+    pub selection: CoreSelection,
+    pub preparation: Preparation,
+}
+
+impl PlanCore {
+    #[must_use]
+    pub fn split(cores: &[Self]) -> (Vec<CoreSelection>, Vec<Preparation>) {
+        (
+            cores.iter().map(|c| c.selection.clone()).collect(),
+            cores.iter().map(|c| c.preparation).collect(),
+        )
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GibsonPlan {
     pub schema_version: u32,
     pub inputs: Vec<GibsonSource>,
-    pub cores: Vec<CoreSelection>,
+    pub cores: Vec<PlanCore>,
     pub topology: Topology,
     pub overlap_length: usize,
     pub annealing_length: usize,
@@ -289,15 +310,18 @@ pub struct GibsonPlan {
 
 impl GibsonPlan {
     pub fn validate(&self) -> Result<(), GibsonError> {
-        if self.schema_version != 1 {
-            return Err(GibsonError::Invalid("expected Gibson plan version 1"));
+        if self.schema_version != 2 {
+            return Err(GibsonError::Invalid(
+                "expected Gibson plan version 2 (version 1 plans lack the required per-core preparation: pcr or provided)",
+            ));
         }
         for source in &self.inputs {
             source.validate()?;
         }
+        let (selections, _) = PlanCore::split(&self.cores);
         validate_request(
             self.inputs.len(),
-            &self.cores,
+            &selections,
             self.overlap_length,
             self.annealing_length,
         )
@@ -323,9 +347,11 @@ pub fn simulate(records: &[SequenceRecord], plan: &GibsonPlan) -> Result<GibsonR
     if records.len() != plan.inputs.len() {
         return Err(GibsonError::Invalid("loaded record count differs from plan inputs").into());
     }
+    let (selections, preparation) = PlanCore::split(&plan.cores);
     Ok(design(
         records,
-        &plan.cores,
+        &selections,
+        &preparation,
         plan.topology,
         plan.overlap_length,
         plan.annealing_length,
@@ -337,16 +363,19 @@ mod tests {
     use super::*;
     #[test]
     fn schema_versions_unknown_fields_and_record_counts_are_checked() {
-        let json = r#"{"schema_version":1,"inputs":[{"path":"synthetic.dna"}],"cores":[{"input":1,"start":0,"length":100,"orientation":"forward"}],"topology":"circular","overlap_length":30,"annealing_length":24}"#;
+        let json = r#"{"schema_version":2,"inputs":[{"path":"synthetic.dna"}],"cores":[{"input":1,"start":0,"length":100,"orientation":"forward","preparation":"pcr"}],"topology":"circular","overlap_length":30,"annealing_length":24}"#;
         let mut plan: GibsonPlan = serde_json::from_str(json).unwrap();
         assert!(plan.validate().is_ok());
         assert!(simulate(&[], &plan).is_err());
-        plan.schema_version = 2;
+        plan.schema_version = 1;
         assert!(plan.validate().is_err());
         for bad in [
             json.replace("\"path\":", "\"enzyme\":\"EcoRI\",\"path\":"),
             json.replace(",\"orientation\":\"forward\"", ""),
             json.replace("\"overlap_length\":30", "\"overlap_length\":-1"),
+            // preparation is required: an omission must fail rather than default to PCR.
+            json.replace(",\"preparation\":\"pcr\"", ""),
+            json.replace("\"preparation\":\"pcr\"", "\"preparation\":\"digest\""),
         ] {
             assert!(serde_json::from_str::<GibsonPlan>(&bad).is_err());
         }

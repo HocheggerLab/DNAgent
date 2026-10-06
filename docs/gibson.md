@@ -32,8 +32,8 @@ plan contract. No GUI integration is included in this milestone.
 ```
 
 This is the shape of the synthetic example, not a design for an unspecified real
-300-base template. The [version-1 plan schema](../schemas/gibson-plan-1.schema.json)
-is independent of the current **0.9.0** CLI output-envelope schema. Relative paths
+300-base template. The [version-2 plan schema](../schemas/gibson-plan-2.schema.json)
+is independent of the current **0.10.0** CLI output-envelope schema. Relative paths
 resolve against the plan directory. Unknown fields, missing orientations and
 unsupported versions fail explicitly.
 
@@ -52,21 +52,41 @@ unsupported versions fail explicitly.
   each core: endogenous overlaps are not silently deduplicated.
 - Reusing a template for multiple PCRs is allowed. Product overlaps still must pass
   uniqueness checks; intended repeat-containing architectures may be refused.
+- Every core states its `preparation`: `pcr` (amplified here, so it can be given
+  primer tails) or `provided` (a restriction fragment, a synthesised piece or stock
+  linear DNA, used exactly as given). This is **required**, because defaulting it
+  would silently amplify a recipient vector the user intends to digest. A provided
+  fragment's ends are taken as declared; DNAgent does not verify that a digest
+  actually produces them.
 
 ## Primer, PCR and junction construction
 
 Let oriented core `i` be `C_i`, the annealing length be `A`, and overlap length `L`.
-For every component with a downstream neighbour:
+A junction's overlap is one shared stretch, written into **one** of the two
+neighbouring fragments by a primer tail. Which one depends on their preparation,
+because a provided fragment cannot be extended:
 
-- Forward primer: `C_i[:A]`, no synthetic tail.
-- Reverse primer: `RC(C_next[:L]) + RC(C_i[-A:])`, all written **5′→3′**.
-- Predicted PCR top strand: `C_i + C_next[:L]`.
+| Junction `i → next` | Overlap | Tail goes on |
+|---|---|---|
+| `C_i` is `pcr` | `C_next[:L]` | reverse primer of `i` |
+| `C_i` is `provided`, `C_next` is `pcr` | `C_i[-L:]` | forward primer of `next` |
+| both `provided` | — | refused: no primer can add it |
 
-For the final linear component, omit the tail; for circular closure, its neighbour
-is the first core. Reverse primers therefore carry the entire synthetic overlap;
-tails are not divided between primer pairs. Each primer reports its complete oligo,
-3′ annealing segment, 5′ tail and annealing GC base count. GC count is descriptive,
-not a quality score or melting-temperature estimate.
+- Forward primer of `i`: `(forward tail) + C_i[:A]`, where the tail is empty unless
+  the upstream fragment is provided.
+- Reverse primer of `i`: `RC(reverse tail) + RC(C_i[-A:])`, all written **5′→3′**.
+- Predicted PCR top strand: `(forward tail) + C_i + (reverse tail)`.
+
+For the final linear component there is no downstream junction; for circular closure
+its neighbour is the first core. A tail is never divided between two primer pairs.
+Each primer reports its complete oligo, 3′ annealing segment, 5′ tail and annealing
+GC base count. GC count is descriptive, not a quality score or melting-temperature
+estimate. Provided fragments report no primers at all, and their
+`fragment_sequence_5to3` is the core itself.
+
+The usual bench case is a vector cut with one or two enzymes and used as it is: mark
+it `provided` and the insert `pcr`, and both overlaps are written into the insert's
+two primers — two oligos, with no amplification of the backbone.
 
 The simulator also reassembles the predicted PCR products: verify each
 suffix/prefix overlap, retain one copy, then remove the duplicated closing overlap

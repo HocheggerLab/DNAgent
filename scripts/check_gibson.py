@@ -19,10 +19,10 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = Draft202012Validator(
-    json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
+    json.loads((ROOT / "schemas/cli-envelope-0.10.0.schema.json").read_text())
 )
 PLAN_VALIDATOR = Draft202012Validator(
-    json.loads((ROOT / "schemas/gibson-plan-1.schema.json").read_text())
+    json.loads((ROOT / "schemas/gibson-plan-2.schema.json").read_text())
 )
 
 
@@ -79,7 +79,11 @@ def verify(result, plan, sources):
         zip(result["components"], cores, indices, strict=True)
     ):
         selection = plan["cores"][i]
-        assert component["selection"] == selection
+        # The component echoes the geometry; preparation is reported beside it.
+        assert component["selection"] == {
+            k: v for k, v in selection.items() if k != "preparation"
+        }
+        assert component["preparation"] == selection["preparation"]
         assert component["product_start"] == start
         assert component["core_sequence_5to3"] == core
         f, r = component["forward_primer"], component["reverse_primer"]
@@ -103,7 +107,7 @@ def verify(result, plan, sources):
         # Build the PCR product from whole oligos and template interior, independently
         # of the Rust core+tail construction. Double-stranded PCR top is explicit.
         pcr = f["sequence_5to3"] + core[a:-a] + rc(r["sequence_5to3"])
-        assert component["pcr_product_sequence_5to3"] == pcr
+        assert component["fragment_sequence_5to3"] == pcr
         amplicons.append(pcr)
         source = result["inputs"][selection["input"] - 1]
         assert source["sequence"] == sources[selection["input"] - 1]
@@ -179,11 +183,11 @@ def main():
         paths = [root / "first.dna", root / "second.dna"]
         path = root / "plan.json"
         plan = {
-            "schema_version": 1,
+            "schema_version": 2,
             "inputs": [{"path": p.name} for p in paths],
             "cores": [
-                {"input": 1, "start": 470, "length": 130, "orientation": "forward"},
-                {"input": 2, "start": 30, "length": 170, "orientation": "forward"},
+                {"input": 1, "start": 470, "length": 130, "orientation": "forward", "preparation": "pcr"},
+                {"input": 2, "start": 30, "length": 170, "orientation": "forward", "preparation": "pcr"},
             ],
             "topology": "circular",
             "overlap_length": 30,
@@ -240,7 +244,7 @@ def main():
                 p["cores"] = p["cores"][:1]
                 call(p)
         for key, value in [
-            ("schema_version", 2),
+            ("schema_version", 1),
             ("overlap_length", 19),
             ("annealing_length", 41),
             ("unknown", True),

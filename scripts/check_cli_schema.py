@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     args = parser.parse_args()
-    schema = json.loads((ROOT / "schemas/cli-envelope-0.9.0.schema.json").read_text())
+    schema = json.loads((ROOT / "schemas/cli-envelope-0.10.0.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     binary = args.binary.resolve()
@@ -275,7 +275,7 @@ def main():
         (
             "gibson-optimise",
             "synthetic-gibson-optimisation.json",
-            "gibson-optimisation-plan-1.schema.json",
+            "gibson-optimisation-plan-2.schema.json",
         ),
         (
             "gibson-assemble",
@@ -313,7 +313,7 @@ def main():
             checked.append(body)
     gibson_plan = ROOT / "fixtures/plans/synthetic-gibson.json"
     Draft202012Validator(
-        json.loads((ROOT / "schemas/gibson-plan-1.schema.json").read_text())
+        json.loads((ROOT / "schemas/gibson-plan-2.schema.json").read_text())
     ).validate(json.loads(gibson_plan.read_text()))
     for path, success in [
         (gibson_plan, True),

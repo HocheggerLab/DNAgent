@@ -31,7 +31,9 @@ from Bio.Seq import Seq
 
 ROOT = Path(__file__).resolve().parents[1]
 PLANS = [("gibson", "synthetic-gibson.json"), ("gibson", "synthetic-cdna-into-puc19.json"),
-         ("gibson-optimise", "synthetic-gibson-optimisation.json"), ("gibson-optimise", "synthetic-cdna-into-puc19-optimised.json")]
+         ("gibson-optimise", "synthetic-gibson-optimisation.json"), ("gibson-optimise", "synthetic-cdna-into-puc19-optimised.json"),
+         # Vector digested and provided: both overlaps ride on the insert's primers.
+         ("gibson-optimise", "synthetic-cdna-into-puc19-digested.json")]
 
 
 def read(path: Path):
@@ -81,8 +83,10 @@ def check_plan(binary: Path, command: str, plan_name: str, scratch: Path) -> str
     assert body["ok"], body.get("error")
     result = body["result"]
     design = result["design"] if command == "gibson-optimise" else result
-    primers = ([(p["forward"]["primer"], p["reverse"]["primer"]) for p in result["pairs"]] if command == "gibson-optimise"
-               else [(c["forward_primer"], c["reverse_primer"]) for c in design["components"]])
+    # Keyed by component: provided fragments are not amplified and have no pair.
+    primers = ({p["component"]: (p["forward"]["primer"], p["reverse"]["primer"]) for p in result["pairs"]} if command == "gibson-optimise"
+               else {i: (c["forward_primer"], c["reverse_primer"]) for i, c in enumerate(design["components"], start=1)
+                     if c["forward_primer"] is not None})
     sources = [read((plan_path.parent / i["path"]).resolve()) for i in plan["inputs"]]
     product = read(product_path)
     seq = str(product.seq).upper()
@@ -143,7 +147,7 @@ def check_plan(binary: Path, command: str, plan_name: str, scratch: Path) -> str
 
     # Primer sites and overlaps read as the JSON oligos.
     by_label = {f.qualifiers.get("label", [""])[0]: f for f in product.features}
-    for i, (forward, reverse) in enumerate(primers, start=1):
+    for i, (forward, reverse) in primers.items():
         for letter, primer in (("F", forward), ("R", reverse)):
             feature = by_label.get(f"Gibson {letter}{i}")
             if feature is None or bases(feature, product.seq) != primer["sequence_5to3"]:
@@ -154,11 +158,13 @@ def check_plan(binary: Path, command: str, plan_name: str, scratch: Path) -> str
             problems.append(f"overlap {junction['after_component']}-{junction['before_component']} is wrong or missing")
     listed = subprocess.run([str(binary), "primers", str(product_path), "--output", "json"], capture_output=True, text=True).stdout
     listed = {p["sequence"] for p in json.loads(listed)["result"]}
-    if listed != {p["sequence_5to3"] for pair in primers for p in pair}:
+    if listed != {p["sequence_5to3"] for pair in primers.values() for p in pair}:
         problems.append("the file's primer list differs from the designed primers")
     if problems:
         raise AssertionError(f"{plan_name}: " + "; ".join(problems))
-    return f"{plan_name}: {n} bp product, {len(got_keys)} carried features, {clipped} left out, {2 * len(primers)} primers, {len(design['junctions'])} overlaps"
+    provided = sum(c["preparation"] == "provided" for c in design["components"])
+    return (f"{plan_name}: {n} bp product, {len(got_keys)} carried features, {clipped} left out, "
+            f"{2 * len(primers)} primers, {provided} provided fragments, {len(design['junctions'])} overlaps")
 
 
 def main() -> None:

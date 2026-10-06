@@ -7,7 +7,7 @@ dnagent gibson-optimize fixtures/plans/synthetic-gibson-optimisation.json
 ```
 
 Output is JSON only, envelope **0.9.0**. The input uses a separate
-[version-1 optimisation plan](../schemas/gibson-optimisation-plan-1.schema.json).
+[version-2 optimisation plan](../schemas/gibson-optimisation-plan-2.schema.json).
 See the public synthetic example for all required fields. There are **no implicit
 reaction-condition or screening defaults**. Its values are a software example,
 not a recommended PCR protocol.

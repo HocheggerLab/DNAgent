@@ -1,0 +1,4890 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DNAgent CLI envelope 0.10.0",
+  "description": "Runtime JSON responses only. CLI argument errors and GUI output are not covered. Coordinates are zero-based and half-open; relational bounds require domain validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "command",
+    "ok",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.10.0"
+    },
+    "command": {
+      "enum": [
+        "inspect",
+        "features",
+        "primers",
+        "sequence",
+        "map",
+        "enzymes",
+        "sites",
+        "digest",
+        "compatible-ends",
+        "fragments",
+        "ligate",
+        "gibson",
+        "gibson-optimise",
+        "gibson-assemble",
+        "primer-design",
+        "translate",
+        "orfs",
+        "convert",
+        "annotate",
+        "enzyme-catalogue",
+        "library-import",
+        "library-info",
+        "library-list",
+        "library-search",
+        "library-show",
+        "library-edit",
+        "detect-features",
+        "isoforms"
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "$ref": "#/$defs/warnings"
+    },
+    "result": {},
+    "error": {
+      "$ref": "#/$defs/error"
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "result"
+      ],
+      "not": {
+        "required": [
+          "error"
+        ]
+      },
+      "properties": {
+        "ok": {
+          "const": true
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "command": {
+              "const": "primer-design"
+            },
+            "result": {
+              "$ref": "#/$defs/amplification_report"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "translate"
+            },
+            "result": {
+              "$ref": "#/$defs/translate"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "orfs"
+            },
+            "result": {
+              "$ref": "#/$defs/orf_scan"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "convert"
+            },
+            "result": {
+              "$ref": "#/$defs/genbank_save"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "annotate"
+            },
+            "result": {
+              "$ref": "#/$defs/annotate"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "enzyme-catalogue"
+            },
+            "result": {
+              "$ref": "#/$defs/enzyme_catalogue"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-import"
+            },
+            "result": {
+              "$ref": "#/$defs/library_import"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-info"
+            },
+            "result": {
+              "$ref": "#/$defs/library_info"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-list"
+            },
+            "result": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/library_feature"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-search"
+            },
+            "result": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/library_feature"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-show"
+            },
+            "result": {
+              "$ref": "#/$defs/library_feature_detail"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "library-edit"
+            },
+            "result": {
+              "$ref": "#/$defs/library_feature_detail"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "detect-features"
+            },
+            "result": {
+              "$ref": "#/$defs/detect_features"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "isoforms"
+            },
+            "result": {
+              "$ref": "#/$defs/isoforms"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "inspect"
+            },
+            "result": {
+              "$ref": "#/$defs/inspect"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "features"
+            },
+            "result": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/feature"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "primers"
+            },
+            "result": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/primer"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "sequence"
+            },
+            "result": {
+              "$ref": "#/$defs/sequence"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "map"
+            },
+            "result": {
+              "$ref": "#/$defs/map"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "enzymes"
+            },
+            "result": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/enzyme"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "sites"
+            },
+            "result": {
+              "$ref": "#/$defs/restriction_scan"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "digest"
+            },
+            "result": {
+              "$ref": "#/$defs/digest"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "compatible-ends"
+            },
+            "result": {
+              "$ref": "#/$defs/compatibility"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "fragments"
+            },
+            "result": {
+              "$ref": "#/$defs/annotated_digest"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "ligate"
+            },
+            "result": {
+              "$ref": "#/$defs/ligation"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "gibson"
+            },
+            "result": {
+              "$ref": "#/$defs/gibson"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "gibson-optimise"
+            },
+            "result": {
+              "$ref": "#/$defs/optimised_gibson"
+            }
+          }
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "gibson-assemble"
+            },
+            "result": {
+              "$ref": "#/$defs/existing_assembly"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "required": [
+        "error"
+      ],
+      "not": {
+        "required": [
+          "result"
+        ]
+      },
+      "properties": {
+        "ok": {
+          "const": false
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "library_info": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "schema_version",
+        "features",
+        "families",
+        "curated",
+        "hidden",
+        "sources",
+        "occurrences"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 3
+        },
+        "features": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "curated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hidden": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "library_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "length",
+        "color",
+        "status",
+        "aliases",
+        "occurrences",
+        "sources",
+        "family_id",
+        "variants",
+        "family_occurrences",
+        "grouping",
+        "relation",
+        "identity"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "imported",
+            "curated",
+            "hidden"
+          ]
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variants": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "grouping": {
+          "enum": [
+            "auto",
+            "standalone"
+          ]
+        },
+        "relation": {
+          "enum": [
+            "contained",
+            "similar_dna",
+            "same_protein",
+            null
+          ]
+        },
+        "identity": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "library_feature_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "length",
+        "color",
+        "status",
+        "aliases",
+        "occurrences",
+        "sources",
+        "sequence",
+        "qualifiers",
+        "seen_in",
+        "family_id",
+        "variants",
+        "family_occurrences",
+        "grouping",
+        "family",
+        "relation",
+        "identity"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "imported",
+            "curated",
+            "hidden"
+          ]
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[ACGT]+$"
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          }
+        },
+        "seen_in": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_path",
+              "record_name",
+              "label",
+              "kind",
+              "start",
+              "parts",
+              "reversed"
+            ],
+            "properties": {
+              "source_path": {
+                "type": "string"
+              },
+              "record_name": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "parts": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "reversed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "family_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variants": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "grouping": {
+          "enum": [
+            "auto",
+            "standalone"
+          ]
+        },
+        "family": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/library_feature"
+          }
+        },
+        "relation": {
+          "enum": [
+            "contained",
+            "similar_dna",
+            "same_protein",
+            null
+          ]
+        },
+        "identity": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "library_import_file": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "record_name",
+            "skipped_features",
+            "warnings",
+            "status",
+            "occurrences",
+            "new_features",
+            "replaced"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "record_name": {
+              "type": "string"
+            },
+            "skipped_features": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "too_short": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "generic_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sequence_as_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ambiguous_bases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "source_feature": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "whole_molecule": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incomplete_location": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "status": {
+              "const": "imported"
+            },
+            "occurrences": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "new_features": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "replaced": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "record_name",
+            "skipped_features",
+            "warnings",
+            "status"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "record_name": {
+              "type": "string"
+            },
+            "skipped_features": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "too_short": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "generic_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sequence_as_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ambiguous_bases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "source_feature": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "whole_molecule": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incomplete_location": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "status": {
+              "const": "unchanged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "record_name",
+            "skipped_features",
+            "warnings",
+            "status",
+            "of"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "record_name": {
+              "type": "string"
+            },
+            "skipped_features": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "too_short": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "generic_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sequence_as_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ambiguous_bases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "source_feature": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "whole_molecule": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incomplete_location": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "status": {
+              "const": "duplicate"
+            },
+            "of": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "const": "failed"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "library_import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "library",
+        "min_length",
+        "totals",
+        "files"
+      ],
+      "properties": {
+        "library": {
+          "$ref": "#/$defs/library_info"
+        },
+        "min_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "files",
+            "imported",
+            "unchanged",
+            "duplicate",
+            "failed",
+            "occurrences",
+            "new_features",
+            "skipped_features"
+          ],
+          "properties": {
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "imported": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unchanged": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "duplicate": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "occurrences": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "new_features": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "skipped_features": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "too_short": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "generic_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sequence_as_name": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ambiguous_bases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "source_feature": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "whole_molecule": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incomplete_location": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/library_import_file"
+          }
+        }
+      }
+    },
+    "detected_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "library_id",
+        "name",
+        "kind",
+        "color",
+        "strand",
+        "location",
+        "length",
+        "annotated_as",
+        "qualifiers",
+        "family_id",
+        "superseded_by"
+      ],
+      "properties": {
+        "library_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "strand": {
+          "$ref": "#/$defs/strand"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "annotated_as": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          }
+        },
+        "family_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "superseded_by": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "isoforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Isoforms of a gene locus document, ordered by panel-mean expression under `quantifier` (null when the locus has no expression data). Spans are zero-based, half-open on the locus sequence; genomic (1-based) = genomic_start + position.",
+      "required": [
+        "quantifier",
+        "symbol",
+        "gene_id",
+        "chrom",
+        "strand",
+        "genomic_start",
+        "annotation_version",
+        "expression_units",
+        "novel_transcripts",
+        "default_quantifier",
+        "quantifiers",
+        "isoforms",
+        "missing_features"
+      ],
+      "properties": {
+        "quantifier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "gene_id": {
+          "type": "string"
+        },
+        "chrom": {
+          "type": "string"
+        },
+        "strand": {
+          "enum": [
+            "+",
+            "-"
+          ]
+        },
+        "genomic_start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "annotation_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expression_units": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "novel_transcripts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "default_quantifier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quantifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/isoform_panel"
+          }
+        },
+        "isoforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/isoform"
+          }
+        },
+        "missing_features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Transcripts whose mRNA feature was deleted from the document."
+        }
+      }
+    },
+    "isoform_panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quantifier",
+        "reports_zeros",
+        "cell_lines",
+        "order"
+      ],
+      "properties": {
+        "quantifier": {
+          "type": "string"
+        },
+        "reports_zeros": {
+          "type": "boolean",
+          "description": "False for sparse quantifiers: a cell line without a value counts as 0 in the panel mean."
+        },
+        "cell_lines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Transcript ids, highest panel mean first; then evidence, MANE, id."
+        }
+      }
+    },
+    "isoform_span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "length"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "isoform_codon": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "split"
+      ],
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "First base in transcription direction."
+        },
+        "split": {
+          "type": "boolean",
+          "description": "The codon spans an intron."
+        }
+      }
+    },
+    "isoform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transcript_id",
+        "transcript_type",
+        "mrna_feature_id",
+        "cds_feature_id",
+        "exons",
+        "cds",
+        "start_codon",
+        "stop_codon",
+        "is_mane_select",
+        "tsl",
+        "appris",
+        "cds_start_nf",
+        "cds_end_nf",
+        "aa_len",
+        "evidence_state",
+        "mappings",
+        "novel_junctions",
+        "expression"
+      ],
+      "properties": {
+        "transcript_id": {
+          "type": "string"
+        },
+        "transcript_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mrna_feature_id": {
+          "type": "string"
+        },
+        "cds_feature_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/isoform_span"
+          }
+        },
+        "cds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/isoform_span"
+          },
+          "description": "Coding blocks including the stop codon."
+        },
+        "start_codon": {
+          "$ref": "#/$defs/isoform_codon"
+        },
+        "stop_codon": {
+          "$ref": "#/$defs/isoform_codon"
+        },
+        "is_mane_select": {
+          "type": "boolean"
+        },
+        "tsl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "appris": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cds_start_nf": {
+          "type": "boolean"
+        },
+        "cds_end_nf": {
+          "type": "boolean"
+        },
+        "aa_len": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "evidence_state": {
+          "enum": [
+            "quantified",
+            "discoverable",
+            "invisible"
+          ]
+        },
+        "mappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source_transcript_id",
+              "status"
+            ],
+            "properties": {
+              "source_transcript_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "same_exon_chain": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "same_cds_start": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "same_cds_stop": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "novel_junctions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expression": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/isoform_expression"
+          }
+        }
+      }
+    },
+    "isoform_expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quantifier",
+        "panel_mean",
+        "display",
+        "cells"
+      ],
+      "properties": {
+        "quantifier": {
+          "type": "string"
+        },
+        "panel_mean": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "display": {
+          "enum": [
+            "expressed",
+            "not_detected",
+            "discoverable",
+            "invisible",
+            "no_data"
+          ]
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cell_line",
+              "n_libraries",
+              "mean",
+              "min",
+              "max"
+            ],
+            "properties": {
+              "cell_line": {
+                "type": "string"
+              },
+              "n_libraries": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "mean": {
+                "type": "number",
+                "minimum": 0
+              },
+              "min": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "detect_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "library",
+        "length",
+        "topology",
+        "min_length",
+        "matches"
+      ],
+      "properties": {
+        "library": {
+          "$ref": "#/$defs/library_info"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "min_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "matches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/detected_feature"
+          }
+        }
+      }
+    },
+    "enzyme_catalogue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "enzyme_count",
+        "unsupported",
+        "install_hint"
+      ],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "sha256"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "enzyme_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unsupported": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "reason"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "install_hint": {
+          "type": "string"
+        }
+      }
+    },
+    "genbank_save": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_count",
+        "format",
+        "output_path",
+        "primer_count",
+        "retained_snapgene_packets"
+      ],
+      "properties": {
+        "output_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "format": {
+          "const": "genbank"
+        },
+        "feature_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "primer_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retained_snapgene_packets": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "annotate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "feature",
+            "feature_count",
+            "feature_id",
+            "format",
+            "output_path",
+            "primer_count",
+            "retained_snapgene_packets",
+            "translation"
+          ],
+          "properties": {
+            "output_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "format": {
+              "const": "genbank"
+            },
+            "feature_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "primer_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "retained_snapgene_packets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "action": {
+              "const": "add"
+            },
+            "feature_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "feature": {
+              "$ref": "#/$defs/feature"
+            },
+            "translation": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "protein",
+                    "codons"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "feature_count",
+            "feature_id",
+            "format",
+            "output_path",
+            "primer_count",
+            "retained_snapgene_packets"
+          ],
+          "properties": {
+            "output_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "format": {
+              "const": "genbank"
+            },
+            "feature_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "primer_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "retained_snapgene_packets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "action": {
+              "const": "remove"
+            },
+            "feature_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "genetic_code_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "provider": {
+          "const": "NCBI gc.prt"
+        },
+        "version": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "translation_codon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amino_acid",
+        "codon",
+        "positions"
+      ],
+      "properties": {
+        "amino_acid": {
+          "type": "string",
+          "pattern": "^[A-Z*]$"
+        },
+        "codon": {
+          "type": "string",
+          "pattern": "^[ACGTRYSWKMBDHVN]{3}$"
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "feature_translation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ambiguous_codons",
+        "codon_start",
+        "codons",
+        "feature_id",
+        "imported_translation",
+        "initiator_as_methionine",
+        "internal_stops",
+        "kind",
+        "label",
+        "protein",
+        "starts_with_atg",
+        "strand",
+        "table",
+        "table_name",
+        "terminal_stop",
+        "trailing_bases"
+      ],
+      "properties": {
+        "feature_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "imported_translation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "imported_length",
+                "matches",
+                "first_difference"
+              ],
+              "properties": {
+                "imported_length": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matches": {
+                  "type": "boolean"
+                },
+                "first_difference": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "table": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33
+        },
+        "table_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strand": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        },
+        "codon_start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "protein": {
+          "type": "string",
+          "pattern": "^[A-Z*]+$"
+        },
+        "codons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/translation_codon"
+          }
+        },
+        "internal_stops": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "terminal_stop": {
+          "type": "boolean"
+        },
+        "trailing_bases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "ambiguous_codons": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "starts_with_atg": {
+          "type": "boolean"
+        },
+        "initiator_as_methionine": {
+          "type": "boolean"
+        }
+      }
+    },
+    "translate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ambiguous_codons",
+            "codon_start",
+            "codons",
+            "feature_id",
+            "genetic_code_source",
+            "imported_translation",
+            "initiator_as_methionine",
+            "internal_stops",
+            "kind",
+            "label",
+            "mode",
+            "protein",
+            "starts_with_atg",
+            "strand",
+            "table",
+            "table_name",
+            "terminal_stop",
+            "trailing_bases"
+          ],
+          "properties": {
+            "mode": {
+              "const": "feature"
+            },
+            "feature_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "label": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "imported_translation": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "imported_length",
+                    "matches",
+                    "first_difference"
+                  ],
+                  "properties": {
+                    "imported_length": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "matches": {
+                      "type": "boolean"
+                    },
+                    "first_difference": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "table": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 33
+            },
+            "table_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "strand": {
+              "enum": [
+                "forward",
+                "reverse"
+              ]
+            },
+            "codon_start": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "protein": {
+              "type": "string",
+              "pattern": "^[A-Z*]+$"
+            },
+            "codons": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/translation_codon"
+              }
+            },
+            "internal_stops": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "terminal_stop": {
+              "type": "boolean"
+            },
+            "trailing_bases": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "ambiguous_codons": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "starts_with_atg": {
+              "type": "boolean"
+            },
+            "initiator_as_methionine": {
+              "type": "boolean"
+            },
+            "genetic_code_source": {
+              "$ref": "#/$defs/genetic_code_source"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ambiguous_codons",
+            "codon_start",
+            "codons",
+            "end",
+            "genetic_code_source",
+            "initiator_as_methionine",
+            "internal_stops",
+            "mode",
+            "protein",
+            "start",
+            "starts_with_atg",
+            "strand",
+            "table",
+            "table_name",
+            "terminal_stop",
+            "trailing_bases"
+          ],
+          "properties": {
+            "mode": {
+              "const": "range"
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "table": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 33
+            },
+            "table_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "strand": {
+              "enum": [
+                "forward",
+                "reverse"
+              ]
+            },
+            "codon_start": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "protein": {
+              "type": "string",
+              "pattern": "^[A-Z*]+$"
+            },
+            "codons": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/translation_codon"
+              }
+            },
+            "internal_stops": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "terminal_stop": {
+              "type": "boolean"
+            },
+            "trailing_bases": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "ambiguous_codons": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "starts_with_atg": {
+              "type": "boolean"
+            },
+            "initiator_as_methionine": {
+              "type": "boolean"
+            },
+            "genetic_code_source": {
+              "$ref": "#/$defs/genetic_code_source"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "genetic_code_source",
+            "mode",
+            "skipped",
+            "translations"
+          ],
+          "properties": {
+            "mode": {
+              "const": "all_cds"
+            },
+            "translations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/feature_translation"
+              }
+            },
+            "skipped": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "feature_id",
+                  "label",
+                  "reason"
+                ],
+                "properties": {
+                  "feature_id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "genetic_code_source": {
+              "$ref": "#/$defs/genetic_code_source"
+            }
+          }
+        }
+      ]
+    },
+    "orf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codons",
+        "frame",
+        "id",
+        "length",
+        "protein",
+        "start",
+        "start_codon",
+        "stop_codon",
+        "strand",
+        "wraps_origin"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^orf-[0-9]{4,}$"
+        },
+        "strand": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 6
+        },
+        "frame": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "codons": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "protein": {
+          "type": "string",
+          "pattern": "^[A-Z]+$"
+        },
+        "start_codon": {
+          "type": "string",
+          "pattern": "^[ACGT]{3}$"
+        },
+        "stop_codon": {
+          "type": "string",
+          "pattern": "^[ACGTRYSWKMBDHVN]{3}$"
+        },
+        "wraps_origin": {
+          "type": "boolean"
+        }
+      }
+    },
+    "orf_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "genetic_code_source",
+        "options",
+        "orfs",
+        "table_name",
+        "topology"
+      ],
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min_codons",
+            "starts",
+            "table"
+          ],
+          "properties": {
+            "table": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 33
+            },
+            "min_codons": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "starts": {
+              "enum": [
+                "atg_only",
+                "table_starts"
+              ]
+            }
+          }
+        },
+        "table_name": {
+          "type": "string"
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "orfs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/orf"
+          }
+        },
+        "genetic_code_source": {
+          "$ref": "#/$defs/genetic_code_source"
+        }
+      }
+    },
+    "amplification_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sources",
+        "plan_sha256",
+        "feature_id",
+        "engine_version",
+        "design"
+      ],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "input",
+              "name",
+              "path",
+              "file_sha256",
+              "sequence_sha256",
+              "length",
+              "topology",
+              "warnings"
+            ],
+            "properties": {
+              "input": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8
+              },
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "file_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "sequence_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              "topology": {
+                "enum": [
+                  "linear",
+                  "circular"
+                ]
+              },
+              "warnings": {
+                "$ref": "#/$defs/warnings"
+              }
+            }
+          }
+        },
+        "plan_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "feature_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "engine_version": {
+          "type": "string"
+        },
+        "design": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request",
+            "pairs",
+            "candidate_pairs_examined",
+            "feasible_pairs",
+            "model",
+            "limitations"
+          ],
+          "properties": {
+            "request": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference_input",
+                "window_start",
+                "window_length",
+                "junction_min_bases",
+                "positive_inputs",
+                "negative_inputs",
+                "min_product_length",
+                "max_product_length",
+                "screen_max_product_length",
+                "max_mismatches",
+                "exact_three_prime_bases",
+                "max_results",
+                "constraints"
+              ],
+              "properties": {
+                "reference_input": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8
+                },
+                "window_start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "window_length": {
+                  "type": "integer",
+                  "minimum": 36,
+                  "maximum": 500
+                },
+                "junction_offset": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "junction_min_bases": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "positive_inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  }
+                },
+                "negative_inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  }
+                },
+                "min_product_length": {
+                  "type": "integer",
+                  "minimum": 36,
+                  "maximum": 500
+                },
+                "max_product_length": {
+                  "type": "integer",
+                  "minimum": 36,
+                  "maximum": 500
+                },
+                "screen_max_product_length": {
+                  "type": "integer",
+                  "minimum": 36,
+                  "maximum": 5000
+                },
+                "max_mismatches": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2
+                },
+                "exact_three_prime_bases": {
+                  "type": "integer",
+                  "minimum": 4,
+                  "maximum": 40
+                },
+                "max_results": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                },
+                "constraints": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "min_length",
+                    "max_length",
+                    "min_tm_c",
+                    "max_tm_c",
+                    "target_tm_c",
+                    "max_pair_tm_difference_c",
+                    "min_gc_fraction",
+                    "max_gc_fraction",
+                    "max_hairpin_stem",
+                    "max_dimer_run",
+                    "max_three_prime_run",
+                    "solution"
+                  ],
+                  "properties": {
+                    "min_length": {
+                      "type": "integer",
+                      "minimum": 18,
+                      "maximum": 40
+                    },
+                    "max_length": {
+                      "type": "integer",
+                      "minimum": 18,
+                      "maximum": 40
+                    },
+                    "min_tm_c": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "max_tm_c": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "target_tm_c": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "max_pair_tm_difference_c": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 20
+                    },
+                    "min_gc_fraction": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "max_gc_fraction": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "max_hairpin_stem": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 20
+                    },
+                    "max_dimer_run": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 40
+                    },
+                    "max_three_prime_run": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 20
+                    },
+                    "solution": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "sodium_mm",
+                        "potassium_mm",
+                        "tris_mm",
+                        "magnesium_mm",
+                        "dntp_mm",
+                        "primer_nm"
+                      ],
+                      "properties": {
+                        "sodium_mm": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 500
+                        },
+                        "potassium_mm": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 500
+                        },
+                        "tris_mm": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 200
+                        },
+                        "magnesium_mm": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "dntp_mm": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "primer_nm": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 5000
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pairs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "forward",
+                  "reverse",
+                  "heterodimer",
+                  "score",
+                  "screens"
+                ],
+                "properties": {
+                  "forward": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "sequence_5to3",
+                      "reference_start",
+                      "length",
+                      "reverse",
+                      "tm_c",
+                      "gc_fraction",
+                      "hairpin_stem",
+                      "self_dimer"
+                    ],
+                    "properties": {
+                      "sequence_5to3": {
+                        "type": "string",
+                        "pattern": "^[ACGT]{18,40}$"
+                      },
+                      "reference_start": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "length": {
+                        "type": "integer",
+                        "minimum": 18,
+                        "maximum": 40
+                      },
+                      "reverse": {
+                        "type": "boolean"
+                      },
+                      "tm_c": {
+                        "type": "number"
+                      },
+                      "gc_fraction": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "hairpin_stem": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "self_dimer": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "longest_run",
+                          "longest_three_prime_run"
+                        ],
+                        "properties": {
+                          "longest_run": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "longest_three_prime_run": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "reverse": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "sequence_5to3",
+                      "reference_start",
+                      "length",
+                      "reverse",
+                      "tm_c",
+                      "gc_fraction",
+                      "hairpin_stem",
+                      "self_dimer"
+                    ],
+                    "properties": {
+                      "sequence_5to3": {
+                        "type": "string",
+                        "pattern": "^[ACGT]{18,40}$"
+                      },
+                      "reference_start": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "length": {
+                        "type": "integer",
+                        "minimum": 18,
+                        "maximum": 40
+                      },
+                      "reverse": {
+                        "type": "boolean"
+                      },
+                      "tm_c": {
+                        "type": "number"
+                      },
+                      "gc_fraction": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "hairpin_stem": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "self_dimer": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "longest_run",
+                          "longest_three_prime_run"
+                        ],
+                        "properties": {
+                          "longest_run": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "longest_three_prime_run": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "heterodimer": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "longest_run",
+                      "longest_three_prime_run"
+                    ],
+                    "properties": {
+                      "longest_run": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "longest_three_prime_run": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "screens": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "input",
+                        "sites",
+                        "products"
+                      ],
+                      "properties": {
+                        "input": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 8
+                        },
+                        "sites": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "primer",
+                              "start",
+                              "length",
+                              "reverse",
+                              "mismatches"
+                            ],
+                            "properties": {
+                              "primer": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 2
+                              },
+                              "start": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "length": {
+                                "type": "integer",
+                                "minimum": 18,
+                                "maximum": 40
+                              },
+                              "reverse": {
+                                "type": "boolean"
+                              },
+                              "mismatches": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 2
+                              }
+                            }
+                          }
+                        },
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "start",
+                              "length",
+                              "plus_primer",
+                              "minus_primer",
+                              "mismatches",
+                              "template_sequence_forward"
+                            ],
+                            "properties": {
+                              "start": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "length": {
+                                "type": "integer",
+                                "minimum": 36,
+                                "maximum": 5000
+                              },
+                              "plus_primer": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 2
+                              },
+                              "minus_primer": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 2
+                              },
+                              "mismatches": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 4
+                              },
+                              "template_sequence_forward": {
+                                "type": "string",
+                                "pattern": "^[ACGT]+$"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "candidate_pairs_examined": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "feasible_pairs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "model": {
+              "type": "string"
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "primer_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_length",
+        "max_length",
+        "min_tm_c",
+        "max_tm_c",
+        "target_tm_c",
+        "max_pair_tm_difference_c",
+        "min_gc_fraction",
+        "max_gc_fraction",
+        "max_hairpin_stem",
+        "max_dimer_run",
+        "max_three_prime_run",
+        "solution"
+      ],
+      "properties": {
+        "min_length": {
+          "type": "integer",
+          "minimum": 18,
+          "maximum": 40
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 18,
+          "maximum": 40
+        },
+        "min_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "target_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_pair_tm_difference_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "min_gc_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_gc_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_hairpin_stem": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "max_dimer_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "max_three_prime_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "solution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sodium_mm",
+            "potassium_mm",
+            "tris_mm",
+            "magnesium_mm",
+            "dntp_mm",
+            "primer_nm"
+          ],
+          "properties": {
+            "sodium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "potassium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "tris_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 200
+            },
+            "magnesium_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "dntp_mm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "primer_nm": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    },
+    "dimer_screen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "longest_run",
+        "longest_three_prime_run"
+      ],
+      "properties": {
+        "longest_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "longest_three_prime_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "assessed_primer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primer",
+        "annealing_tm_c",
+        "hairpin_stem",
+        "self_dimer"
+      ],
+      "properties": {
+        "primer": {
+          "$ref": "#/$defs/primer_candidate"
+        },
+        "annealing_tm_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "hairpin_stem": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 48
+        },
+        "self_dimer": {
+          "$ref": "#/$defs/dimer_screen"
+        }
+      }
+    },
+    "optimised_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "forward",
+        "reverse",
+        "heterodimer",
+        "score",
+        "candidate_pairs_examined",
+        "feasible_pairs"
+      ],
+      "properties": {
+        "component": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128,
+          "description": "1-based component this pair amplifies; provided fragments have no pair."
+        },
+        "forward": {
+          "$ref": "#/$defs/assessed_primer"
+        },
+        "reverse": {
+          "$ref": "#/$defs/assessed_primer"
+        },
+        "heterodimer": {
+          "$ref": "#/$defs/dimer_screen"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200
+        },
+        "candidate_pairs_examined": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 529
+        },
+        "feasible_pairs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 529
+        }
+      }
+    },
+    "optimised_gibson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design",
+        "constraints",
+        "pairs",
+        "assumptions"
+      ],
+      "properties": {
+        "design": {
+          "$ref": "#/$defs/gibson"
+        },
+        "constraints": {
+          "$ref": "#/$defs/primer_constraints"
+        },
+        "pairs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/optimised_pair"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0
+        },
+        "product_genbank": {
+          "$ref": "#/$defs/saved_product"
+        }
+      }
+    },
+    "existing_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "sequence_5to3",
+        "product_start",
+        "wraps_origin",
+        "annotations"
+      ],
+      "properties": {
+        "selection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "start",
+            "length",
+            "orientation"
+          ],
+          "properties": {
+            "input": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 999999
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "orientation": {
+              "enum": [
+                "forward",
+                "reverse"
+              ]
+            }
+          }
+        },
+        "sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]+$",
+          "maxLength": 1000000
+        },
+        "product_start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999
+        },
+        "wraps_origin": {
+          "type": "boolean"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/feature_mapping"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "existing_assembly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputs",
+        "topology",
+        "product_sequence_5to3",
+        "components",
+        "junctions",
+        "assumptions"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gibson_source_record"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "product_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]+$",
+          "maxLength": 1000000
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/existing_component"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "junctions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gibson_junction"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "gibson_core_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input",
+        "start",
+        "length",
+        "orientation"
+      ],
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 36,
+          "maximum": 1000000
+        },
+        "orientation": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        }
+      }
+    },
+    "gibson_source_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sequence",
+        "topology",
+        "features",
+        "primers"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 1,
+          "maxLength": 1000000
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_feature"
+          },
+          "minItems": 0
+        },
+        "primers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/primer"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "primer_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence_5to3",
+        "annealing_sequence_5to3",
+        "tail_sequence_5to3",
+        "annealing_gc_bases"
+      ],
+      "properties": {
+        "sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 18,
+          "maxLength": 100
+        },
+        "annealing_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 18,
+          "maxLength": 40
+        },
+        "tail_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 0,
+          "maxLength": 60
+        },
+        "annealing_gc_bases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        }
+      }
+    },
+    "gibson_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "preparation",
+        "product_start",
+        "core_sequence_5to3",
+        "fragment_sequence_5to3",
+        "forward_primer",
+        "reverse_primer",
+        "annotations"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/gibson_core_selection"
+        },
+        "preparation": {
+          "enum": [
+            "pcr",
+            "provided"
+          ],
+          "description": "How the fragment reaches the reaction. A provided fragment (restriction digest, synthesis, stock DNA) gets no primers."
+        },
+        "product_start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999
+        },
+        "core_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 36,
+          "maxLength": 1000000
+        },
+        "fragment_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 36,
+          "maxLength": 1000060,
+          "description": "The fragment as it enters the reaction: core plus primer tails when amplified, the core itself when provided."
+        },
+        "forward_primer": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/primer_candidate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for a provided fragment, which is not amplified."
+        },
+        "reverse_primer": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/primer_candidate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for a provided fragment, which is not amplified."
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/feature_mapping"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "gibson_junction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "after_component",
+        "before_component",
+        "closure",
+        "product_start",
+        "overlap_sequence_5to3",
+        "added_by"
+      ],
+      "properties": {
+        "after_component": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "before_component": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "closure": {
+          "type": "boolean"
+        },
+        "product_start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999
+        },
+        "overlap_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 20,
+          "maxLength": 60
+        },
+        "added_by": {
+          "description": "Which primer writes this overlap as a 5-prime tail; null when the fragments already overlap.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "primer",
+                "component"
+              ],
+              "properties": {
+                "primer": {
+                  "enum": [
+                    "reverse_of",
+                    "forward_of"
+                  ]
+                },
+                "component": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 128
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "saved_product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "length",
+        "features",
+        "primers",
+        "features_left_out"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "features": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "primers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "features_left_out": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "gibson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputs",
+        "topology",
+        "overlap_length",
+        "annealing_length",
+        "product_sequence_5to3",
+        "components",
+        "junctions",
+        "assumptions"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gibson_source_record"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "overlap_length": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 60
+        },
+        "annealing_length": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 18,
+              "maximum": 40
+            }
+          ]
+        },
+        "product_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]*$",
+          "minLength": 36,
+          "maxLength": 1000000
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gibson_component"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "junctions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gibson_junction"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0
+        },
+        "product_genbank": {
+          "$ref": "#/$defs/saved_product"
+        }
+      }
+    },
+    "fragment_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input",
+        "fragment_id",
+        "orientation"
+      ],
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "fragment_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "orientation": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        }
+      }
+    },
+    "product_span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "length",
+        "source_strand"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        },
+        "source_strand": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        }
+      }
+    },
+    "component_placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "top",
+        "bottom"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/fragment_selection"
+        },
+        "top": {
+          "$ref": "#/$defs/product_span"
+        },
+        "bottom": {
+          "$ref": "#/$defs/product_span"
+        }
+      }
+    },
+    "ligation_junction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "after_component",
+        "before_component",
+        "closure",
+        "top_boundary",
+        "bottom_boundary",
+        "assessment"
+      ],
+      "properties": {
+        "after_component": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "before_component": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "closure": {
+          "type": "boolean"
+        },
+        "top_boundary": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "bottom_boundary": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "assessment": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/end_assessment"
+            },
+            {
+              "properties": {
+                "compatible": {
+                  "const": true
+                },
+                "second_fragment_orientation": {
+                  "const": "forward"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "unused_fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input",
+        "fragment_id"
+      ],
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "fragment_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ligation_product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topology",
+        "top_sequence_5to3",
+        "bottom_sequence_5to3",
+        "bottom_forward_start",
+        "paired_length",
+        "left_end",
+        "right_end",
+        "components",
+        "junctions"
+      ],
+      "properties": {
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "top_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]+$",
+          "maxLength": 10000000
+        },
+        "bottom_sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]+$",
+          "maxLength": 10000000
+        },
+        "bottom_forward_start": {
+          "type": "integer",
+          "minimum": -10000000,
+          "maximum": 10000000
+        },
+        "paired_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        },
+        "left_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fragment_end"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "right_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fragment_end"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component_placement"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "junctions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ligation_junction"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "topology": {
+              "const": "linear"
+            },
+            "left_end": {
+              "$ref": "#/$defs/fragment_end"
+            },
+            "right_end": {
+              "$ref": "#/$defs/fragment_end"
+            }
+          }
+        },
+        {
+          "properties": {
+            "topology": {
+              "const": "circular"
+            },
+            "left_end": {
+              "type": "null"
+            },
+            "right_end": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "ligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputs",
+        "product",
+        "unused_fragments",
+        "assumptions"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotated_digest"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "product": {
+          "$ref": "#/$defs/ligation_product"
+        },
+        "unused_fragments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unused_fragment"
+          },
+          "minItems": 0
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "source_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "location",
+        "qualifiers",
+        "display"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          },
+          "minItems": 0
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "color"
+          ],
+          "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "mapped_part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_part",
+        "source_offset",
+        "source_region",
+        "fragment_region"
+      ],
+      "properties": {
+        "source_part": {
+          "$ref": "#/$defs/position"
+        },
+        "source_offset": {
+          "$ref": "#/$defs/position"
+        },
+        "source_region": {
+          "$ref": "#/$defs/region"
+        },
+        "fragment_region": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start",
+            "end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "linear"
+            },
+            "start": {
+              "$ref": "#/$defs/position"
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "feature_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_feature_id",
+        "fragment_strand",
+        "source_bases",
+        "retained_bases",
+        "complete",
+        "split_source_parts",
+        "parts"
+      ],
+      "properties": {
+        "source_feature_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fragment_strand": {
+          "$ref": "#/$defs/strand"
+        },
+        "source_bases": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retained_bases": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "split_source_parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/position"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mapped_part"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "fragment_annotations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fragment_id",
+        "top",
+        "bottom"
+      ],
+      "properties": {
+        "fragment_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "top": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/feature_mapping"
+          },
+          "minItems": 0
+        },
+        "bottom": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/feature_mapping"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "annotated_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_name",
+        "source_features",
+        "source_primers",
+        "digest",
+        "annotations",
+        "assumptions"
+      ],
+      "properties": {
+        "source_name": {
+          "type": "string"
+        },
+        "source_features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_feature"
+          },
+          "minItems": 0
+        },
+        "source_primers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/primer"
+          },
+          "minItems": 0
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fragment_annotations"
+          },
+          "minItems": 1
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0
+        }
+      }
+    },
+    "end_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatible",
+        "reason",
+        "second_fragment_orientation",
+        "second_placement"
+      ],
+      "properties": {
+        "compatible": {
+          "type": "boolean"
+        },
+        "reason": {
+          "enum": [
+            "blunt_ends",
+            "complementary_overhangs",
+            "polarity_mismatch",
+            "overhang_length_mismatch",
+            "overhang_sequence_mismatch"
+          ]
+        },
+        "second_fragment_orientation": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        },
+        "second_placement": {
+          "enum": [
+            "before_first",
+            "after_first"
+          ]
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "input",
+        "fragment_id",
+        "side",
+        "end"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "fragment_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "end": {
+          "$ref": "#/$defs/fragment_end"
+        }
+      }
+    },
+    "end_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first",
+        "second",
+        "same_fragment",
+        "assessment"
+      ],
+      "properties": {
+        "first": {
+          "type": "string",
+          "minLength": 1
+        },
+        "second": {
+          "type": "string",
+          "minLength": 1
+        },
+        "same_fragment": {
+          "type": "boolean"
+        },
+        "assessment": {
+          "$ref": "#/$defs/end_assessment"
+        }
+      }
+    },
+    "end_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoints",
+        "pairs",
+        "assumptions"
+      ],
+      "properties": {
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/endpoint"
+          },
+          "maxItems": 128
+        },
+        "pairs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/end_pair"
+          },
+          "maxItems": 8128
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "compatibility_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputs",
+        "analysis"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/compatibility_input"
+          },
+          "minItems": 1,
+          "maxItems": 2
+        },
+        "analysis": {
+          "$ref": "#/$defs/end_analysis"
+        }
+      }
+    },
+    "position": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "strand": {
+      "enum": [
+        "forward",
+        "reverse",
+        "unknown"
+      ]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "packet_type"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string"
+        },
+        "packet_type": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "command_failed",
+            "import_warnings",
+            "restriction_scan_failed",
+            "digest_failed",
+            "compatibility_failed",
+            "annotation_failed",
+            "ligation_failed",
+            "gibson_failed",
+            "amplification_failed",
+            "translation_failed",
+            "edit_failed",
+            "library_failed"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "inspect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "length",
+        "topology",
+        "feature_count",
+        "primer_count",
+        "warnings"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "feature_count": {
+          "$ref": "#/$defs/position"
+        },
+        "primer_count": {
+          "$ref": "#/$defs/position"
+        },
+        "warnings": {
+          "$ref": "#/$defs/warnings"
+        }
+      }
+    },
+    "region": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start",
+            "end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "linear"
+            },
+            "start": {
+              "$ref": "#/$defs/position"
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": "circular_arc"
+            },
+            "start": {
+              "$ref": "#/$defs/position"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parts",
+        "strand",
+        "operator"
+      ],
+      "properties": {
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/region"
+          }
+        },
+        "strand": {
+          "$ref": "#/$defs/strand"
+        },
+        "operator": {
+          "enum": [
+            "contiguous",
+            "join",
+            "order"
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "operator": {
+              "const": "contiguous"
+            },
+            "parts": {
+              "maxItems": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "operator": {
+              "enum": [
+                "join",
+                "order"
+              ]
+            },
+            "parts": {
+              "minItems": 2
+            }
+          }
+        }
+      ]
+    },
+    "qualifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "value"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "strand",
+        "location",
+        "color",
+        "qualifiers"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "strand": {
+          "$ref": "#/$defs/strand"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          }
+        }
+      }
+    },
+    "primer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sequence",
+        "description"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[ACGTRYSWKMBDHVN]+$"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "sequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "sequence"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[ACGTRYSWKMBDHVN]*$"
+        }
+      }
+    },
+    "enzyme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "recognition_sequence",
+        "top_cut_offset",
+        "bottom_cut_offset"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recognition_sequence": {
+          "type": "string",
+          "pattern": "^[ACGTRYSWKMBDHVN]+$"
+        },
+        "top_cut_offset": {
+          "type": "integer"
+        },
+        "bottom_cut_offset": {
+          "type": "integer"
+        }
+      }
+    },
+    "restriction_site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enzyme",
+        "recognition",
+        "strand",
+        "top_cut",
+        "bottom_cut",
+        "cleavage_available",
+        "overhang_polarity",
+        "overhang_length"
+      ],
+      "properties": {
+        "enzyme": {
+          "type": "string"
+        },
+        "recognition": {
+          "$ref": "#/$defs/region"
+        },
+        "strand": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        },
+        "top_cut": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "bottom_cut": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "cleavage_available": {
+          "type": "boolean"
+        },
+        "overhang_polarity": {
+          "enum": [
+            "blunt",
+            "five_prime",
+            "three_prime"
+          ]
+        },
+        "overhang_length": {
+          "$ref": "#/$defs/position"
+        }
+      }
+    },
+    "restriction_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "length",
+        "topology",
+        "enzymes",
+        "sites",
+        "assumptions"
+      ],
+      "properties": {
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "enzymes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/enzyme"
+          }
+        },
+        "sites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/restriction_site"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "digest_cut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "top_cut",
+        "bottom_cut",
+        "enzymes"
+      ],
+      "properties": {
+        "top_cut": {
+          "$ref": "#/$defs/position"
+        },
+        "bottom_cut": {
+          "$ref": "#/$defs/position"
+        },
+        "enzymes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fragment_end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_terminus",
+        "polarity",
+        "protruding_strand",
+        "overhang_sequence",
+        "enzymes"
+      ],
+      "properties": {
+        "original_terminus": {
+          "type": "boolean"
+        },
+        "polarity": {
+          "enum": [
+            "blunt",
+            "five_prime",
+            "three_prime"
+          ]
+        },
+        "protruding_strand": {
+          "enum": [
+            "forward",
+            "reverse",
+            null
+          ]
+        },
+        "overhang_sequence": {
+          "type": "string",
+          "pattern": "^[ACGT]*$"
+        },
+        "enzymes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fragment_strand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_start",
+        "length",
+        "sequence_5to3"
+      ],
+      "properties": {
+        "source_start": {
+          "$ref": "#/$defs/position"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sequence_5to3": {
+          "type": "string",
+          "pattern": "^[ACGT]+$"
+        }
+      }
+    },
+    "digest_fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "topology",
+        "top",
+        "bottom",
+        "paired_length",
+        "left_end",
+        "right_end"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "top": {
+          "$ref": "#/$defs/fragment_strand"
+        },
+        "bottom": {
+          "$ref": "#/$defs/fragment_strand"
+        },
+        "paired_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "left_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fragment_end"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "right_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fragment_end"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_length",
+        "input_topology",
+        "enzymes",
+        "cuts",
+        "fragments",
+        "assumptions"
+      ],
+      "properties": {
+        "input_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_topology": {
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "enzymes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/enzyme"
+          }
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/digest_cut"
+          }
+        },
+        "fragments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/digest_fragment"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_path"
+      ],
+      "properties": {
+        "output_path": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
