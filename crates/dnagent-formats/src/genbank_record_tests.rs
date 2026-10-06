@@ -148,6 +148,7 @@ fn rich_report() -> ImportReport {
             .for_packet(0x1c),
         ],
         preserved_metadata: FormatExtensions {
+            snapgene: None,
             opaque_packets: vec![OpaquePacket::new(0x1c, vec![0, 255, 1, 2])],
             interpreted_source_packets: vec![OpaquePacket::new(10, b"<Features/>".to_vec())],
             genbank_header: vec![],

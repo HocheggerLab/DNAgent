@@ -9,7 +9,9 @@ use dnagent_domain::{
     DisplayHints, DnaSeq, Feature, FeatureId, ImportedPrimer, Location, LocationOperator,
     Qualifier, Region, SequenceRecord, Strand, Topology,
 };
-use dnagent_formats::{FormatExtensions, ImportError, ImportReport, ImportWarning, OpaquePacket};
+use dnagent_formats::{
+    FormatExtensions, ImportError, ImportReport, ImportWarning, OpaquePacket, SnapGeneLayout,
+};
 use quick_xml::de::from_str;
 use serde::Deserialize;
 use std::str;
@@ -36,11 +38,15 @@ pub fn import_bytes(
     validate_cookie(first.payload)?;
 
     let mut sequence = None;
+    let mut raw_sequence = None;
+    let mut dna_flags = 0u8;
     let mut topology = Topology::Linear;
     let mut raw_features = Vec::new();
     let mut raw_primers = Vec::new();
     let mut warnings = Vec::new();
     let mut extensions = FormatExtensions::default();
+    let packet_order = packets.iter().map(|p| p.packet_type).collect();
+    let cookie = first.payload.to_vec();
 
     for packet in packets.into_iter().skip(1) {
         match packet.packet_type {
@@ -48,9 +54,11 @@ pub fn import_bytes(
                 if sequence.is_some() {
                     return Err(ImportError::DuplicateSequence);
                 }
-                let (parsed_sequence, parsed_topology) = parse_dna(packet.payload)?;
+                let (parsed_sequence, parsed_topology, flags, text) = parse_dna(packet.payload)?;
+                raw_sequence = (text != parsed_sequence.as_str()).then_some(text);
                 sequence = Some(parsed_sequence);
                 topology = parsed_topology;
+                dna_flags = flags;
             }
             FEATURES => {
                 raw_features.extend(parse_features_xml(packet.payload)?);
@@ -80,6 +88,12 @@ pub fn import_bytes(
     }
 
     let sequence = sequence.ok_or(ImportError::MissingSequence)?;
+    extensions.snapgene = Some(SnapGeneLayout {
+        cookie,
+        dna_flags,
+        raw_sequence,
+        packet_order,
+    });
     let sequence_length = sequence.len();
     let features = convert_features(raw_features, sequence_length, topology, &mut warnings);
     let primers = convert_primers(raw_primers, &mut warnings);
@@ -147,7 +161,7 @@ fn validate_cookie(payload: &[u8]) -> Result<(), ImportError> {
     Ok(())
 }
 
-fn parse_dna(payload: &[u8]) -> Result<(DnaSeq, Topology), ImportError> {
+fn parse_dna(payload: &[u8]) -> Result<(DnaSeq, Topology, u8, String), ImportError> {
     let Some((&flags, sequence)) = payload.split_first() else {
         return Err(invalid_format("DNA packet is empty"));
     };
@@ -160,7 +174,7 @@ fn parse_dna(payload: &[u8]) -> Result<(DnaSeq, Topology), ImportError> {
     } else {
         Topology::Circular
     };
-    Ok((DnaSeq::new(sequence)?, topology))
+    Ok((DnaSeq::new(sequence)?, topology, flags, sequence.to_owned()))
 }
 
 fn preserve_packet(
@@ -484,4 +498,122 @@ mod tests {
         assert_eq!(report.warnings.len(), 1);
         assert_eq!(report.preserved_metadata.opaque_packets.len(), 1);
     }
+}
+
+// ------------------------------------------------------------------------- export
+
+/// Why a record cannot be written as SnapGene `.dna`.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ExportError {
+    #[error(
+        "this record was not read from a SnapGene file, so its packet layout is unknown; save GenBank instead"
+    )]
+    NoLayout,
+    #[error(
+        "the record no longer matches the SnapGene annotations it was read with ({reason}); writing it would produce a file that contradicts itself"
+    )]
+    Modified { reason: String },
+}
+
+fn packet(packet_type: u8, payload: &[u8], out: &mut Vec<u8>) {
+    out.push(packet_type);
+    out.extend_from_slice(
+        &u32::try_from(payload.len())
+            .unwrap_or(u32::MAX)
+            .to_be_bytes(),
+    );
+    out.extend_from_slice(payload);
+}
+
+/// Write a record that was read from `.dna` and not edited since, reproducing the original
+/// file byte for byte: the cookie and DNA flags as they arrived, every packet in its
+/// original order, and the annotation packets as their untouched source XML.
+///
+/// Records DNAgent built or edited are refused rather than written from stale annotation
+/// packets; generating SnapGene annotation XML from the model is separate work.
+pub fn export_bytes(report: &ImportReport) -> Result<Vec<u8>, ExportError> {
+    let extensions = &report.preserved_metadata;
+    let layout = extensions.snapgene.as_ref().ok_or(ExportError::NoLayout)?;
+    verify_unmodified(report)?;
+
+    let mut out = Vec::new();
+    let mut interpreted = extensions.interpreted_source_packets.iter();
+    let mut opaque = extensions.opaque_packets.iter();
+    let mut sequence_written = false;
+    for &packet_type in &layout.packet_order {
+        match packet_type {
+            COOKIE => packet(COOKIE, &layout.cookie, &mut out),
+            DNA if !sequence_written => {
+                let text = layout
+                    .raw_sequence
+                    .as_deref()
+                    .filter(|raw| raw.eq_ignore_ascii_case(report.record.sequence().as_str()))
+                    .unwrap_or_else(|| report.record.sequence().as_str());
+                let mut payload = Vec::with_capacity(text.len() + 1);
+                payload.push(layout.dna_flags);
+                payload.extend_from_slice(text.as_bytes());
+                packet(DNA, &payload, &mut out);
+                sequence_written = true;
+            }
+            FEATURES | PRIMERS => {
+                let source = interpreted.next().ok_or_else(|| ExportError::Modified {
+                    reason: format!("no retained source packet for type 0x{packet_type:02x}"),
+                })?;
+                packet(source.packet_type, &source.payload, &mut out);
+            }
+            _ => {
+                let source = opaque.next().ok_or_else(|| ExportError::Modified {
+                    reason: format!("no retained source packet for type 0x{packet_type:02x}"),
+                })?;
+                packet(source.packet_type, &source.payload, &mut out);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The retained annotation packets must still describe the record. Re-reading them is the
+/// only honest check: an edit that added, removed or moved a feature invalidates them.
+fn verify_unmodified(report: &ImportReport) -> Result<(), ExportError> {
+    let mut raw_features = Vec::new();
+    let mut raw_primers = Vec::new();
+    for source in &report.preserved_metadata.interpreted_source_packets {
+        match source.packet_type {
+            FEATURES => raw_features.extend(parse_features_xml(&source.payload).map_err(|e| {
+                ExportError::Modified {
+                    reason: e.to_string(),
+                }
+            })?),
+            PRIMERS => raw_primers.extend(parse_primers_xml(&source.payload).map_err(|e| {
+                ExportError::Modified {
+                    reason: e.to_string(),
+                }
+            })?),
+            _ => {}
+        }
+    }
+    let mut ignored = Vec::new();
+    let record = &report.record;
+    let features = convert_features(
+        raw_features,
+        record.sequence().len(),
+        record.topology(),
+        &mut ignored,
+    );
+    let primers = convert_primers(raw_primers, &mut ignored);
+    if features != record.features() {
+        return Err(ExportError::Modified {
+            reason: format!(
+                "{} annotations in the file, {} in the record",
+                features.len(),
+                record.features().len()
+            ),
+        });
+    }
+    if primers != record.primers() {
+        return Err(ExportError::Modified {
+            reason: "the primer list differs from the file's".into(),
+        });
+    }
+    Ok(())
 }

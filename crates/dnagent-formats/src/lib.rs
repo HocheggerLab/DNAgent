@@ -55,9 +55,30 @@ impl OpaquePacket {
     }
 }
 
+/// What a SnapGene file carries beside the sequence and its annotations, so a record read
+/// from `.dna` can be written back exactly as it arrived. The cookie's version fields, the
+/// DNA flag bits beyond "circular" (methylation and friends, which DNAgent does not model)
+/// and the packet order all vary between real files, so none can be regenerated.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SnapGeneLayout {
+    /// The 14-byte cookie payload, verbatim.
+    pub cookie: Vec<u8>,
+    /// First byte of the DNA packet. Bit 0 is topology; the rest are preserved, not modelled.
+    pub dna_flags: u8,
+    /// The sequence exactly as the file stored it, when that differs from the record's
+    /// (DNAgent upper-cases; SnapGene files may hold lower or mixed case).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_sequence: Option<String>,
+    /// Packet types in file order, including the cookie and the DNA packet.
+    pub packet_order: Vec<u8>,
+}
+
 /// Adapter-owned source data retained outside the biological domain.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct FormatExtensions {
+    /// Present when the record was read from SnapGene `.dna`; required to write one back.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapgene: Option<SnapGeneLayout>,
     /// Packets whose semantics are not yet interpreted.
     pub opaque_packets: Vec<OpaquePacket>,
     /// Raw copies of interpreted packets, preserving unsupported nested metadata.

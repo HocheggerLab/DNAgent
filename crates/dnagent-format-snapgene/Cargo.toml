@@ -12,5 +12,7 @@ dnagent-formats = { path = "../dnagent-formats" }
 quick-xml.workspace = true
 serde.workspace = true
 
+thiserror.workspace = true
+
 [lints]
 workspace = true

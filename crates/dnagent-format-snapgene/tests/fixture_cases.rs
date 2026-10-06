@@ -231,3 +231,93 @@ fn malformed_feature_xml_is_rejected() {
         })
     ));
 }
+
+/// A file DNAgent only read must be written back exactly as it arrived: same cookie
+/// version fields, same DNA flag bits (including the methylation bits DNAgent does not
+/// model), same packet order and the annotation XML untouched.
+#[test]
+fn every_valid_fixture_round_trips_byte_for_byte() {
+    let directory =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/formats/snapgene");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&directory).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+        if path.extension().is_none_or(|e| e != "dna") || name.starts_with("invalid_") {
+            continue;
+        }
+        let original = bytes(&name);
+        let report = dnagent_format_snapgene::import_bytes(&original, &name).unwrap();
+        let written = dnagent_format_snapgene::export_bytes(&report).unwrap();
+        assert_eq!(written, original, "{name} did not round trip byte for byte");
+        checked += 1;
+    }
+    assert!(
+        checked >= 11,
+        "expected every valid fixture, checked {checked}"
+    );
+}
+
+/// Writing an edited record from the file's retained annotation packets would produce a
+/// file that disagrees with itself, so it is refused.
+#[test]
+fn an_edited_record_is_refused_rather_than_written_stale() {
+    let report = import("synthetic_linear.dna");
+    let mut features = report.record.features().to_vec();
+    features.pop();
+    let edited = dnagent_formats::ImportReport {
+        record: dnagent_domain::SequenceRecord::new(
+            report.record.name(),
+            report.record.sequence().clone(),
+            report.record.topology(),
+            features,
+            report.record.primers().to_vec(),
+        )
+        .unwrap(),
+        ..report
+    };
+    let error = dnagent_format_snapgene::export_bytes(&edited).unwrap_err();
+    assert!(matches!(
+        error,
+        dnagent_format_snapgene::ExportError::Modified { .. }
+    ));
+}
+
+/// A record that never came from SnapGene has no packet layout to reproduce.
+#[test]
+fn a_record_without_a_snapgene_layout_cannot_be_written() {
+    let mut report = import("synthetic_linear.dna");
+    report.preserved_metadata.snapgene = None;
+    assert_eq!(
+        dnagent_format_snapgene::export_bytes(&report).unwrap_err(),
+        dnagent_format_snapgene::ExportError::NoLayout
+    );
+}
+
+/// Opt-in round-trip over real SnapGene files, which carry packets the public fixtures do
+/// not (`0x03`, `0x0d`, `0x0e`, `0x11`, `0x23`, …). Private data stays outside the
+/// repository: point `DNAGENT_PRIVATE_DNA` at a directory and run with `--ignored`.
+#[test]
+#[ignore = "needs DNAGENT_PRIVATE_DNA; private constructs are not in the repository"]
+fn real_snapgene_files_round_trip_byte_for_byte() {
+    let directory = std::env::var("DNAGENT_PRIVATE_DNA")
+        .expect("set DNAGENT_PRIVATE_DNA to a directory of .dna files");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_none_or(|e| e != "dna") {
+            continue;
+        }
+        let original = std::fs::read(&path).unwrap();
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let report = dnagent_format_snapgene::import_bytes(&original, &name).unwrap();
+        let written = dnagent_format_snapgene::export_bytes(&report).unwrap();
+        assert_eq!(written.len(), original.len(), "{name}: length differs");
+        assert!(
+            written == original,
+            "{name} did not round trip byte for byte"
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "no .dna files in {directory}");
+}
