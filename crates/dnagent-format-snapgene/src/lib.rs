@@ -773,9 +773,16 @@ pub fn export_record(
 
     let mut out = Vec::new();
     packet(COOKIE, &cookie, &mut out);
-    let mut dna = Vec::with_capacity(record.sequence().len() + 1);
+    // Keep the source file's casing when the bases are unchanged: DNAgent upper-cases
+    // internally, and a user who edits an annotation should not find their whole sequence
+    // rewritten in a different case.
+    let text = layout
+        .and_then(|l| l.raw_sequence.as_deref())
+        .filter(|raw| raw.eq_ignore_ascii_case(record.sequence().as_str()))
+        .unwrap_or_else(|| record.sequence().as_str());
+    let mut dna = Vec::with_capacity(text.len() + 1);
     dna.push(flags);
-    dna.extend_from_slice(record.sequence().as_str().as_bytes());
+    dna.extend_from_slice(text.as_bytes());
     packet(DNA, &dna, &mut out);
     if !record.features().is_empty() {
         packet(FEATURES, features_xml(record).as_bytes(), &mut out);

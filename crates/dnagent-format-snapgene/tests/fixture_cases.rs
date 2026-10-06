@@ -410,3 +410,19 @@ fn generated_files_preserve_the_model_for_real_files() {
     }
     assert!(checked > 0, "no .dna files in {directory}");
 }
+
+/// Editing an annotation must not rewrite the sequence in a different case: DNAgent
+/// upper-cases internally, but the file's own casing is what the user sees in SnapGene.
+#[test]
+fn generating_keeps_the_source_files_sequence_casing() {
+    let report = import("synthetic_linear.dna");
+    let (written, _) =
+        dnagent_format_snapgene::export_record(&report.record, Some(&report.preserved_metadata));
+    let original = bytes("synthetic_linear.dna");
+    let sequence_of = |file: &[u8]| {
+        let start = file.windows(4).position(|w| w == b"acgt" || w == b"ACGT");
+        start.map(|at| String::from_utf8_lossy(&file[at..at + 15]).into_owned())
+    };
+    assert_eq!(sequence_of(&written), sequence_of(&original));
+    assert!(sequence_of(&written).unwrap().starts_with("acgt"));
+}
