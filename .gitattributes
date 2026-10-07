@@ -1,0 +1,23 @@
+# Line endings are LF everywhere, in the repository and in the working tree.
+#
+# Without this, git on Windows checks text files out with CRLF, and the generated
+# TypeScript contract stopped matching the Rust that generates it — the bytes differed
+# even though nothing had changed. Anything compared byte for byte (bindings.ts, GenBank
+# round trips, JSON schemas) needs one answer to "what is a newline" on every platform.
+* text=auto eol=lf
+
+# Binary: never translated, never diffed as text. SnapGene .dna files are the reason this
+# matters most — DNAgent reproduces a file it only read byte for byte, so a single
+# translated 0x0D would corrupt a fixture and break that guarantee invisibly.
+*.dna binary
+*.png binary
+*.ico binary
+*.icns binary
+*.prt binary
+*.sqlite binary
+*.duckdb binary
+
+# Generated; keep them out of diffs and language statistics.
+desktop/src/bindings.ts linguist-generated=true
+Cargo.lock linguist-generated=true
+desktop/package-lock.json linguist-generated=true
