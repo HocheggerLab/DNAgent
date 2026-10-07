@@ -8,7 +8,13 @@ name: CI
 on:
   push:
     branches: [main]
+    # Prose cannot break the build, and compiling Rust on three platforms to prove it
+    # wastes ten minutes. Narrow on purpose: `skills/**` is excluded from this list
+    # because the skills pin CLI contracts and their checks run here, and a bare
+    # `**/*.md` would have skipped exactly the run that catches that drift.
+    paths-ignore: ['*.md', 'docs/**', 'LICENSE', 'NOTICE', 'licenses/**']
   pull_request:
+    paths-ignore: ['*.md', 'docs/**', 'LICENSE', 'NOTICE', 'licenses/**']
   workflow_dispatch:
 
 concurrency:
@@ -105,7 +111,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: npm ci
         working-directory: desktop
-      - run: npx playwright install --with-deps chromium
+      # Playwright's browser, cached: `--with-deps` apt-installs the browser libraries on
+      # every run and took longer than the rest of CI put together. ubuntu-latest already
+      # ships what Chromium needs, so only the browser itself is fetched, once per
+      # Playwright version.
+      - uses: actions/cache@v4
+        id: playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+      - if: steps.playwright.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
         working-directory: desktop
       - run: npx tsc --noEmit
         working-directory: desktop
