@@ -95,8 +95,8 @@ came from, not by what downloaded it.
 
 ### What is missing on Windows
 
-The **live agent connection is macOS and Linux only** for now. It runs over a unix socket,
-which Windows does not have, and the portable alternatives are network ports that any
+The **live agent connection is macOS and Linux only**. It runs over a unix socket, which
+Windows does not have, and the portable alternatives are network ports that any
 process on the machine could reach — that needs an access token before it is safe to
 serve your constructs over one.
 

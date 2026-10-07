@@ -6,7 +6,6 @@ use std::os::unix::net::UnixListener;
 use std::process::{Command, Stdio};
 
 /// How long the relay exchange may take before the test reports where it stalled.
-#[cfg(target_os = "macos")]
 const RELAY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 fn socket(name: &str) -> std::path::PathBuf {
@@ -17,7 +16,6 @@ fn socket(name: &str) -> std::path::PathBuf {
 }
 
 /// How far the relay exchange got, so a hang names the step instead of timing out blind.
-#[cfg(target_os = "macos")]
 const STAGES: [&str; 5] = [
     "connecting to the stand-in app",
     "writing the request to the relay's stdin",
@@ -26,10 +24,8 @@ const STAGES: [&str; 5] = [
     "joining the stand-in app",
 ];
 
-// Linux-only stall: the exchange blocks and leaves an orphan relay behind, where macOS
-// completes it in under a second. Released builds are macOS, so this runs there and the
-// bug is tracked rather than chased now: https://github.com/HocheggerLab/DNAgent/issues/1
-#[cfg(target_os = "macos")]
+// Runs on every unix platform again: this is the test that caught the Linux stall of
+// issue #1, where `io::copy`'s splice specialisation held the first request in the pipe.
 #[test]
 fn relays_lines_both_ways_until_stdin_closes() {
     use std::sync::atomic::{AtomicUsize, Ordering};

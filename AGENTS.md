@@ -26,6 +26,11 @@
 
 ## Validation
 
+Linux-only behaviour is not visible on macOS — a relay stall, lints that differ by
+toolchain, `#[cfg]`-gated code that stops compiling. `scripts/linux-check.sh` runs the
+Rust checks in a container (same pinned toolchain as CI) in about a minute; use it before
+pushing anything platform-sensitive.
+
 `.github/workflows/ci.yml` runs all of this on every push and pull request; run it locally
 before committing rather than discovering it there. Releases are cut by
 `.github/workflows/release.yml` from the conventional-commit history (commitizen,

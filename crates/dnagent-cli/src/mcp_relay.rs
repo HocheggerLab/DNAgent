@@ -27,19 +27,43 @@ pub fn run(socket: Option<PathBuf>) -> ExitCode {
         return ExitCode::FAILURE;
     };
     std::thread::spawn(move || {
-        let _ = std::io::copy(&mut std::io::stdin().lock(), &mut to_app);
+        let _ = pump(&mut std::io::stdin().lock(), &mut to_app);
         let _ = to_app.shutdown(std::net::Shutdown::Write);
     });
     let mut from_app = stream;
     let mut stdout = std::io::stdout().lock();
-    // Line-buffered stdout flushes each newline-delimited JSON-RPC message.
-    let copied = std::io::copy(&mut from_app, &mut stdout);
+    let copied = pump(&mut from_app, &mut stdout);
     let _ = stdout.flush();
     match copied {
-        Ok(_) => ExitCode::SUCCESS,
+        Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("dnagent mcp: connection to the app failed: {error}");
             ExitCode::FAILURE
+        }
+    }
+}
+
+/// Copy `from` to `to` until end of input, flushing whatever arrives before waiting for
+/// more.
+///
+/// Deliberately not `std::io::copy`: on Linux that specialises a pipe-to-socket copy into
+/// `splice(2)`, which held the agent's first request in the pipe and never delivered it —
+/// both sides then waited on each other forever (issue #1). A relay carries one small
+/// JSON-RPC message at a time and must forward each as it lands, which is what a plain
+/// read-write loop does and what the specialisation did not.
+#[cfg(unix)]
+fn pump(from: &mut impl std::io::Read, to: &mut impl std::io::Write) -> std::io::Result<()> {
+    // One request or response per read in practice; the loop handles any size.
+    let mut buffer = [0u8; 8192];
+    loop {
+        match from.read(&mut buffer) {
+            Ok(0) => return Ok(()),
+            Ok(read) => {
+                to.write_all(&buffer[..read])?;
+                to.flush()?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
         }
     }
 }
