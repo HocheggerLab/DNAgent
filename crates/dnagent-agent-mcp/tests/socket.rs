@@ -1,5 +1,9 @@
 //! The agent server over a real unix socket: MCP handshake, the committed tool contract
 //! and live view reads against a desktop session.
+//!
+//! Unix only, like the transport it exercises: on Windows `serve` reports that the live
+//! channel is unavailable and there is no socket to test.
+#![cfg(unix)]
 use dnagent_agent_mcp::{AgentServer, serve};
 use dnagent_desktop_api::session::{RangeRequest, Session, ViewReport};
 use serde_json::{Value, json};
