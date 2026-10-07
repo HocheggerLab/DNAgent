@@ -28,6 +28,13 @@
     "shortDescription": "DNA design and cloning workbench",
     "longDescription": "An agent-friendly DNA design and cloning workbench: plasmid maps, sequence views, restriction digests and Gibson assembly on one Rust engine, shared with the dnagent CLI.",
     "copyright": "Copyright (c) Hochegger Lab",
-    "licenseFile": "../../LICENSE"
+    "licenseFile": "../../LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }
