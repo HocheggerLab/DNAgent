@@ -1,6 +1,6 @@
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.2.0"
+version = "0.2.1"
 tag_format = "v$version"
 # Annotated, so the tag carries who made it and when — and so `git push --follow-tags`
 # would see it at all. A lightweight tag silently stayed local and left a bumped version

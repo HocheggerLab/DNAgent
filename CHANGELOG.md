@@ -1,3 +1,9 @@
+## v0.2.1 (2026-10-07)
+
+### Fix
+
+- declare the bundle icons so Windows can package
+
 ## v0.2.0 (2026-10-07)
 
 ### Feat

@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-agent-mcp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-app",
  "dnagent-desktop-api",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-app"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-domain",
  "dnagent-format-snapgene",
@@ -1055,7 +1055,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "dnagent-app",
@@ -1070,7 +1070,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-desktop-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-app",
  "dnagent-domain",
@@ -1083,7 +1083,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-domain"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -1091,7 +1091,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-format-snapgene"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-domain",
  "dnagent-formats",
@@ -1102,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-formats"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-domain",
  "serde",
@@ -1112,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-gui"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-app",
  "dnagent-domain",
@@ -1123,7 +1123,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-library"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "rusqlite",
  "serde",
@@ -1133,7 +1133,7 @@ dependencies = [
 
 [[package]]
 name = "dnagent-render"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dnagent-domain",
  "serde",
