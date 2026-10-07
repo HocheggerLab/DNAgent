@@ -203,7 +203,8 @@ struct TranslateArgs {
 #[command(group(ArgGroup::new("action").required(true).args(["add", "remove"])))]
 struct AnnotateArgs {
     input: PathBuf,
-    /// Output .gb/.gbk/.genbank path (may equal a GenBank input; written atomically).
+    /// Output path, written atomically: .gb/.gbk/.genbank for GenBank, .dna for SnapGene
+    /// (may equal a GenBank input).
     #[arg(long)]
     out: PathBuf,
     /// Add a single-part feature over --range.
