@@ -289,6 +289,9 @@ pub async fn serve(
 /// token first, so until then the app runs with no agent channel and says so. The file
 /// handoff (`docs/agent-handoff.md`) works on every platform.
 #[cfg(not(unix))]
+// `async` with nothing to await, deliberately: the signature has to match the unix
+// `serve` its callers already await.
+#[allow(clippy::unused_async)]
 pub async fn serve(
     _server: AgentServer,
     _path: &Path,
