@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DNAgent Prototype",
+  "productName": "DNAgent",
   "version": "0.1.0",
-  "identifier": "org.dnagent.prototype",
+  "identifier": "uk.ac.sussex.hochegger.dnagent",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -10,8 +10,27 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "DNAgent Prototype", "width": 1200, "height": 850 }],
-    "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:" }
+    "windows": [
+      {
+        "title": "DNAgent",
+        "width": 1200,
+        "height": 850
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:"
+    }
   },
-  "bundle": { "active": false }
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "category": "Education",
+    "shortDescription": "DNA design and cloning workbench",
+    "longDescription": "An agent-friendly DNA design and cloning workbench: plasmid maps, sequence views, restriction digests and Gibson assembly on one Rust engine, shared with the dnagent CLI.",
+    "copyright": "Copyright (c) Hochegger Lab",
+    "licenseFile": "../../LICENSE"
+  }
 }

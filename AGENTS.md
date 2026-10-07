@@ -26,6 +26,12 @@
 
 ## Validation
 
+`.github/workflows/ci.yml` runs all of this on every push and pull request; run it locally
+before committing rather than discovering it there. Releases are cut by
+`.github/workflows/release.yml` from the conventional-commit history (commitizen,
+`.cz.toml`) — so commit messages decide the version, and `feat:`/`fix:` on main publish a
+build to testers.
+
 Run before committing:
 
 ```bash

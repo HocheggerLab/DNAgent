@@ -1,0 +1,24 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_provider = "commitizen"
+major_version_zero = true
+update_changelog_on_bump = true
+# Every place the version is written. Cargo.toml is the workspace version every crate
+# inherits; the desktop app carries its own copy in two files Tauri reads at build time.
+version_files = [
+    "Cargo.toml:^version",
+    "desktop/package.json:\"version\"",
+    "desktop/src-tauri/tauri.conf.json:\"version\"",
+    "desktop/src-tauri/Cargo.toml:^version",
+]
+# cz rewrites the version strings but knows nothing about the lockfiles, which pin the
+# workspace members by version. These regenerate them in place, before cz commits.
+pre_bump_hooks = [
+    "cargo update --workspace --offline",
+    "cargo update --manifest-path desktop/src-tauri/Cargo.toml --workspace --offline",
+]
+# [skip ci]: the bump commit only changes version strings, so re-running CI on it is
+# wasted. The tag it carries is what triggers the release build.
+bump_message = "bump: version $current_version → $new_version [skip ci]"

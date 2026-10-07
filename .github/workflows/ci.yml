@@ -1,0 +1,138 @@
+name: CI
+
+# The checks AGENTS.md asks for before committing, run on every push and pull request.
+# Expected biological values come from the CLI and independent references (Biopython,
+# NCBI genetic codes, brute-force scans), never from literals, so a green run means the
+# engine agrees with something outside itself.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo build -p dnagent-cli --locked
+      - name: Keep the built CLI for the schema and biology checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: dnagent-debug
+          path: target/debug/dnagent
+          retention-days: 1
+
+  checks:
+    name: Schema and biology checks
+    runs-on: ubuntu-latest
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dnagent-debug
+          path: target/debug
+      - run: chmod +x target/debug/dnagent
+      - uses: astral-sh/setup-uv@v6
+      # Each script pins its own dependencies in a PEP 723 header, so there is no
+      # project environment to sync. Public synthetic fixtures only.
+      - name: Versioned JSON schema against live output
+        run: uv run scripts/check_cli_schema.py --binary target/debug/dnagent
+      - name: Restriction, digests, ends and fragments
+        run: |
+          uv run scripts/check_restriction.py --binary target/debug/dnagent
+          uv run scripts/check_digest.py --binary target/debug/dnagent
+          uv run scripts/check_compatibility.py --binary target/debug/dnagent
+          uv run scripts/check_fragment_annotations.py --binary target/debug/dnagent
+          uv run scripts/check_enzymes.py --binary target/debug/dnagent
+      - name: Assembly
+        run: |
+          uv run scripts/check_ligation.py --binary target/debug/dnagent
+          uv run scripts/check_gibson.py --binary target/debug/dnagent
+          uv run scripts/check_gibson_extensions.py --binary target/debug/dnagent
+          uv run scripts/check_gibson_product.py --binary target/debug/dnagent
+          uv run scripts/check_amplification.py --binary target/debug/dnagent
+      - name: Sequence, formats and library
+        run: |
+          uv run scripts/check_translation.py --binary target/debug/dnagent
+          uv run scripts/check_genbank.py --binary target/debug/dnagent
+          uv run scripts/check_snapgene_write.py --binary target/debug/dnagent
+          uv run scripts/check_locus.py --binary target/debug/dnagent
+          uv run scripts/check_feature_library.py --binary target/debug/dnagent
+      - name: Private-corpus checker, exercised on public fixtures
+        run: uv run scripts/test_private_corpus.py
+      - name: Reference store
+        run: python3 scripts/test_manage_references.py
+
+  desktop:
+    name: Desktop (types, unit, e2e)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+        working-directory: desktop
+      - run: npx playwright install --with-deps chromium
+        working-directory: desktop
+      - run: npx tsc --noEmit
+        working-directory: desktop
+      - run: npm test
+        working-directory: desktop
+      # The suite drives a real Rust session through a local test server (no recorded
+      # responses) and takes its expected values from the CLI it builds first.
+      - run: npm run e2e
+        working-directory: desktop
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failures
+          path: desktop/e2e/artifacts/test-results
+          retention-days: 7
+
+  macos:
+    name: macOS (gui feature, Tauri crate)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      # The retained egui viewer is behind a feature flag and is not in the default build.
+      - run: cargo clippy -p dnagent-cli --all-targets --features gui --locked -- -D warnings
+      - run: cargo test -p dnagent-cli --features gui --locked
+      # desktop/src-tauri is excluded from the workspace, so the job above never sees it.
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run build
+        working-directory: desktop
+      - run: cargo clippy --manifest-path desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings

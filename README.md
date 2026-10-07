@@ -1,5 +1,9 @@
 # DNAgent
 
+[![CI](https://github.com/HocheggerLab/DNAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/HocheggerLab/DNAgent/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/HocheggerLab/DNAgent?include_prereleases&sort=semver)](https://github.com/HocheggerLab/DNAgent/releases/latest)
+[![License: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 **An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust engine.**
 
 DNAgent is an open replacement for the plasmid viewing and cloning work usually done in
@@ -36,9 +40,32 @@ the CLI, never from hand-typed literals.
 - **Agent handoff:** the desktop snapshots all open tabs and selections into a workspace and
   copies a prompt for an agent; files the agent writes there open as new tabs.
 
-## Quick start
+## Install
 
-Requires Rust 1.92+; the desktop app also needs Node 22.6+ and the
+macOS on Apple Silicon. Paste into Terminal — **use these commands rather than a browser
+download**: DNAgent is unsigned, and macOS refuses to open an unsigned app that a browser
+marked as quarantined. `curl` does not set that mark.
+
+```bash
+# Desktop app
+curl -fsSL https://github.com/HocheggerLab/DNAgent/releases/latest/download/DNAgent-macos-arm64.tar.gz | tar xz -C /Applications
+
+# Command-line tool, which agents drive
+curl -fsSL https://github.com/HocheggerLab/DNAgent/releases/latest/download/dnagent-cli-macos-arm64.tar.gz | tar xz -C /usr/local/bin
+```
+
+Then `open -a DNAgent` and `dnagent --version`. To let an agent see what you have open:
+
+```bash
+claude mcp add dnagent -- dnagent mcp
+```
+
+Intel Macs, Windows and Linux: build from source. Full instructions, the reasoning about
+signing, and troubleshooting are in **[docs/install.md](docs/install.md)**.
+
+## Build from source
+
+Requires Rust 1.92+; the desktop app also needs Node 22+ and the
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
 
 ```bash
