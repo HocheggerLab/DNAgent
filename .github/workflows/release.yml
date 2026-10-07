@@ -72,8 +72,13 @@ jobs:
         if: steps.check.outputs.bumped == 'true'
         run: |
           uvx --from commitizen cz bump --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }}
-          echo "version=$(uvx --from commitizen cz version --project)" >> "$GITHUB_OUTPUT"
-          git push --follow-tags origin main
+          version=$(uvx --from commitizen cz version --project)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # The tag by name, not --follow-tags: that only pushes annotated tags, and a
+          # lightweight one stayed behind once already, leaving a bumped version on main
+          # with nothing to build from.
+          git push origin main "v$version"
+          git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null
 
   build:
     name: Build ${{ matrix.name }}
@@ -96,8 +101,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The tag the bump job just pushed, not whatever main is by now.
-          ref: v${{ needs.bump.outputs.version }}
+          # Fully qualified: `v0.2.0` alone makes checkout look for a *branch* of that
+          # name and fail. This is the tag the bump job just pushed, not whatever main
+          # is by now.
+          ref: refs/tags/v${{ needs.bump.outputs.version }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v4
