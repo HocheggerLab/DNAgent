@@ -10,6 +10,10 @@ use tokio::net::UnixStream;
 
 const CONTRACT: &str = "../../schemas/agent-tools.json";
 
+/// How long a test waits for a reply before failing. Well above the server's own 3 s
+/// apply timeout, so a slow CI runner does not trip it.
+const REPLY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 struct Client {
     reader: BufReader<tokio::net::unix::OwnedReadHalf>,
     writer: tokio::net::unix::OwnedWriteHalf,
@@ -26,7 +30,9 @@ impl Client {
             }
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
-        let (read, writer) = stream.expect("server socket").into_split();
+        let (read, writer) = stream
+            .unwrap_or_else(|| panic!("no server on {} after 2 s", path.display()))
+            .into_split();
         let mut client = Self {
             reader: BufReader::new(read),
             writer,
@@ -60,17 +66,25 @@ impl Client {
         let id = self.next_id;
         self.send(json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}))
             .await;
-        loop {
-            let mut line = String::new();
-            assert!(
-                self.reader.read_line(&mut line).await.unwrap() > 0,
-                "server closed"
-            );
-            let message: Value = serde_json::from_str(&line).unwrap();
-            if message["id"] == id {
-                return message;
+        // Bounded: a reply that never arrives must fail the test, not hang it. Neither
+        // `cargo test` nor `#[tokio::test]` imposes a timeout, so without this a server
+        // that goes quiet blocks the whole run until the CI job is killed.
+        let read = async {
+            loop {
+                let mut line = String::new();
+                assert!(
+                    self.reader.read_line(&mut line).await.unwrap() > 0,
+                    "server closed during {method}"
+                );
+                let message: Value = serde_json::from_str(&line).unwrap();
+                if message["id"] == id {
+                    return message;
+                }
             }
-        }
+        };
+        tokio::time::timeout(REPLY_TIMEOUT, read)
+            .await
+            .unwrap_or_else(|_| panic!("no reply to {method} within {REPLY_TIMEOUT:?}"))
     }
 
     /// A tool's JSON result, or the error text when the tool failed.
