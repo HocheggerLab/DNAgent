@@ -483,7 +483,7 @@ mod tests {
         for topology in [Topology::Linear, Topology::Circular] {
             let no_cut = digest("ACGTACGTACGT", topology, &["EcoRI"]).unwrap();
             conserved(&no_cut);
-            assert!(no_cut.cuts.is_empty());
+            assert_eq!(no_cut.cuts, []);
             assert_eq!(no_cut.fragments[0].topology, topology);
             assert_eq!(
                 no_cut.fragments[0].left_end.is_none(),

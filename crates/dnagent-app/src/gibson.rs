@@ -389,7 +389,7 @@ mod tests {
         .unwrap();
         let report = load_source(&literal).unwrap();
         assert_eq!(report.record.sequence().as_str(), "ACGTACGT");
-        assert!(report.warnings.is_empty());
+        assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
 
         let digest: GibsonSource = serde_json::from_str(
             r#"{"path":"source.dna","enzymes":["EcoRI"],"fragment_id":"fragment-0002","strand":"top"}"#,

@@ -363,7 +363,7 @@ mod tests {
         let uncut =
             crate::digest::simulate_digest(&seq, crate::Topology::Circular, &["BamHI".into()])
                 .unwrap();
-        assert!(compatible_ends(&[uncut]).unwrap().endpoints.is_empty());
+        assert_eq!(compatible_ends(&[uncut]).unwrap().endpoints, []);
     }
     #[test]
     fn public_digest_endpoint_structure_is_checked() {

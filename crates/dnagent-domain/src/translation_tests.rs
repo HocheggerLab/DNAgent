@@ -371,7 +371,7 @@ fn orfs_are_complete_longest_per_stop_on_both_strands() {
         ),
         ("ATG", "TAA", false)
     );
-    assert!(
+    assert_eq!(
         find_orfs(
             &dna("ATGAAATAA"),
             Topology::Linear,
@@ -380,8 +380,8 @@ fn orfs_are_complete_longest_per_stop_on_both_strands() {
             StartPolicy::AtgOnly
         )
         .unwrap()
-        .orfs
-        .is_empty()
+        .orfs,
+        []
     );
 
     let nested = find_orfs(
@@ -442,14 +442,14 @@ fn circular_orfs_wrap_the_origin_once() {
         ),
         (9, 9, "MK", true)
     );
-    assert!(
+    assert_eq!(
         find_orfs(&sequence, Topology::Linear, 1, 1, StartPolicy::AtgOnly)
             .unwrap()
-            .orfs
-            .is_empty()
+            .orfs,
+        []
     );
     // A frame with no stop at all is not an ORF.
-    assert!(
+    assert_eq!(
         find_orfs(
             &dna("ATGAAAAAAAAA"),
             Topology::Circular,
@@ -458,8 +458,8 @@ fn circular_orfs_wrap_the_origin_once() {
             StartPolicy::AtgOnly
         )
         .unwrap()
-        .orfs
-        .is_empty()
+        .orfs,
+        []
     );
 }
 

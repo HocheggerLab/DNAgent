@@ -19,7 +19,7 @@ fn run(file: &str, extra: &[&str]) -> Output {
 fn json_retains_source_metadata_and_separate_strand_mappings() {
     let output = run("synthetic_multipart_origin.dna", &["--enzymes", "EcoRI"]);
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["schema_version"], "0.10.0");
     assert_eq!(value["command"], "fragments");
@@ -64,7 +64,7 @@ fn fasta_is_explicitly_strand_sequence_only_and_strict_has_no_partial_output() {
         &["--enzymes", "EcoRI", "--output", "fasta", "--strict"],
     );
     assert!(!strict.status.success());
-    assert!(strict.stdout.is_empty());
+    assert_eq!(strict.stdout, [] as [u8; 0]);
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn genbank_requires_explicit_selection_and_emits_only_the_selected_view() {
         &["--enzymes", "EcoRI", "--output", "genbank"],
     );
     assert!(!missing.status.success());
-    assert!(missing.stdout.is_empty());
+    assert_eq!(missing.stdout, [] as [u8; 0]);
     let output = run(
         "synthetic_multipart_origin.dna",
         &[
@@ -119,7 +119,7 @@ fn genbank_strict_rejection_and_inapplicable_strand_have_no_partial_exports() {
         ],
     );
     assert!(!strict.status.success());
-    assert!(strict.stdout.is_empty());
+    assert_eq!(strict.stdout, [] as [u8; 0]);
     let wrong = run(
         "synthetic_multipart_origin.dna",
         &["--enzymes", "EcoRI", "--strand", "top"],
@@ -140,14 +140,14 @@ fn genbank_strict_rejection_and_inapplicable_strand_have_no_partial_exports() {
         ],
     );
     assert!(!failed.status.success());
-    assert!(failed.stdout.is_empty());
+    assert_eq!(failed.stdout, [] as [u8; 0]);
 }
 
 #[test]
 fn unavailable_cut_has_annotation_error_envelope_without_partial_products() {
     let output = run("synthetic_restriction_end.dna", &["--enzymes", "BsaI"]);
     assert!(!output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["error"]["code"], "annotation_failed");
     assert!(value.get("result").is_none());
@@ -162,5 +162,8 @@ fn strict_warning_rejection_retains_json_warnings() {
     assert!(!output.status.success());
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["error"]["code"], "import_warnings");
-    assert!(!value["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        value["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
 }

@@ -15,7 +15,7 @@ fn sites(file: &str, enzymes: &str, strict: bool) -> (bool, Value) {
         command.arg("--strict");
     }
     let output = command.output().unwrap();
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     (
         output.status.success(),
         serde_json::from_slice(&output.stdout).unwrap(),
@@ -49,7 +49,10 @@ fn lists_catalogue_and_scans_all_six_enzymes() {
     );
     assert!(ok);
     assert_eq!(body["result"]["sites"].as_array().unwrap().len(), 8);
-    assert!(body["warnings"].as_array().unwrap().is_empty());
+    assert_eq!(
+        body["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     assert_eq!(body["result"]["sites"][0]["top_cut"], 13);
 }
 
@@ -87,7 +90,10 @@ fn bad_enzyme_and_ambiguous_sequence_fail_without_false_negative_results() {
     }
     let (ok, body) = sites("synthetic_partial.dna", "EcoRI", false);
     assert!(ok);
-    assert!(!body["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        body["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     let (ok, _) = sites("synthetic_partial.dna", "EcoRI", true);
     assert!(!ok);
 }

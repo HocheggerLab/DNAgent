@@ -46,7 +46,7 @@ fn feature_translation_reports_codons_provenance_and_imported_match() {
     assert_eq!(result["codons"].as_array().unwrap().len(), 82);
     assert_eq!(result["imported_translation"]["matches"], true);
     assert_eq!(result["genetic_code_source"]["version"], "4.6");
-    assert!(codes(&body).is_empty());
+    assert_eq!(codes(&body), [] as [std::string::String; 0]);
 }
 
 #[test]

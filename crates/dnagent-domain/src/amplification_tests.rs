@@ -70,7 +70,7 @@ fn designs_across_rotation_reverse_orientation_and_explicit_junction() {
     r.junction_offset = Some(60);
     r.positive_inputs = vec![1, 2];
     let result = design(&records, &r).unwrap();
-    assert!(!result.pairs.is_empty());
+    assert_ne!(result.pairs.len(), 0, "a pair is designed");
     for pair in result.pairs {
         let f = (pair.forward.reference_start + 180 - r.window_start) % 180;
         let rev = (pair.reverse.reference_start + 180 - r.window_start) % 180;

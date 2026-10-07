@@ -554,13 +554,13 @@ mod tests {
         assert_eq!(report.product_sequence_5to3.len(), 190);
         assert_eq!(report.junctions.len(), 2);
         assert!(report.junctions[1].closure);
-        assert!(
+        assert_eq!(
             report.components[0]
                 .forward_primer
                 .as_ref()
                 .unwrap()
-                .tail_sequence_5to3
-                .is_empty()
+                .tail_sequence_5to3,
+            ""
         );
         assert_eq!(
             report.components[0]
@@ -583,13 +583,13 @@ mod tests {
             22,
         )
         .unwrap();
-        assert!(
+        assert_eq!(
             report.components[1]
                 .reverse_primer
                 .as_ref()
                 .unwrap()
-                .tail_sequence_5to3
-                .is_empty()
+                .tail_sequence_5to3,
+            ""
         );
         assert_eq!(report.junctions.len(), 1);
         let mut bad = selections();

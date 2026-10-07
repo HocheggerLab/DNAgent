@@ -18,7 +18,7 @@ fn relative_sources_resolve_against_plan_and_both_strands_are_conserved() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(body["schema_version"], "0.10.0");
     assert_eq!(body["command"], "ligate");
@@ -29,11 +29,9 @@ fn relative_sources_resolve_against_plan_and_both_strands_are_conserved() {
     assert_eq!(product["components"].as_array().unwrap().len(), 3);
     assert_eq!(product["junctions"].as_array().unwrap().len(), 2);
     assert_eq!(product["bottom_forward_start"], 0);
-    assert!(
-        body["result"]["unused_fragments"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        body["result"]["unused_fragments"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
 }
 
@@ -70,7 +68,7 @@ fn malformed_or_missing_plans_have_runtime_envelopes_not_partial_products() {
             .output()
             .unwrap();
         assert!(!output.status.success());
-        assert!(output.stderr.is_empty());
+        assert_eq!(output.stderr, [] as [u8; 0]);
         let body: Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(body["error"]["code"], code);
         assert!(body.get("result").is_none());

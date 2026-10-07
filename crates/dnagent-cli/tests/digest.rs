@@ -15,7 +15,7 @@ fn run(file: &str, enzymes: &str, strict: bool) -> (bool, Value) {
         command.arg("--strict");
     }
     let output = command.output().unwrap();
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     (
         output.status.success(),
         serde_json::from_slice(&output.stdout).unwrap(),
@@ -74,7 +74,10 @@ fn incomplete_or_uncertain_digests_fail_and_import_warnings_remain_visible() {
     }
     let (ok, body) = run("synthetic_partial.dna", "EcoRI", false);
     assert!(ok);
-    assert!(!body["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        body["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     let (ok, body) = run("synthetic_partial.dna", "EcoRI", true);
     assert!(!ok);
     assert_eq!(body["error"]["code"], "import_warnings");

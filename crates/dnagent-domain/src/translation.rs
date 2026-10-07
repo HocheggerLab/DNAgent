@@ -248,7 +248,9 @@ fn translate_coding(
         return Err(TranslationError::TooShort);
     }
     let codons: Vec<Codon> = body
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|chunk| {
             let bases = [chunk[0].0, chunk[1].0, chunk[2].0];
             Codon {
@@ -546,7 +548,9 @@ pub fn find_orfs(
                         if begin < length && bases <= length && amino_acids >= min_codons {
                             let window = &scan[begin..index + 3];
                             let protein: String = window
-                                .chunks_exact(3)
+                                .as_chunks::<3>()
+                                .0
+                                .iter()
                                 .take(amino_acids)
                                 .map(|c| code.translate_codon([c[0].0, c[1].0, c[2].0]))
                                 .collect();
@@ -638,8 +642,10 @@ pub fn six_frames(
         let protein = bytes
             .get(offset..)
             .unwrap_or_default()
-            .chunks_exact(3)
-            .map(|c| code.translate_codon([c[0], c[1], c[2]]))
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .map(|c| code.translate_codon(*c))
             .collect();
         frames.push(FrameTranslation {
             strand: CodingStrand::Forward,

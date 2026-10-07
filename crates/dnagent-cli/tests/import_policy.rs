@@ -25,12 +25,15 @@ fn json(output: &Output) -> Value {
 fn all_json_projections_expose_the_same_import_warnings() {
     let inspect = run("inspect", "synthetic_partial.dna", &["--output", "json"]);
     let expected = json(&inspect)["warnings"].clone();
-    assert!(!expected.as_array().unwrap().is_empty());
+    assert_ne!(
+        expected.as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     assert_eq!(expected, json(&inspect)["result"]["warnings"]);
     for command in ["inspect", "features", "sequence"] {
         let output = run(command, "synthetic_partial.dna", &["--output", "json"]);
         assert!(output.status.success());
-        assert!(output.stderr.is_empty());
+        assert_eq!(output.stderr, [] as [u8; 0]);
         let body = json(&output);
         assert_eq!(body["schema_version"], "0.10.0");
         assert_eq!(body["warnings"], expected);
@@ -62,11 +65,14 @@ fn strict_json_rejects_partial_imports_with_structured_warnings() {
             &["--strict", "--output", "json"],
         );
         assert!(!output.status.success());
-        assert!(output.stderr.is_empty());
+        assert_eq!(output.stderr, [] as [u8; 0]);
         let body = json(&output);
         assert_eq!(body["ok"], false);
         assert_eq!(body["error"]["code"], "import_warnings");
-        assert!(!body["warnings"].as_array().unwrap().is_empty());
+        assert_ne!(
+            body["warnings"].as_array().unwrap(),
+            &Vec::<serde_json::Value>::new()
+        );
         assert!(body.get("result").is_none());
     }
 }
@@ -75,7 +81,7 @@ fn strict_json_rejects_partial_imports_with_structured_warnings() {
 fn strict_rejects_even_preserved_metadata_and_accepts_clean_imports() {
     let output = run("sequence", "synthetic_circular.dna", &["--strict"]);
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stderr).contains("snapgene_packet_not_interpreted"));
     for command in ["inspect", "features", "sequence"] {
         let output = run(
@@ -97,7 +103,10 @@ fn runtime_errors_keep_warnings_already_encountered() {
     );
     assert!(!output.status.success());
     assert_eq!(json(&output)["ok"], false);
-    assert!(!json(&output)["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        json(&output)["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     let output = run("inspect", "invalid_truncated.dna", &["--output", "json"]);
     assert!(!output.status.success());
     assert_eq!(json(&output)["warnings"], serde_json::json!([]));
@@ -137,7 +146,10 @@ fn map_reports_warnings_and_strict_rejection_does_not_write() {
     assert_eq!(std::fs::read(&path).unwrap(), b"existing output");
     let output = run("map", "synthetic_partial.dna", &["--out", out]);
     assert!(output.status.success());
-    assert!(!json(&output)["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        json(&output)["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     assert!(std::fs::read_to_string(&path).unwrap().contains("<svg"));
     let output = run("map", "synthetic_linear.dna", &["--strict", "--out", out]);
     assert!(output.status.success());

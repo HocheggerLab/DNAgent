@@ -460,7 +460,7 @@ mod tests {
             "no_such_document"
         );
         assert!(notify(&mut session, "  ").is_err());
-        assert!(session.agent_sync().is_empty());
+        assert_eq!(session.agent_sync().len(), 0, "nothing queued for the GUI");
     }
 
     #[test]
@@ -512,7 +512,7 @@ mod tests {
             "invalid_range"
         );
         assert_eq!(session.document_states().len(), before);
-        assert!(session.agent_sync().is_empty());
+        assert_eq!(session.agent_sync().len(), 0, "nothing queued for the GUI");
         let good = vec![Highlight {
             label: "junction".into(),
             start: 1,

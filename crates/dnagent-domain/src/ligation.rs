@@ -429,7 +429,7 @@ mod tests {
             assert_eq!(report.product.bottom_sequence_5to3, reverse_complement(seq));
             assert_eq!(report.product.junctions.len(), 1);
             assert_eq!(report.product.paired_length, seq.len());
-            assert!(report.unused_fragments.is_empty());
+            assert_eq!(report.unused_fragments, []);
         }
     }
     #[test]
@@ -490,7 +490,7 @@ mod tests {
                     .unwrap();
                     let source = &report.inputs[0].digest.fragments[number - 1];
                     assert_eq!(report.product.paired_length, source.paired_length);
-                    assert!(report.product.junctions.is_empty());
+                    assert_eq!(report.product.junctions, []);
                     assert_eq!(report.unused_fragments.len(), 1);
                 }
             }

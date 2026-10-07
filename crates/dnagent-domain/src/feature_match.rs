@@ -175,8 +175,10 @@ pub fn translate_standard(sequence: &str) -> String {
     let code = crate::translation::GeneticCode::standard();
     sequence
         .as_bytes()
-        .chunks_exact(3)
-        .map(|c| code.translate_codon([c[0], c[1], c[2]]))
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .map(|c| code.translate_codon(*c))
         .collect()
 }
 
@@ -216,8 +218,8 @@ mod tests {
                 strand: Strand::Forward
             }]
         );
-        assert!(find_exact("CGTTTTTAC", Topology::Linear, "ACCG").is_empty());
-        assert!(find_exact("ACG", Topology::Circular, "ACGT").is_empty());
+        assert_eq!(find_exact("CGTTTTTAC", Topology::Linear, "ACCG"), []);
+        assert_eq!(find_exact("ACG", Topology::Circular, "ACGT"), []);
     }
 
     #[test]

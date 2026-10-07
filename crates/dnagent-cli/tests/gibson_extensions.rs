@@ -17,7 +17,7 @@ fn optimisation_alias_returns_canonical_envelope_and_variable_lengths() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(body["command"], "gibson-optimise");
     assert_eq!(body["schema_version"], "0.10.0");
@@ -36,7 +36,7 @@ fn existing_overlap_keeps_shared_provenance_and_rejects_wrong_plan_kind() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     let report = &body["result"];
     assert_eq!(report["product_sequence_5to3"].as_str().unwrap().len(), 300);

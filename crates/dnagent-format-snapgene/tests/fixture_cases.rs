@@ -18,7 +18,7 @@ fn import(name: &str) -> ImportReport {
 #[test]
 fn linear_iupac_multipart_qualifiers_and_primer_are_retained() {
     let report = import("synthetic_linear.dna");
-    assert!(report.warnings.is_empty());
+    assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
     assert_eq!(report.record.topology(), Topology::Linear);
     assert_eq!(report.record.sequence().as_str(), "ACGTRYSWKMBDHVN");
     assert_eq!(report.record.features().len(), 1);
@@ -65,9 +65,9 @@ fn unannotated_linear_sequence_is_valid() {
     let report = import("synthetic_unannotated.dna");
     assert_eq!(report.record.sequence().as_str(), "ACGT");
     assert_eq!(report.record.topology(), Topology::Linear);
-    assert!(report.record.features().is_empty());
-    assert!(report.record.primers().is_empty());
-    assert!(report.warnings.is_empty());
+    assert_eq!(report.record.features(), []);
+    assert_eq!(report.record.primers(), []);
+    assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn multipart_origin_feature_keeps_part_order_and_strand() {
             Region::linear(4, 6, 12).unwrap(),
         ]
     );
-    assert!(report.warnings.is_empty());
+    assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn overlapping_features_share_bases_in_source_order() {
             Region::linear(11, 13, 30).unwrap(),
         ]
     );
-    assert!(report.warnings.is_empty());
+    assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn puc19_transcribes_record_features_and_polylinker_sites() {
         &[Region::linear(271, 277, 2686).unwrap()]
     );
     assert_eq!(&record.sequence().as_str()[267..277], "CCCGGGTACC");
-    assert!(report.warnings.is_empty());
+    assert_eq!(report.warnings, [] as [dnagent_formats::ImportWarning; 0]);
 }
 
 #[test]

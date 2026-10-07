@@ -20,7 +20,7 @@ fn run(first: &str, enzyme: &str, second: Option<(&str, &str)>, strict: bool) ->
         cmd.arg("--strict");
     }
     let output = cmd.output().unwrap();
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     (
         output.status.success(),
         serde_json::from_slice(&output.stdout).unwrap(),
@@ -36,11 +36,9 @@ fn circular_closure_candidate_and_uncut_circle_are_explicit() {
     assert_eq!(pairs[0]["assessment"]["compatible"], true);
     let (ok, body) = run("synthetic_restriction_circular.dna", "BamHI", None, true);
     assert!(ok);
-    assert!(
-        body["result"]["analysis"]["endpoints"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        body["result"]["analysis"]["endpoints"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
 }
 #[test]
@@ -82,7 +80,10 @@ fn warnings_survive_second_input_and_failures() {
     let (ok, body) = run(clean, "EcoRI", Some((partial, "EcoRI")), true);
     assert!(!ok);
     assert_eq!(body["error"]["code"], "import_warnings");
-    assert!(!body["warnings"].as_array().unwrap().is_empty());
+    assert_ne!(
+        body["warnings"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
+    );
     let (ok, body) = run("synthetic_restriction_end.dna", "BsaI", None, false);
     assert!(!ok);
     assert_eq!(body["error"]["code"], "digest_failed");

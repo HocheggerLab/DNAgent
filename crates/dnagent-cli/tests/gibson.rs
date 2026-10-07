@@ -18,7 +18,7 @@ fn gibson_relative_plan_runs_strictly_from_another_directory() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(body["schema_version"], "0.10.0");
     assert_eq!(body["command"], "gibson");
@@ -57,7 +57,7 @@ fn gibson_invalid_plans_have_no_partial_products_and_text_discloses_limits() {
         .output()
         .unwrap();
     assert!(!output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let body: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(body["error"]["code"], "gibson_failed");
     assert!(body.get("result").is_none());

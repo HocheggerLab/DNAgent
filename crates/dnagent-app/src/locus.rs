@@ -407,7 +407,7 @@ mod tests {
             expression(&view, "SYNT0004.1", "NanoCount_lr").display,
             Display::NoData
         );
-        assert!(view.missing_features.is_empty());
+        assert_eq!(view.missing_features, [] as [std::string::String; 0]);
     }
 
     #[test]

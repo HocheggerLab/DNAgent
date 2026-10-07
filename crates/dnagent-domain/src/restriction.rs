@@ -1093,8 +1093,8 @@ mod tests {
             (result.sites[0].top_cut, result.sites[0].bottom_cut),
             (None, None)
         );
-        assert!(scan("TTCGAA", Topology::Linear, "EcoRI").sites.is_empty());
-        assert!(scan("ACG", Topology::Linear, "EcoRI").sites.is_empty());
+        assert_eq!(scan("TTCGAA", Topology::Linear, "EcoRI").sites, []);
+        assert_eq!(scan("ACG", Topology::Linear, "EcoRI").sites, []);
     }
     #[test]
     fn explicit_errors_and_deterministic_selection() {
@@ -1141,11 +1141,7 @@ mod tests {
             result.sites[0].overhang_polarity,
             OverhangPolarity::ThreePrime
         );
-        assert!(
-            scan("TTGCCATGCAGGGTT", Topology::Linear, "BglI")
-                .sites
-                .is_empty()
-        );
+        assert_eq!(scan("TTGCCATGCAGGGTT", Topology::Linear, "BglI").sites, []);
         // HinfI GANTC, non-palindromic only through N: reported once.
         assert_eq!(scan("AAGATTCAA", Topology::Linear, "HinfI").sites.len(), 1);
     }

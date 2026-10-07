@@ -295,7 +295,7 @@ mod tests {
         );
         let d = annotated_digest(&r, &["BamHI".into()]).unwrap();
         assert!(d.annotations[0].top[0].complete);
-        assert!(d.annotations[0].top[0].split_source_parts.is_empty());
+        assert_eq!(d.annotations[0].top[0].split_source_parts, []);
         assert_eq!(d.annotations[0].top[0].parts.len(), 2);
     }
 }

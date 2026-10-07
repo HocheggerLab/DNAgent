@@ -12,7 +12,7 @@ fn run(command: &str, file: &str, strict: bool) -> (bool, Value) {
         cmd.arg("--strict");
     }
     let output = cmd.output().unwrap();
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     (
         output.status.success(),
         serde_json::from_slice(&output.stdout).unwrap(),

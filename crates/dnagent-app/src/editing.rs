@@ -357,7 +357,7 @@ mod tests {
                 ("translation", Some("MA"))
             ]
         );
-        assert!(preview.warnings.is_empty());
+        assert_eq!(preview.warnings, [] as [dnagent_formats::ImportWarning; 0]);
         assert_eq!(preview.translation.unwrap().protein, "MA*");
     }
 

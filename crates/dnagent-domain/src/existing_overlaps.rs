@@ -247,7 +247,7 @@ mod tests {
         }];
         let out = assemble(std::slice::from_ref(&r), &selected, Topology::Linear, &[]).unwrap();
         assert_eq!(out.product_sequence_5to3, &r.sequence().as_str()[..1]);
-        assert!(out.junctions.is_empty());
+        assert_eq!(out.junctions.len(), 0, "no junction without an overlap");
         assert!(!out.components[0].wraps_origin);
     }
 
