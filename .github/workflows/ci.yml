@@ -83,6 +83,12 @@ jobs:
         run: uv run scripts/test_private_corpus.py
       - name: Reference store
         run: python3 scripts/test_manage_references.py
+      # The agent skills pin this repo's contracts (output envelope, plan schemas). They
+      # live here so a change to either breaks in the same commit rather than drifting.
+      - name: Agent skills against the shipped contract
+        run: |
+          python3 skills/dnagent/scripts/check_skill.py --repo . --binary target/debug/dnagent
+          python3 skills/gibson-cloning/scripts/check_skill.py --repo . --binary target/debug/dnagent
 
   desktop:
     name: Desktop (types, unit, e2e)

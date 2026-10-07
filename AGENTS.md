@@ -18,6 +18,14 @@
   its annotation packets generated, and what a generated file cannot carry is warned about.
 - Unsupported format content must be preserved or reported with structured warnings.
 
+## Agent skills
+
+`skills/` holds the agent workflow instructions for this tool (`dnagent`,
+`gibson-cloning`). They pin the CLI's contracts — output envelope, assembly-plan
+schemas — so **change them in the same commit as the code they describe**; their smoke
+checks run in CI and will fail otherwise. `~/code/skills` keeps a copy for Claude
+Desktop bundling, refreshed by `skillctl.sh sync`; this repo is the source.
+
 ## Provenance and licensing
 
 - Do not add private lab constructs to fixtures.
@@ -64,6 +72,8 @@ uv run scripts/check_snapgene_write.py --binary target/debug/dnagent
 uv run scripts/check_feature_library.py --binary target/debug/dnagent
 uv run scripts/check_gibson_product.py --binary target/debug/dnagent
 python3 scripts/test_manage_references.py
+python3 skills/dnagent/scripts/check_skill.py --repo . --binary target/debug/dnagent
+python3 skills/gibson-cloning/scripts/check_skill.py --repo . --binary target/debug/dnagent
 (cd desktop && npm test && npm run e2e)  # GUI scenarios checked against the CLI
 ```
 
