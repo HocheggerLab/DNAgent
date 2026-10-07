@@ -255,10 +255,15 @@ export function detectionRange(value: unknown, label: string, moleculeLength: nu
 
 interface CliSpan { start: number; length: number }
 interface CliIsoform {
-  transcript_id: string; exons: CliSpan[]; start_codon: { position: number } | null; stop_codon: { position: number } | null;
+  transcript_id: string; mrna_feature_id: string; cds_feature_id: string | null;
+  exons: CliSpan[]; start_codon: { position: number } | null; stop_codon: { position: number } | null;
   expression: { quantifier: string; display: string; cells: { cell_line: string; mean: number }[] }[];
 }
-interface CliIsoforms { quantifier: string; quantifiers: { quantifier: string; cell_lines: string[] }[]; isoforms: CliIsoform[] }
+interface CliIsoforms {
+  quantifier: string;
+  quantifiers: { quantifier: string; cell_lines: string[]; order: string[] }[];
+  isoforms: CliIsoform[];
+}
 
 function isSpan(value: unknown): value is CliSpan {
   return !!value && typeof value === 'object' && typeof (value as CliSpan).start === 'number' && typeof (value as CliSpan).length === 'number';
@@ -296,4 +301,22 @@ export function cellMeans(value: unknown, transcript: string): { cell_line: stri
   const panel = result.quantifiers.find(q => q.quantifier === result.quantifier)?.cell_lines ?? [];
   const cells = new Map((isoform.expression.find(e => e.quantifier === result.quantifier)?.cells ?? []).map(c => [c.cell_line, c.mean]));
   return [...new Set([...panel, ...cells.keys()])].map(cell_line => ({ cell_line, mean: cells.get(cell_line) ?? null }));
+}
+
+/** One transcript's own feature ids: its mRNA, then its CDS when it codes. */
+export function transcriptFeatureIds(value: unknown, transcript: string): string[] {
+  const isoform = isoformsResult(value).isoforms.find(i => i.transcript_id === transcript);
+  if (!isoform) throw new TransformError(`no isoform ${transcript} in the CLI result`);
+  return isoform.cds_feature_id === null ? [isoform.mrna_feature_id] : [isoform.mrna_feature_id, isoform.cds_feature_id];
+}
+
+/**
+ * Every feature id in expression order (the result quantifier's ranking), each transcript
+ * as mRNA then CDS: what the feature list should show for a locus.
+ */
+export function rankedFeatureIds(value: unknown): string[] {
+  const result = isoformsResult(value);
+  const order = result.quantifiers.find(q => q.quantifier === result.quantifier)?.order;
+  if (!order) throw new TransformError(`no panel for quantifier ${result.quantifier}`);
+  return order.flatMap(transcript => transcriptFeatureIds(result, transcript));
 }

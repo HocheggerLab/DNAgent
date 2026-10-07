@@ -92,6 +92,9 @@ export interface AppState {
     sequence_shows_range: boolean | null;
     /** ORF and six-frame controls are usable (false for records over 100 kb). */
     orf_controls_enabled: boolean;
+    /** Distinct features with an annotation track in the Sequence view, in drawn order;
+     * null when that view is hidden. A selected isoform narrows this to its own mRNA and CDS. */
+    sequence_feature_ids: string[] | null;
     /** Rendered amino-acid letters whose centre is not over their codon's middle base
      * (CSS geometry, not the model: `middles` can be right while the row is drawn wrong). */
     amino_acids_off_their_codon: number | null;
@@ -560,6 +563,8 @@ export function getState(model: ModelView): AppState {
         };
       })(),
       orf_controls_enabled: !(document.getElementById('opt-orfs') as HTMLInputElement).disabled && !(document.getElementById('opt-frames') as HTMLInputElement).disabled,
+      sequence_feature_ids: !panels.includes('sequence') ? null
+        : [...new Set([...document.querySelectorAll<HTMLElement>('#sequence [data-testid="sequence-track"]')].map(n => n.dataset.featureId!))],
       amino_acids_off_their_codon: !panels.includes('sequence') ? null : (() => {
         let off = 0;
         for (const cell of document.querySelectorAll<HTMLElement>('#sequence [data-testid="amino-acid"]')) {

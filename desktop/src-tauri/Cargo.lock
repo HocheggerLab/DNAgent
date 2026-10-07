@@ -859,6 +859,7 @@ dependencies = [
  "dnagent-formats",
  "quick-xml",
  "serde",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

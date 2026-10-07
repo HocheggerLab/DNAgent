@@ -8,6 +8,7 @@ import {
   pickSvgPath, pickWorkspace, pollFiles, redo, removeFeature, reportView, saveGenbank, undo, writeHandoff, writeSvg,
 } from './ipc';
 import { isoformUi, renderIsoformDetail, renderIsoforms, zoom, zoomTo } from './isoform-view';
+import { orderedFeatures } from './locus-order';
 import { renderMap, type MapProposal, type MapSite } from './map-view';
 import { serializeSvg, themeBackground } from './svg-export';
 import { columnsFor, rangeTranslation, renderSequence, type SequenceOptions } from './sequence-view';
@@ -122,6 +123,14 @@ function sequenceColumns(): number {
   probe.remove();
   return columnsFor(element('panel-sequence').clientWidth, basePx, basePx / 1.2 * 11);
 }
+
+/**
+ * The view a newly opened construct lands in. A gene locus is a set of transcripts, not a
+ * plasmid: its map is dozens of overlapping mRNA/CDS arrows with no room for a label, so
+ * open it on Isoforms, which ranks them by expression and draws one row each. `syncTabs`
+ * falls back to the map if the document turns out not to offer the tab.
+ */
+function landOn(doc: Document) { activeTab = doc.locus ? 'isoforms' : 'map'; }
 
 /** View tabs the active document offers (Isoforms only for a gene locus). */
 const offeredTabs = (): ViewTab[] => VIEW_TABS.filter(name => name !== 'isoforms' || current?.locus);
@@ -425,7 +434,10 @@ function render() {
   }
   const unlabelledIds = unlabelled.doc === doc ? unlabelled.ids : new Set<string>();
   const list = element('features'); const listScroll = list.scrollTop; list.replaceChildren();
-  for (const feature of doc.features) {
+  const listed = doc.locus && edit
+    ? orderedFeatures(doc.features, doc.locus, isoformUi(edit.document_id, doc.locus, length, doc.sequence_window !== null).quantifier)
+    : doc.features;
+  for (const feature of listed) {
     const button = document.createElement('button');
     const name = document.createElement('span'); name.dataset.testid = 'feature-name';
     name.textContent = feature.label || feature.kind;
@@ -458,12 +470,26 @@ function render() {
     if (window === null) { element('sequence').replaceChildren(); baseIndex = []; }
     else {
       baseIndex = renderSequence(element('sequence'), doc, { activeFeature: active, activeOrf, range, options, columns: sequenceColumns(), select, selectOrf, sites: shown?.sites ?? [], selectSite,
-        window: window === 'full' ? undefined : window });
+        window: window === 'full' ? undefined : window, onlyFeatures: isoformFeatures(doc) });
     }
   }
 }
 
 // ------------------------------------------------------------------ isoform view
+
+/**
+ * With an isoform selected, the ids the Sequence view should draw: that transcript's mRNA
+ * and its CDS (whose translation is then the only amino-acid row). A locus has an mRNA and
+ * a CDS per transcript, so without this every sequence row carries sixty-odd annotation
+ * tracks and the one the user picked is invisible. `undefined` means draw them all.
+ */
+function isoformFeatures(doc: Document): ReadonlySet<string> | undefined {
+  const isoform = selectedIsoform(doc);
+  if (!isoform) return undefined;
+  const ids = new Set([isoform.mrna_feature_id]);
+  if (isoform.cds_feature_id !== null) ids.add(isoform.cds_feature_id);
+  return ids;
+}
 
 function selectedIsoform(doc: Document) {
   return selected === null ? undefined : doc.locus?.isoforms.find(i => i.mrna_feature_id === selected || i.cds_feature_id === selected);
@@ -650,7 +676,9 @@ element('sequence').onclick = event => {
   if (suppressClick) { suppressClick = false; return; }
   const position = (event.target as HTMLElement).dataset.position;
   if (position === undefined || !current) return;
-  const matches = current.features.filter(f => contains(f, Number(position), current!.sequence.length));
+  // Only what the view actually drew, so a click never selects a hidden isoform.
+  const drawn = isoformFeatures(current);
+  const matches = current.features.filter(f => (!drawn || drawn.has(f.id)) && contains(f, Number(position), current!.sequence.length));
   if (matches.length) select(matches[(matches.findIndex(f => f.id === selected) + 1) % matches.length].id);
 };
 
@@ -855,6 +883,7 @@ async function load(path: string) {
     if (request !== revision) { void closeDocument(state.edit.document_id).catch(() => undefined); return; }
     stash();
     docTabs.push({ current: state.document, edit: state.edit, path, selected: null, selectedOrf: null, range: null, anchor: null });
+    landOn(state.document);
     activeDoc = -1;
     activateDoc(docTabs.length - 1);
     rememberStamp(path);
@@ -1063,6 +1092,7 @@ function showAgentDocument(state: DocumentState) {
   stash();
   const path = state.edit.source_path;
   docTabs.push({ current: state.document, edit: state.edit, path, selected: null, selectedOrf: null, range: null, anchor: null });
+  landOn(state.document);
   activeDoc = -1;
   activateDoc(docTabs.length - 1);
   rememberStamp(path);

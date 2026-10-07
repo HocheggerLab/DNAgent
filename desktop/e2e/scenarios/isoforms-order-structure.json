@@ -1,7 +1,7 @@
 {
   "$schema": "../scenario.schema.json",
   "id": "isoforms-order-structure",
-  "description": "A gene locus opens with an Isoforms tab (other documents do not offer it); rows follow `dnagent isoforms` for the chosen quantifier, and every exon, coding box, codon mark and evidence colour matches it, on both strands and with introns compressed",
+  "description": "A gene locus opens on its Isoforms tab (other documents do not offer it) with the feature list ranked by expression; rows follow `dnagent isoforms` for the chosen quantifier, and every exon, coding box, codon mark and evidence colour matches it, on both strands and with introns compressed",
   "fixture": "fixtures/formats/locus/synthetic_locus.locus.json",
   "steps": [
     {
@@ -29,6 +29,11 @@
     },
     {
       "expect": [
+        {
+          "state": "active_tab",
+          "equals": "isoforms",
+          "message": "a locus bundle opens on Isoforms; its map is unreadable"
+        },
         {
           "state": "isoforms.tab_shown",
           "equals": true
@@ -111,6 +116,15 @@
             "transform": "codon_marks"
           },
           "message": "red start/stop marks, three bases each (split codons included)"
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": "ranked_feature_ids"
+          },
+          "message": "the feature list is ranked by expression, each transcript as mRNA then CDS"
         }
       ]
     },
@@ -209,6 +223,19 @@
             "transform": "codon_marks"
           },
           "message": "red start/stop marks, three bases each (split codons included)"
+        },
+        {
+          "state": "features[*].id",
+          "equals_cli": {
+            "command": "isoforms",
+            "args": [
+              "--quantifier",
+              "NanoCount_lr"
+            ],
+            "path": "result",
+            "transform": "ranked_feature_ids"
+          },
+          "message": "changing the quantifier re-ranks the feature list too"
         }
       ]
     },

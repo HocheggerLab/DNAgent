@@ -10,7 +10,7 @@ import { query, queryOne } from './jsonpath.ts';
 import type { Assertion, CliExpectation, Scenario, Step } from './scenario.ts';
 import { ACTIONS, E2E_DIR } from './scenario.ts';
 import {
-  cellMeans, codes, codonMarks, codonMiddles, count, isoformDisplays, spans, defaultDetections, detectionRange, detectionRows, detectionSpansNew, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
+  cellMeans, codes, codonMarks, rankedFeatureIds, transcriptFeatureIds, codonMiddles, count, isoformDisplays, spans, defaultDetections, detectionRange, detectionRows, detectionSpansNew, enzymeSet, forwardSpan, fragmentParts, fragmentRange, idsCovering, lengths, orfParts, orfPositions, orfRegions, parts,
   positions, recognitionRange, siteCuts, siteEnzymes, siteLabels, siteRegions, siteTicks,
 } from './transforms.ts';
 
@@ -54,6 +54,8 @@ export function resolveCli(expectation: CliExpectation, defaultFixture: string, 
   else if (transform === 'spans') value = spans(value);
   else if (transform === 'isoform_displays') value = isoformDisplays(value);
   else if (transform === 'codon_marks') value = codonMarks(value);
+  else if (transform === 'ranked_feature_ids') value = rankedFeatureIds(value);
+  else if (transform?.name === 'transcript_feature_ids') value = transcriptFeatureIds(value, transform.transcript);
   else if (transform?.name === 'cell_means') value = cellMeans(value, transform.transcript);
   else if (transform?.name === 'detection_range') value = detectionRange(value, transform.label, moleculeLength(), circular());
   else if (transform?.name === 'enzyme_set') value = enzymeSet(value, transform.set);

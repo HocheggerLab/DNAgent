@@ -1,7 +1,7 @@
 {
   "$schema": "../scenario.schema.json",
   "id": "isoforms-select-zoom-sequence",
-  "description": "Clicking an isoform selects its mRNA, highlights its exons and shows its expression across the cell lines (from `dnagent isoforms`); dragging across its last exon or double-clicking an exon marks exactly that exon, which Show in Sequence opens; both views export standalone SVG",
+  "description": "Clicking an isoform selects its mRNA, highlights its exons and shows its expression across the cell lines (from `dnagent isoforms`); dragging across its last exon or double-clicking an exon marks exactly that exon, which Show in Sequence opens, showing only that transcript's own annotation rows; both views export standalone SVG",
   "fixture": "fixtures/formats/locus/synthetic_locus.locus.json",
   "steps": [
     {
@@ -36,6 +36,31 @@
         "transcript": "SYNT0001.1"
       },
       "screenshot": true
+    },
+    {
+      "click": {
+        "testid": "isoform-show-sequence"
+      },
+      "note": "the selected transcript, in the Sequence view"
+    },
+    {
+      "expect": [
+        {
+          "state": "layout.sequence_feature_ids",
+          "equals_cli": {
+            "command": "isoforms",
+            "path": "result",
+            "transform": {
+              "name": "transcript_feature_ids",
+              "transcript": "SYNT0001.1"
+            }
+          },
+          "message": "with an isoform selected the Sequence view draws only its own mRNA and CDS, not every transcript"
+        }
+      ]
+    },
+    {
+      "select_tab": "isoforms"
     },
     {
       "expect": [

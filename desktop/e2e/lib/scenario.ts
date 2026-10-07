@@ -18,7 +18,9 @@ export const ACTIONS = ['open', 'browse', 'select_feature', 'select_tab', 'click
 export type Transform = 'parts' | 'positions' | 'count' | 'codes' | 'codon_middles' | 'orf_regions' | 'orf_parts' | 'orf_positions' | 'lengths'
   | 'site_ticks' | 'site_enzymes' | 'site_labels' | 'site_regions' | 'site_cuts' | 'recognition_range' | 'fragment_parts'
   | 'detection_rows' | 'default_detections' | 'detection_spans_new' | 'spans' | 'isoform_displays' | 'codon_marks'
+  | 'ranked_feature_ids'
   | { name: 'detection_range'; label: string } | { name: 'cell_means'; transcript: string }
+  | { name: 'transcript_feature_ids'; transcript: string }
   | { name: 'ids_covering'; base: number } | { name: 'forward_span'; from: string; to: string; as?: 'range' | 'parts' }
   | { name: 'enzyme_set'; set: 'unique6' | 'unique_dual6' | 'unique_any' } | { name: 'fragment_range'; rank: number };
 export type CliArg = string | { memory: string };

@@ -244,6 +244,11 @@ quantifier, every isoform drawn once (`isoforms.drawn_ids`), exon and coding box
 codon marks rebuilt from the drawing (`isoforms.rows[*].exons/cds/codons`), display states,
 the selected transcript's exon bands and the per-cell-line means in the expression panel.
 Transforms `spans`, `isoform_displays`, `codon_marks` and `cell_means` adapt the CLI JSON.
+A locus opens on its Isoforms tab, not the map (`active_tab`), and its feature list follows
+the chosen quantifier's ranking rather than annotation order — `ranked_feature_ids` builds
+that expected list from `dnagent isoforms` (each transcript as mRNA then CDS). Selecting an
+isoform narrows the Sequence view to that transcript's own rows, checked against
+`transcript_feature_ids` on `layout.sequence_feature_ids`.
 `isoforms-large-locus` opens a 1.2 Mb locus that global setup generates into
 `desktop/e2e/artifacts/synthetic_large.locus.json` (open it with `open: {file}` and point CLI
 expectations at it with `equals_cli.file`): every feature drawn on the map, introns compressed

@@ -25,6 +25,8 @@ export interface SequenceContext {
   selectSite: (site: Site) => void;
   /** Render only rows overlapping this half-open window (large records); the whole record otherwise. */
   window?: { start: number; end: number };
+  /** Draw only these features (a selected isoform's own mRNA and CDS); all of them when absent. */
+  onlyFeatures?: ReadonlySet<string>;
 }
 
 // Display names only; the genetic code itself lives in Rust.
@@ -70,6 +72,9 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
   const highlighted = (base: number) => (activeFeature !== undefined && contains(activeFeature, base, length))
     || (activeOrf !== undefined && orfContains(activeOrf, base))
     || (range !== null && (range.start < range.end ? base >= range.start && base < range.end : base >= range.start || base < range.end));
+  const shownFeatures = context.onlyFeatures
+    ? doc.features.filter(f => context.onlyFeatures!.has(f.id))
+    : doc.features;
   const byFeature = new Map(doc.translations.map(t => [t.feature_id, t]));
   const letters = new Map(doc.translations.map(t => [t.feature_id, translationLetters(t)]));
   const frames = options.showFrames ? doc.frames.map(frame => ({ frame, letters: frameLetters(frame) })) : [];
@@ -144,7 +149,7 @@ export function renderSequence(target: HTMLElement, doc: Document, context: Sequ
       const grid = line(`frame −${frame.offset + 1}`, 'frame-line'); grid.dataset.testid = 'frame-row'; grid.dataset.frame = `-${frame.offset + 1}`;
       aminoRow(grid, frameItems, 'amino');
     }
-    for (const feature of doc.features) {
+    for (const feature of shownFeatures) {
       const spans = feature.parts.flatMap((part, partIndex) => rowSpans(part, start, end, length).map(span => ({ ...span, partIndex })));
       if (!spans.length) continue;
       const color = featureColor(feature);

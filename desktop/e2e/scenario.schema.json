@@ -69,7 +69,8 @@
             "detection_spans_new",
             "spans",
             "isoform_displays",
-            "codon_marks"
+            "codon_marks",
+            "ranked_feature_ids"
           ]
         },
         {
@@ -189,6 +190,24 @@
             }
           },
           "description": "From an `isoforms` result: [{cell_line, mean}] for one transcript under the result's quantifier, every panel cell line first (mean null where the quantifier has no value)."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "transcript"
+          ],
+          "properties": {
+            "name": {
+              "const": "transcript_feature_ids"
+            },
+            "transcript": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "From an `isoforms` result: one transcript's own feature ids, mRNA then CDS (CDS omitted when it does not code)."
         }
       ]
     },
@@ -856,7 +875,7 @@
                   "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+\\.(gb|gbk|genbank|dna)$"
                 }
               },
-              "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as…."
+              "description": "Queue the save dialog answer (repo-relative, under desktop/e2e/artifacts) and click Save as\u2026."
             },
             "screenshot": {
               "type": "boolean"
@@ -911,7 +930,7 @@
             "set_workspace": {
               "type": "string",
               "pattern": "^desktop/e2e/artifacts/[A-Za-z0-9_./-]+$",
-              "description": "Choose this workspace folder through the Workspace… button (created if missing)."
+              "description": "Choose this workspace folder through the Workspace\u2026 button (created if missing)."
             },
             "screenshot": {
               "type": "boolean"
@@ -1023,7 +1042,7 @@
                   }
                 }
               },
-              "description": "Open Choose…, tick exactly these enzymes and confirm."
+              "description": "Open Choose\u2026, tick exactly these enzymes and confirm."
             },
             "screenshot": {
               "type": "boolean"
@@ -1227,7 +1246,7 @@
               "type": "string"
             }
           },
-          "description": "Queue the save dialog answer and click Export SVG…; the written file must be standalone SVG (styles resolved) naming every drawn isoform or the document."
+          "description": "Queue the save dialog answer and click Export SVG\u2026; the written file must be standalone SVG (styles resolved) naming every drawn isoform or the document."
         },
         {
           "type": "object",
