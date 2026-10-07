@@ -5,15 +5,16 @@ name: Release
 # purpose: a tag pushed with GITHUB_TOKEN does not trigger other workflows, so a separate
 # tag-triggered build would never fire.
 #
+# Check CI is green on main before running this: nothing here re-runs the tests.
+#
 # Neither build is code-signed. macOS testers install with the curl line, which keeps the
 # quarantine attribute off; Windows testers click through one SmartScreen warning. See
 # docs/install.md.
 
+# Deliberately manual: run it from the Actions tab when you mean to put a build in
+# testers' hands, not as a side effect of merging. Add the `workflow_run` trigger below
+# once the cadence settles, and releases follow every green CI run on main.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       increment:
@@ -29,8 +30,6 @@ permissions:
 jobs:
   bump:
     name: Version
-    # Never release off a red CI run.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:

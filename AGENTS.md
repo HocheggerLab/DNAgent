@@ -40,10 +40,11 @@ Rust checks in a container (same pinned toolchain as CI) in about a minute; use 
 pushing anything platform-sensitive.
 
 `.github/workflows/ci.yml` runs all of this on every push and pull request; run it locally
-before committing rather than discovering it there. Releases are cut by
-`.github/workflows/release.yml` from the conventional-commit history (commitizen,
-`.cz.toml`) — so commit messages decide the version, and `feat:`/`fix:` on main publish a
-build to testers.
+before committing rather than discovering it there. Releases are cut by running
+`.github/workflows/release.yml` from the Actions tab, deliberately by hand: it bumps the
+version from the conventional-commit history (commitizen, `.cz.toml`), so commit messages
+decide the number, but someone decides the moment. It does not re-run the tests — check
+CI is green on main first.
 
 Run before committing:
 
