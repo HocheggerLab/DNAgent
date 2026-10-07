@@ -1002,8 +1002,10 @@ fn write_svg_command(args: &serde_json::Value) -> Result<(), Diagnostic> {
 /// `~/DNAgent`, the default workspace.
 #[must_use]
 pub fn default_workspace() -> String {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    Path::new(&home).join("DNAgent").display().to_string()
+    dnagent_app::paths::home()
+        .join("DNAgent")
+        .display()
+        .to_string()
 }
 
 pub(crate) fn safe_stem(path: &Path) -> String {

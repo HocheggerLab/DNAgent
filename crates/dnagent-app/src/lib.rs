@@ -9,6 +9,7 @@ pub mod gibson_product;
 pub mod library;
 pub mod ligation;
 pub mod locus;
+pub mod paths;
 pub mod translation;
 
 use dnagent_domain::compatibility::{self, CompatibilityError, CompatibilityReport};
@@ -649,8 +650,7 @@ pub fn agent_socket_path() -> std::path::PathBuf {
     if let Some(path) = std::env::var_os("DNAGENT_AGENT_SOCKET").filter(|p| !p.is_empty()) {
         return path.into();
     }
-    let home = std::env::var_os("HOME").unwrap_or_else(|| ".".into());
-    Path::new(&home).join(".dnagent").join("agent.sock")
+    paths::home().join(".dnagent").join("agent.sock")
 }
 
 /// Write text atomically: a sibling temporary file, then rename over the target.

@@ -116,6 +116,37 @@ jobs:
           path: desktop/e2e/artifacts/test-results
           retention-days: 7
 
+  windows:
+    name: Windows (build and tests)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # Windows has no unix socket: dnagent-agent-mcp builds without the transport and
+      # `dnagent mcp` reports that the live channel is macOS/Linux only. Everything else
+      # — the engine, the CLI, file reading and writing — must work the same.
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo build -p dnagent-cli --locked
+      - name: The CLI runs and reads a construct
+        shell: bash
+        run: |
+          ./target/debug/dnagent.exe --version
+          ./target/debug/dnagent.exe inspect fixtures/formats/snapgene/pUC19_M77789.dna --output json > inspect.json
+          cat inspect.json
+      - name: Schema and biology checks
+        uses: astral-sh/setup-uv@v6
+      - shell: bash
+        run: |
+          uv run scripts/check_cli_schema.py --binary target/debug/dnagent.exe
+          uv run scripts/check_genbank.py --binary target/debug/dnagent.exe
+          uv run scripts/check_snapgene_write.py --binary target/debug/dnagent.exe
+          uv run scripts/check_translation.py --binary target/debug/dnagent.exe
+
   macos:
     name: macOS (gui feature, Tauri crate)
     runs-on: macos-latest

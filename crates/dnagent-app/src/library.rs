@@ -26,14 +26,7 @@ pub fn library_path() -> PathBuf {
     if let Some(path) = std::env::var_os("DNAGENT_FEATURE_DB") {
         return PathBuf::from(path);
     }
-    let home = std::env::var_os("HOME").map_or_else(|| PathBuf::from("."), PathBuf::from);
-    if cfg!(target_os = "macos") {
-        home.join("Library/Application Support/DNAgent/features.sqlite")
-    } else {
-        std::env::var_os("XDG_DATA_HOME")
-            .map_or_else(|| home.join(".local/share"), PathBuf::from)
-            .join("dnagent/features.sqlite")
-    }
+    crate::paths::data_dir("features.sqlite")
 }
 
 /// Why an annotated feature was not collected.

@@ -1,7 +1,7 @@
 # Installing DNAgent
 
-Current builds are **macOS on Apple Silicon** (M1 and later). Intel Macs, Windows and
-Linux are not built yet; on those, [build from source](#build-from-source).
+Current builds are **macOS on Apple Silicon** (M1 and later) and **Windows x64**. Intel
+Macs and Linux are not built yet; on those, [build from source](#build-from-source).
 
 DNAgent comes in two parts, and they are useful separately:
 
@@ -11,7 +11,7 @@ DNAgent comes in two parts, and they are useful separately:
 
 Install both if you want the agent workflows; the app alone is enough to open plasmids.
 
-## Install
+## Install on macOS
 
 Paste these into Terminal. Use the commands rather than downloading in a browser —
 the reason is [below](#why-the-curl-command).
@@ -59,7 +59,53 @@ If you did download the `.dmg` in a browser, clear the flag once:
 xattr -dr com.apple.quarantine /Applications/DNAgent.app
 ```
 
-## Connect an agent
+## Install on Windows
+
+Download from the [latest release](https://github.com/HocheggerLab/DNAgent/releases/latest):
+
+- **`DNAgent-windows-x64-setup.exe`** — the app. Run it; it installs to your user account,
+  no administrator rights needed.
+- **`dnagent-cli-windows-x64.zip`** — the command-line tool. Unzip `dnagent.exe` into a
+  folder on your `PATH`, or make one:
+
+  ```powershell
+  mkdir "$env:LOCALAPPDATA\Programs\DNAgent"
+  # move dnagent.exe there, then add it to PATH for future terminals:
+  [Environment]::SetEnvironmentVariable(
+      "Path", "$env:Path;$env:LOCALAPPDATA\Programs\DNAgent", "User")
+  ```
+
+  Open a new terminal and check with `dnagent --version`.
+
+### The SmartScreen warning
+
+DNAgent is not code-signed — a Windows certificate is a yearly cost this project does not
+carry. The first time you run the installer, SmartScreen says the publisher is unknown:
+click **More info**, then **Run anyway**. You should only do that because you can see
+where the file came from: each release is built by [a public
+workflow](../.github/workflows/release.yml) from the commit its tag names, and lists
+SHA-256 checksums. Verify one if you like:
+
+```powershell
+Get-FileHash .\DNAgent-windows-x64-setup.exe -Algorithm SHA256
+```
+
+Unlike macOS, the `curl` trick does not help here: Windows marks a file by the zone it
+came from, not by what downloaded it.
+
+### What is missing on Windows
+
+The **live agent connection is macOS and Linux only** for now. It runs over a unix socket,
+which Windows does not have, and the portable alternatives are network ports that any
+process on the machine could reach — that needs an access token before it is safe to
+serve your constructs over one.
+
+Everything else is the same: the app, every CLI command, reading and writing SnapGene
+`.dna` and GenBank. For agent work on Windows, use the **file handoff** — the agent reads
+and writes constructs in your workspace folder, and the app picks them up. See [agent
+handoff](agent-handoff.md).
+
+## Connect an agent (macOS and Linux)
 
 This is what makes DNAgent different from a viewer: an agent in your terminal can see what
 you have open and put results on your screen. With [Claude
@@ -89,9 +135,13 @@ running.
 ## Uninstalling
 
 ```bash
+# macOS
 rm -rf /Applications/DNAgent.app /usr/local/bin/dnagent
-rm -rf ~/Library/Application\ Support/uk.ac.sussex.hochegger.dnagent   # settings
+rm -rf ~/Library/Application\ Support/DNAgent   # feature library and enzyme catalogue
 ```
+
+On Windows, uninstall the app from **Settings → Apps**, delete `dnagent.exe`, and remove
+`%APPDATA%\DNAgent` for the feature library and enzyme catalogue.
 
 Your constructs are your own files and are never stored inside the app. DNAgent never
 modifies a source file in place; it always writes to a new path.
@@ -132,6 +182,8 @@ quarantined.
 | `tar: could not chdir to '/usr/local/bin'` | the directory does not exist | `sudo mkdir -p /usr/local/bin` then re-run |
 | The agent says no window is connected | the app is not running, or was started before the CLI was installed | start DNAgent, then retry |
 | "bad CPU type in executable" | Intel Mac | [build from source](#build-from-source) |
+| SmartScreen blocks the installer | unsigned on Windows | **More info → Run anyway** |
+| `dnagent mcp` says it needs Unix | Windows has no unix socket | use the file handoff |
 
 Still stuck, or something behaved unscientifically? [Open an
 issue](https://github.com/HocheggerLab/DNAgent/issues) — include the construct if you can

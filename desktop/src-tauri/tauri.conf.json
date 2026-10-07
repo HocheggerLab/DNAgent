@@ -23,10 +23,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "app",
-      "dmg"
-    ],
+    "targets": "all",
     "category": "Education",
     "shortDescription": "DNA design and cloning workbench",
     "longDescription": "An agent-friendly DNA design and cloning workbench: plasmid maps, sequence views, restriction digests and Gibson assembly on one Rust engine, shared with the dnagent CLI.",

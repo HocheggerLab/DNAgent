@@ -28,14 +28,7 @@ pub fn enzyme_root() -> PathBuf {
     if let Some(dir) = std::env::var_os("DNAGENT_ENZYME_DIR") {
         return PathBuf::from(dir);
     }
-    let home = std::env::var_os("HOME").map_or_else(|| PathBuf::from("."), PathBuf::from);
-    if cfg!(target_os = "macos") {
-        home.join("Library/Application Support/DNAgent/enzymes")
-    } else {
-        std::env::var_os("XDG_DATA_HOME")
-            .map_or_else(|| home.join(".local/share"), PathBuf::from)
-            .join("dnagent/enzymes")
-    }
+    crate::paths::data_dir("enzymes")
 }
 
 fn load_rebase(dir: &Path) -> Result<EnzymeCatalogue, String> {

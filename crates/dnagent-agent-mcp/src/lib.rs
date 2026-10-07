@@ -253,6 +253,7 @@ impl AgentServer {
 /// Serve `server` on the unix socket at `path` until `shutdown` turns true. The parent
 /// folder is created user-only (0700). A live socket of another instance is left alone
 /// (error); a stale socket file is replaced.
+#[cfg(unix)]
 pub async fn serve(
     server: AgentServer,
     path: &Path,
@@ -282,6 +283,25 @@ pub async fn serve(
     .map_err(|e| e.to_string())
 }
 
+/// Windows has no unix socket, and turbomcp's remaining transports are TCP, HTTP and
+/// WebSocket — all reachable by every process on the machine, where the socket's
+/// directory is 0700. Serving the user's constructs over one needs a port file and a
+/// token first, so until then the app runs with no agent channel and says so. The file
+/// handoff (`docs/agent-handoff.md`) works on every platform.
+#[cfg(not(unix))]
+pub async fn serve(
+    _server: AgentServer,
+    _path: &Path,
+    _shutdown: watch::Receiver<bool>,
+) -> Result<(), String> {
+    Err(
+        "the live agent channel needs a Unix platform (macOS or Linux); \
+         on Windows use the file handoff in the workspace folder"
+            .into(),
+    )
+}
+
+#[cfg(unix)]
 fn restrict_to_user(folder: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(folder, std::fs::Permissions::from_mode(0o700))

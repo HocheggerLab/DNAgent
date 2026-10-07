@@ -1,13 +1,13 @@
 name: Release
 
-# Bumps the version from the conventional-commit history, then builds and publishes the
-# macOS artefacts in the same run. Bump and build are one workflow on purpose: a tag
-# pushed with GITHUB_TOKEN does not trigger other workflows, so a separate tag-triggered
-# build would never fire.
+# Bumps the version from the conventional-commit history, builds macOS and Windows from
+# that exact tag, then publishes both. Bump and build live in one workflow run on
+# purpose: a tag pushed with GITHUB_TOKEN does not trigger other workflows, so a separate
+# tag-triggered build would never fire.
 #
-# The build is unsigned. Testers install with the curl line in the README, which keeps
-# the quarantine attribute off (it is set by browsers, not by curl), so the app opens
-# without the Gatekeeper "damaged" dialog. See docs/install.md.
+# Neither build is code-signed. macOS testers install with the curl line, which keeps the
+# quarantine attribute off; Windows testers click through one SmartScreen warning. See
+# docs/install.md.
 
 on:
   workflow_run:
@@ -27,23 +27,62 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  bump:
+    name: Version
     # Never release off a red CI run.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: macos-latest
-    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      bumped: ${{ steps.bump.outputs.bumped }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
-
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - uses: astral-sh/setup-uv@v6
+      # cz exits non-zero when nothing since the last tag warrants a release, which is the
+      # normal case for a docs-only push: stop quietly rather than failing the run.
+      - name: Bump the version
+        id: bump
+        run: |
+          if uvx --from commitizen cz bump --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }}; then
+            echo "version=$(uvx --from commitizen cz version --project)" >> "$GITHUB_OUTPUT"
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            git push --follow-tags origin main
+          else
+            echo "No release needed"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: bump
+    if: needs.bump.outputs.bumped == 'true'
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS (Apple Silicon)
+            app: DNAgent-macos-arm64.tar.gz
+            cli: dnagent-cli-macos-arm64.tar.gz
+          - os: windows-latest
+            name: Windows (x64)
+            app: DNAgent-windows-x64-setup.exe
+            cli: dnagent-cli-windows-x64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The tag the bump job just pushed, not whatever main is by now.
+          ref: v${{ needs.bump.outputs.version }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v4
@@ -51,86 +90,84 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
-
-      # cz exits non-zero when no commit since the last tag warrants a release, which is
-      # the normal case for a docs-only push: stop quietly rather than failing the run.
-      - name: Bump the version
-        id: bump
-        run: |
-          before=$(git describe --tags --abbrev=0 2>/dev/null || echo none)
-          if uvx --from commitizen cz bump --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }}; then
-            echo "version=$(uvx --from commitizen cz version --project)" >> "$GITHUB_OUTPUT"
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No release needed (was $before)"
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Push the bump and its tag
-        if: steps.bump.outputs.bumped == 'true'
-        run: git push --follow-tags origin main
-
-      - name: Build the CLI
-        if: steps.bump.outputs.bumped == 'true'
-        run: cargo build -p dnagent-cli --release --locked
-
-      - name: Build the desktop app
-        if: steps.bump.outputs.bumped == 'true'
+      - run: cargo build -p dnagent-cli --release --locked
+      - run: npm ci
         working-directory: desktop
-        run: |
-          npm ci
-          npm run tauri build
+      - run: npm run tauri build
+        working-directory: desktop
 
       # `tauri build` has exited 0 after failing to bundle (a bad bundle.category did
       # exactly that), so check the artefacts exist rather than trusting the status.
-      - name: Package
-        if: steps.bump.outputs.bumped == 'true'
-        id: package
-        env:
-          VERSION: ${{ steps.bump.outputs.version }}
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
           set -euo pipefail
           app=desktop/src-tauri/target/release/bundle/macos/DNAgent.app
-          cli=target/release/dnagent
           test -d "$app" || { echo "::error::no app bundle at $app"; exit 1; }
-          test -x "$cli" || { echo "::error::no CLI binary at $cli"; exit 1; }
+          test -x target/release/dnagent || { echo "::error::no CLI binary"; exit 1; }
           mkdir -p dist
-          # No version in the name: /releases/latest/download/<name> needs a stable
-          # filename, and that is the URL the install instructions use.
-          tar -czf "dist/DNAgent-macos-arm64.tar.gz" -C "$(dirname "$app")" DNAgent.app
-          tar -czf "dist/dnagent-cli-macos-arm64.tar.gz" -C "$(dirname "$cli")" dnagent
+          tar -czf "dist/${{ matrix.app }}" -C "$(dirname "$app")" DNAgent.app
+          tar -czf "dist/${{ matrix.cli }}" -C target/release dnagent
           cp desktop/src-tauri/target/release/bundle/dmg/*.dmg dist/ || true
-          (cd dist && shasum -a 256 * > SHA256SUMS)
-          ls -la dist
 
-      - name: Publish
-        if: steps.bump.outputs.bumped == 'true'
-        uses: softprops/action-gh-release@v2
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          setup=$(find desktop/src-tauri/target/release/bundle/nsis -name '*-setup.exe' | head -1)
+          test -n "$setup" || { echo "::error::no NSIS installer"; exit 1; }
+          test -f target/release/dnagent.exe || { echo "::error::no CLI binary"; exit 1; }
+          mkdir -p dist
+          cp "$setup" "dist/${{ matrix.app }}"
+          7z a "dist/${{ matrix.cli }}" ./target/release/dnagent.exe
+
+      - uses: actions/upload-artifact@v4
         with:
-          tag_name: v${{ steps.bump.outputs.version }}
-          name: DNAgent v${{ steps.bump.outputs.version }}
+          name: build-${{ runner.os }}
+          path: dist/*
+          retention-days: 1
+
+  publish:
+    name: Publish
+    needs: [bump, build]
+    if: needs.bump.outputs.bumped == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: staged
+      - name: Collect and checksum
+        run: |
+          mkdir -p dist && find staged -type f -exec mv {} dist/ \;
+          (cd dist && sha256sum * > SHA256SUMS)
+          ls -la dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.bump.outputs.version }}
+          name: DNAgent v${{ needs.bump.outputs.version }}
           body: |
-            Apple Silicon macOS build. **Unsigned** — install with the command below, which
-            downloads with `curl` and so never sets the quarantine attribute that makes
-            macOS call an unsigned app "damaged".
+            Neither build is code-signed; both are produced by [a public workflow](https://github.com/HocheggerLab/DNAgent/blob/main/.github/workflows/release.yml) from the commit this tag names, with SHA-256 checksums attached.
+
+            ### macOS (Apple Silicon)
+
+            Install with `curl`, **not** a browser download: `curl` does not set the quarantine attribute that makes macOS call an unsigned app "damaged".
 
             ```bash
             curl -fsSL https://github.com/HocheggerLab/DNAgent/releases/latest/download/DNAgent-macos-arm64.tar.gz | tar xz -C /Applications
-            ```
-
-            The `dnagent` command-line tool, which agents use:
-
-            ```bash
             curl -fsSL https://github.com/HocheggerLab/DNAgent/releases/latest/download/dnagent-cli-macos-arm64.tar.gz | tar xz -C /usr/local/bin
             ```
 
-            If you download the `.dmg` in a browser instead, clear the quarantine flag once:
-            `xattr -dr com.apple.quarantine /Applications/DNAgent.app`
+            ### Windows (x64)
 
-            Full setup, including the agent connection: [docs/install.md](https://github.com/HocheggerLab/DNAgent/blob/main/docs/install.md).
+            Download `DNAgent-windows-x64-setup.exe` and run it. SmartScreen will warn that the publisher is unknown: **More info → Run anyway**. The `dnagent` command-line tool is in `dnagent-cli-windows-x64.zip`; unzip it somewhere on your `PATH`.
+
+            The live agent connection (`dnagent mcp`) is macOS and Linux only for now — on Windows use the file handoff through the workspace folder.
+
+            Full instructions: [docs/install.md](https://github.com/HocheggerLab/DNAgent/blob/main/docs/install.md).
             Changes: [CHANGELOG.md](https://github.com/HocheggerLab/DNAgent/blob/main/CHANGELOG.md).
 
-            DNAgent predicts sequences and products; it does not validate experiments.
-            Check designs before ordering.
+            DNAgent predicts sequences and products; it does not validate experiments. Check designs before ordering.
           files: dist/*
-          generate_release_notes: false

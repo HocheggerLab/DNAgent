@@ -42,7 +42,7 @@ the CLI, never from hand-typed literals.
 
 ## Install
 
-macOS on Apple Silicon. Paste into Terminal — **use these commands rather than a browser
+**macOS (Apple Silicon).** Paste into Terminal — **use these commands rather than a browser
 download**: DNAgent is unsigned, and macOS refuses to open an unsigned app that a browser
 marked as quarantined. `curl` does not set that mark.
 
@@ -60,8 +60,13 @@ Then `open -a DNAgent` and `dnagent --version`. To let an agent see what you hav
 claude mcp add dnagent -- dnagent mcp
 ```
 
-Intel Macs, Windows and Linux: build from source. Full instructions, the reasoning about
-signing, and troubleshooting are in **[docs/install.md](docs/install.md)**.
+**Windows (x64).** Download `DNAgent-windows-x64-setup.exe` and `dnagent-cli-windows-x64.zip`
+from the [latest release](https://github.com/HocheggerLab/DNAgent/releases/latest). It is
+unsigned, so SmartScreen asks once: **More info → Run anyway**. The live agent connection
+is macOS and Linux only for now; on Windows agents work through the file handoff.
+
+Intel Macs and Linux: build from source. Full instructions, the reasoning about signing,
+and troubleshooting are in **[docs/install.md](docs/install.md)**.
 
 ## Build from source
 

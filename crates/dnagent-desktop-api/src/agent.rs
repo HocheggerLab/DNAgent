@@ -171,12 +171,7 @@ pub fn applied(session: &Session, expected: &Expected) -> bool {
     }
 }
 
-fn expand_home(path: &str) -> PathBuf {
-    match path.strip_prefix("~/") {
-        Some(rest) => PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(rest),
-        None => PathBuf::from(path),
-    }
-}
+use dnagent_app::paths::expand_home;
 
 /// Open a file in the app (or switch to its tab if it is already open). The document
 /// is open in the session at once; the GUI shows it on its next sync.
