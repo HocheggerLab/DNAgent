@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       version: ${{ steps.bump.outputs.version }}
-      bumped: ${{ steps.bump.outputs.bumped }}
+      bumped: ${{ steps.check.outputs.bumped }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,19 +45,35 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       - uses: astral-sh/setup-uv@v6
-      # cz exits non-zero when nothing since the last tag warrants a release, which is the
-      # normal case for a docs-only push: stop quietly rather than failing the run.
-      - name: Bump the version
-        id: bump
+      - uses: dtolnay/rust-toolchain@stable
+      # `.cz.toml`'s pre-bump hook runs `cargo update --offline` to refresh the lockfiles
+      # after the version strings change. Offline needs the registry already on disk, so
+      # fetch it first; without this the hook fails to resolve serde and aborts the bump.
+      - name: Populate the cargo registry for the bump hook
         run: |
-          if uvx --from commitizen cz bump --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }}; then
-            echo "version=$(uvx --from commitizen cz version --project)" >> "$GITHUB_OUTPUT"
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path desktop/src-tauri/Cargo.toml
+
+      # Deciding and doing are separate on purpose. `cz bump` exits non-zero both when
+      # there is nothing to release and when the bump itself breaks; conflating them once
+      # reported a broken hook as "no release needed" and silently skipped the build.
+      - name: Is there anything to release?
+        id: check
+        run: |
+          if uvx --from commitizen cz bump --dry-run --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }} >/dev/null 2>&1; then
             echo "bumped=true" >> "$GITHUB_OUTPUT"
-            git push --follow-tags origin main
           else
-            echo "No release needed"
+            echo "Nothing since the last tag warrants a release."
             echo "bumped=false" >> "$GITHUB_OUTPUT"
           fi
+      # No `if:` guard on failure here: from this point any error is a real one.
+      - name: Bump the version
+        id: bump
+        if: steps.check.outputs.bumped == 'true'
+        run: |
+          uvx --from commitizen cz bump --yes ${{ inputs.increment && format('--increment {0}', inputs.increment) || '' }}
+          echo "version=$(uvx --from commitizen cz version --project)" >> "$GITHUB_OUTPUT"
+          git push --follow-tags origin main
 
   build:
     name: Build ${{ matrix.name }}
