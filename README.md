@@ -68,6 +68,84 @@ is macOS and Linux only for now; on Windows agents work through the file handoff
 Intel Macs and Linux: build from source. Full instructions, the reasoning about signing,
 and troubleshooting are in **[docs/install.md](docs/install.md)**.
 
+## Connect an agent
+
+DNAgent is built to be driven by an AI agent as well as by hand. Two pieces do that, and
+they are useful separately:
+
+- **Skills** — the workflow instructions in [`skills/`](skills/): how to inspect a
+  construct, choose a restriction site, express a Gibson assembly as cores, check the
+  product. The agent runs the `dnagent` CLI; it never invents biology.
+- **The MCP server** — `dnagent mcp`, a live link to the running desktop app. The agent
+  can see which constructs you have open and what you have selected, and can put a
+  finished result on your screen with the regions to check already highlighted.
+
+You can use either alone. Skills without MCP is a terminal workflow that writes files the
+app picks up; MCP without skills lets an agent see your screen but not design anything.
+
+### Claude Code
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R skills/dnagent skills/gibson-cloning ~/.claude/skills/
+claude mcp add dnagent -- dnagent mcp
+```
+
+### Claude Desktop (Cowork)
+
+Cowork runs shell commands on your machine, so the skills work there too — which makes it
+the option for colleagues who do not use a terminal.
+
+**Skills**: zip each one and upload at Settings → Capabilities.
+
+```bash
+(cd skills/dnagent && zip -qr ../../dnagent.skill.zip .)
+(cd skills/gibson-cloning && zip -qr ../../gibson-cloning.skill.zip .)
+```
+
+**MCP**: add DNAgent to `claude_desktop_config.json` — on macOS
+`~/Library/Application Support/Claude/claude_desktop_config.json`, on Windows under
+`%APPDATA%\Claude\`. Use the full path to the binary; the app does not read your shell
+`PATH`.
+
+```json
+{
+  "mcpServers": {
+    "dnagent": { "command": "/usr/local/bin/dnagent", "args": ["mcp"] }
+  }
+}
+```
+
+Restart the app. Open a construct in DNAgent and ask *"what am I looking at?"* — it should
+answer with the name and your selection.
+
+### Other MCP clients
+
+`dnagent mcp` is a standard MCP server over stdio, so anything that speaks local MCP can
+use it: **Goose**, **LM Studio** (`~/.lmstudio/mcp.json`), **Cursor**, **Windsurf**,
+**Cline**, **Continue**. The configuration is the same command and argument as above.
+
+The skills are written in Claude's skill format. Other clients will not load them as
+skills, but `SKILL.md` is plain markdown — paste the relevant part into a system prompt
+or project instructions and the workflow still holds, because the real contract is the
+CLI's JSON output.
+
+### ChatGPT
+
+**Not currently possible.** ChatGPT supports only *remote* MCP servers (SSE or streamable
+HTTP); there is no stdio option, so a server on your own machine cannot be reached, and on
+macOS the desktop app exposes no MCP configuration at all. Exposing DNAgent over the
+network would mean serving your constructs to a public endpoint, which is not something
+this tool should make easy. If OpenAI adds local MCP servers, the existing server works
+unchanged.
+
+### Without any of this
+
+The [desktop handoff](docs/agent-handoff.md) needs no MCP and no skills: the app writes
+every open construct and your selection into a workspace folder, and files an agent
+writes back open as tabs. It works on every platform, including Windows, where the live
+channel is not yet available.
+
 ## Build from source
 
 Requires Rust 1.92+; the desktop app also needs Node 22+ and the

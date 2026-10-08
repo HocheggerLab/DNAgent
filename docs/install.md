@@ -127,6 +127,9 @@ socket on your own machine; nothing is sent anywhere.
 and the file-based alternative when no app is running, are in [agent
 handoff](agent-handoff.md).
 
+For Claude Desktop (Cowork), other MCP clients, and why ChatGPT cannot connect, see
+[Connect an agent](../README.md#connect-an-agent) in the README.
+
 ## Updating
 
 Re-run the install command — `tar` overwrites in place. Quit DNAgent first if it is
