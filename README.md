@@ -3,6 +3,7 @@
 [![CI](https://github.com/HocheggerLab/DNAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/HocheggerLab/DNAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/HocheggerLab/DNAgent?include_prereleases&sort=semver)](https://github.com/HocheggerLab/DNAgent/releases/latest)
 [![License: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-hocheggerlab.github.io%2FDNAgent-blue)](https://hocheggerlab.github.io/DNAgent/)
 
 **An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust engine.**
 
@@ -16,6 +17,9 @@ the CLI, never from hand-typed literals.
 
 > Research software from the [Hochegger Lab](https://github.com/HocheggerLab). It predicts
 > sequences and products; it does not validate experiments. Check designs before ordering.
+
+**Documentation: <https://hocheggerlab.github.io/DNAgent/>** — the handbook, plus the Rust
+[API reference](https://hocheggerlab.github.io/DNAgent/api/) generated from the crates.
 
 ## What it does
 

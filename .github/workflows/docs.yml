@@ -1,0 +1,83 @@
+name: Docs
+
+# Publishes two things as one site: the handbook in `docs/` (mdBook) at the root, and the
+# Rust API documentation under /api. Both are generated from sources in this repository,
+# so neither can drift from the code the way a separately maintained site would.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'book.toml'
+      - 'crates/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# Pages needs these; `id-token` is what the deploy action authenticates with.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and let a newer commit win rather than queueing behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install mdBook
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz -C "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # `create-missing = false` in book.toml means a page absent from SUMMARY.md fails
+      # the build rather than being published unreachable.
+      - name: Build the handbook
+        run: mdbook build
+
+      - name: Build the API documentation
+        run: cargo doc --workspace --no-deps --locked
+
+      - name: Assemble the site
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          cp -R target/book/. site/
+          mkdir -p site/api
+          cp -R target/doc/. site/api/
+          # rustdoc's root is a redirect page only when one crate is documented; with a
+          # workspace it is a listing, so point /api at the engine crate.
+          cat > site/api/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8">
+          <title>DNAgent API</title>
+          <meta http-equiv="refresh" content="0; url=dnagent_domain/index.html">
+          <a href="dnagent_domain/index.html">DNAgent API documentation</a>
+          HTML
+          test -f site/index.html
+          test -f site/api/dnagent_domain/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,19 @@
+# The docs site: docs/*.md as written, with no copy step. `src = "docs"` means the
+# markdown GitHub renders in the repository is the same markdown the site serves, so the
+# two cannot drift.
+[book]
+title = "DNAgent"
+description = "An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust engine."
+authors = ["Hochegger Lab"]
+language = "en"
+src = "docs"
+
+[build]
+build-dir = "target/book"
+# Every page must be in SUMMARY.md: a doc nobody linked is a doc nobody reads.
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/HocheggerLab/DNAgent"
+edit-url-template = "https://github.com/HocheggerLab/DNAgent/edit/main/{path}"
+default-theme = "rust"
