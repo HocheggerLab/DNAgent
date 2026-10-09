@@ -7,11 +7,12 @@
 
 **An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust engine.**
 
-<video src="https://github.com/HocheggerLab/DNAgent/raw/main/docs/assets/dnagent-demo.mp4"
-       controls muted playsinline width="860"></video>
+[![DNAgent: an agent and the desktop app on the same construct](docs/assets/dnagent-demo-poster.png)](https://hocheggerlab.github.io/DNAgent/)
 
-*One minute: an agent pulls a cDNA, designs the assembly and puts the finished construct
-on screen, while the desktop app shows every step.*
+*One minute, with sound off: an agent in the terminal reads the selection in the
+desktop app and works on the same construct.* **[Play it](https://hocheggerlab.github.io/DNAgent/)**, or open
+[the file](docs/assets/dnagent-demo.mp4) directly — GitHub will not play a video inline
+unless it is hosted on its own attachment domain.
 
 
 DNAgent is an open replacement for the plasmid viewing and cloning work usually done in
