@@ -9,8 +9,7 @@
 
 https://github.com/user-attachments/assets/3cc75b2c-8f70-443c-8720-5809c27a1ba5
 
-*One minute, no sound: an agent in the terminal reads the selection in the desktop app
-and works on the same construct.*
+*Running a typical cloning design task with DNAgent in Claude Code.*
 
 
 DNAgent is an open replacement for the plasmid viewing and cloning work usually done in

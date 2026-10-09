@@ -6,6 +6,8 @@ engine.**
 <video src="assets/dnagent-demo.mp4" poster="assets/dnagent-demo-poster.png"
        autoplay loop muted playsinline controls width="860"></video>
 
+*Running a typical cloning design task with DNAgent in Claude Code.*
+
 DNAgent is an open replacement for the plasmid viewing and cloning work usually done in
 SnapGene, built so that a person at the desktop and an AI agent in a terminal work on the
 same constructs with the same engine.
