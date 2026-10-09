@@ -11,6 +11,7 @@
 # translated 0x0D would corrupt a fixture and break that guarantee invisibly.
 *.dna binary
 *.png binary
+*.mp4 binary
 *.ico binary
 *.icns binary
 *.prt binary

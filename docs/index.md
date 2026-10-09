@@ -3,6 +3,8 @@
 **An agent-friendly DNA design and cloning workbench: a desktop app and a CLI on one Rust
 engine.**
 
+<video src="assets/dnagent-demo.mp4" controls muted playsinline width="860"></video>
+
 DNAgent is an open replacement for the plasmid viewing and cloning work usually done in
 SnapGene, built so that a person at the desktop and an AI agent in a terminal work on the
 same constructs with the same engine.
